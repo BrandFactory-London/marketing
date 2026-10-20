@@ -24,6 +24,7 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@neondatabase/serverless": "1.2.0",
     "@playwright/test": "1.56.1",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
