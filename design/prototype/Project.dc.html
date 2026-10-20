@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Migss Interiors website</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/bfm/tokens.css">
+<link rel="stylesheet" href="ds/bfm/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;background:#f7f9fb}
+a{color:#0e7c86}a:hover{color:#0b6770}
+</style>
+</helmet>
+<div class="bfm-root" style="display: flex; flex-wrap: wrap; min-height: 1200px; font-family: var(--font-sans); background: var(--surface-50); color: var(--ink);">
+  <dc-import name="Nav" current="projects" hint-size="240px,1200px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 48px 40px; display: flex; flex-direction: column; gap: 24px; max-width: 1240px;">
+    <div style="display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap;">
+      <div>
+        <p class="small" style="margin: 0;"><a href="Projects.dc.html">Projects</a> <span style="color: var(--ink-muted);">/ client</span> <a href="Client.dc.html">Migss Interiors</a></p>
+        <h1 class="title" style="margin: 4px 0 0;">Migss Interiors website</h1>
+        <p class="small" style="margin: 4px 0 0; color: var(--ink-muted);">migssinteriors.com · publishes to Wix Blog</p>
+      </div>
+      <a class="bfm-btn bfm-btn-primary" href="BatchSpec.dc.html" style="text-decoration: none;">Create content</a>
+    </div>
+
+    <div role="tablist" aria-label="Project sections" style="display: flex; gap: 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap;">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
+        <button role="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}" style="border: 0; background: transparent; padding: 12px 16px; font: 600 14px/20px var(--font-sans); color: {{t.color}}; border-bottom: 2px solid {{t.line}}; margin-bottom: -1px; cursor: pointer;">{{t.label}}</button>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{isContent}}" hint-placeholder-val="{{true}}">
+      <section class="bfm-card" style="display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <div>
+            <h2 class="heading" style="margin: 0;">Content on the site</h2>
+            <p class="small" style="margin: 4px 0 0; color: var(--ink-muted);">Every page in the sitemap, with GA4 and Search Console figures.</p>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <span class="bfm-badge bfm-badge-neutral">Sample data</span>
+            <select class="bfm-input" style="height: 36px; width: auto;" aria-label="Date range"><option>Last 28 days</option><option>Last 3 months</option><option>Last 12 months</option></select>
+          </div>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="small" style="width: 100%; border-collapse: collapse; min-width: 820px;">
+            <thead>
+              <tr style="text-align: left; color: var(--ink-muted);">
+                <th class="label" style="padding: 8px 12px; border-bottom: 1px solid var(--line);">Page</th>
+                <th class="label" style="padding: 8px 12px; border-bottom: 1px solid var(--line);">Type</th>
+                <th class="label" style="padding: 8px 12px; border-bottom: 1px solid var(--line); text-align: right;">Views (GA4)</th>
+                <th class="label" style="padding: 8px 12px; border-bottom: 1px solid var(--line); text-align: right;">Avg engagement</th>
+                <th class="label" style="padding: 8px 12px; border-bottom: 1px solid var(--line); text-align: right;">Search clicks</th>
+                <th class="label" style="padding: 8px 12px; border-bottom: 1px solid var(--line); text-align: right;">Impressions</th>
+                <th class="label" style="padding: 8px 12px; border-bottom: 1px solid var(--line); text-align: right;">Avg position</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{pages}}" as="p" hint-placeholder-count="6">
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid var(--line);"><span style="font-weight: 600;">{{p.title}}</span><br><span style="color: var(--ink-muted);">{{p.path}}</span></td>
+                  <td style="padding: 12px; border-bottom: 1px solid var(--line);">{{p.type}}</td>
+                  <td style="padding: 12px; border-bottom: 1px solid var(--line); text-align: right;">{{p.views}}</td>
+                  <td style="padding: 12px; border-bottom: 1px solid var(--line); text-align: right;">{{p.eng}}</td>
+                  <td style="padding: 12px; border-bottom: 1px solid var(--line); text-align: right;">{{p.clicks}}</td>
+                  <td style="padding: 12px; border-bottom: 1px solid var(--line); text-align: right;">{{p.impr}}</td>
+                  <td style="padding: 12px; border-bottom: 1px solid var(--line); text-align: right;">{{p.pos}}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{isSitemap}}" hint-placeholder-val="{{false}}">
+      <section class="bfm-card" style="display: flex; flex-direction: column; gap: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <div>
+            <h2 class="heading" style="margin: 0;">Sitemap</h2>
+            <p class="small" style="margin: 4px 0 0; color: var(--ink-muted);">Built from migssinteriors.com/sitemap.xml · [last read date]</p>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="bfm-btn bfm-btn-secondary bfm-btn-sm">Upload sitemap XML</button>
+            <button class="bfm-btn bfm-btn-primary bfm-btn-sm">Crawl site again</button>
+          </div>
+        </div>
+        <div style="display: flex; gap: 16px; flex-wrap: wrap;" class="small">
+          <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 4px; background: var(--brand-tint); border: 1px solid var(--brand);"></span>Section</span>
+          <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 4px; background: var(--surface-0); border: 1px solid var(--line-strong);"></span>Page</span>
+          <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 4px; background: var(--success-tint); border: 1px solid var(--success);"></span>Written by BrandFactory Marketing</span>
+        </div>
+        <div style="overflow-x: auto;">
+          <div style="min-width: 1080px; display: flex; flex-direction: column; align-items: center;">
+            <div style="padding: 12px 24px; border-radius: var(--radius-md); background: var(--brand); color: var(--on-brand); font-weight: 600;">Home  /</div>
+            <div style="width: 1px; height: 20px; background: var(--line-strong);"></div>
+            <div style="align-self: stretch; height: 1px; background: var(--line-strong); margin: 0 7%;"></div>
+            <div style="align-self: stretch; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px;">
+              <sc-for list="{{siteSections}}" as="sec" hint-placeholder-count="7">
+                <div style="display: flex; flex-direction: column; align-items: stretch; gap: 8px;">
+                  <div style="width: 1px; height: 16px; background: var(--line-strong); align-self: center;"></div>
+                  <div style="padding: 10px 12px; border-radius: var(--radius-md); background: var(--brand-tint); border: 1px solid var(--brand); color: var(--brand-ink);">
+                    <p class="small" style="margin: 0; font-weight: 600;">{{sec.name}}</p>
+                    <p class="small" style="margin: 0; opacity: 0.8;">{{sec.path}} · {{sec.count}}</p>
+                  </div>
+                  <sc-for list="{{sec.pages}}" as="pg" hint-placeholder-count="3">
+                    <div style="margin-left: 12px; padding: 8px 10px; border-radius: var(--radius-sm); background: {{pg.bg}}; border: 1px solid {{pg.border}};" class="small">{{pg.name}}</div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{isPlan}}" hint-placeholder-val="{{false}}">
+      <section class="bfm-card" style="display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <div>
+            <h2 class="heading" style="margin: 0;">Run plan</h2>
+            <p class="small" style="margin: 4px 0 0; color: var(--ink-muted);">Entry package: one planned slot a week is added automatically. Fill in a topic, then tick slots to turn them into a batch.</p>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="bfm-btn bfm-btn-secondary bfm-btn-sm" onClick="{{addPlan}}">Add to plan</button>
+            <a class="bfm-btn bfm-btn-primary bfm-btn-sm" href="BatchSpec.dc.html" style="text-decoration: none;">Create batch from ticked</a>
+          </div>
+        </div>
+        <sc-for list="{{plan}}" as="r" hint-placeholder-count="5">
+          <div class="bfm-reveal" style="display: flex; align-items: center; gap: 16px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-md); flex-wrap: wrap;">
+            <input type="checkbox" aria-label="Select for a batch" style="width: 18px; height: 18px; accent-color: #0e7c86;">
+            <span class="subheading" style="width: 72px;">{{r.date}}</span>
+            <span style="flex: 1 1 280px; min-width: 0;"><span class="body">{{r.topic}}</span><br><span class="small" style="color: var(--ink-muted);">{{r.keyword}}</span></span>
+            <span class="bfm-badge {{r.badgeClass}}">{{r.status}}</span>
+            <div style="display: flex; gap: 4px;">
+              <button class="bfm-btn bfm-btn-ghost bfm-btn-sm">Edit</button>
+              <button class="bfm-btn bfm-btn-ghost bfm-btn-sm" onClick="{{r.remove}}">Remove</button>
+            </div>
+          </div>
+        </sc-for>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{isKnowledge}}" hint-placeholder-val="{{false}}">
+      <section style="display: flex; flex-direction: column; gap: 24px;">
+        <div class="bfm-card" style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; background: var(--brand-tint); border-color: var(--brand-tint);">
+          <p class="body" style="margin: 0; color: var(--brand-ink);">Posts here also follow the Migss Interiors client knowledge and the BrandFactory rules.</p>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <a class="bfm-btn bfm-btn-secondary bfm-btn-sm" href="Client.dc.html" style="text-decoration: none;">Client knowledge</a>
+            <a class="bfm-btn bfm-btn-secondary bfm-btn-sm" href="Settings.dc.html" style="text-decoration: none;">BrandFactory rules</a>
+          </div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: start;">
+          <nav aria-label="Project knowledge sections" class="bfm-card" style="flex: 1 1 220px; max-width: 280px; padding: 12px; display: flex; flex-direction: column; gap: 4px;">
+            <sc-for list="{{kSections}}" as="s" hint-placeholder-count="3">
+              <button class="bfm-nav-item" aria-current="{{s.ac}}" onClick="{{s.pick}}" style="border: 0; background: {{s.bg}}; text-align: left; cursor: pointer; width: 100%;">{{s.label}}<span class="bfm-nav-count">{{s.count}}</span></button>
+            </sc-for>
+          </nav>
+          <div class="bfm-card" style="flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap;">
+              <h2 class="heading" style="margin: 0;">{{kCurrent.label}}</h2>
+              <span class="bfm-badge bfm-badge-neutral">{{kCurrent.source}}</span>
+            </div>
+            <p class="small" style="margin: 0; color: var(--ink-muted);">{{kCurrent.help}}</p>
+            <sc-for list="{{kCurrent.items}}" as="it" hint-placeholder-count="3">
+              <div style="display: flex; gap: 12px; align-items: start; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-0);">
+                <span class="body" style="flex: 1; min-width: 0;">{{it}}</span>
+                <button class="bfm-btn bfm-btn-ghost bfm-btn-sm">Edit</button>
+                <button class="bfm-btn bfm-btn-ghost bfm-btn-sm">Remove</button>
+              </div>
+            </sc-for>
+            <div style="display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+              <button class="bfm-btn bfm-btn-secondary bfm-btn-sm">Add item</button>
+              <button class="bfm-btn bfm-btn-primary bfm-btn-sm">Approve changes</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{isSettings}}" hint-placeholder-val="{{false}}">
+      <section class="bfm-card" style="display: flex; flex-direction: column; gap: 16px;">
+        <h2 class="heading" style="margin: 0;">Project settings</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px 24px;">
+          <label class="bfm-field"><span class="bfm-label">Status</span><select class="bfm-input"><option>Active</option><option>Paused</option></select><span class="bfm-help">Only active projects get planned slots.</span></label>
+          <label class="bfm-field"><span class="bfm-label">Marketing package</span><select class="bfm-input"><option>Entry · 1 SEO post a week</option><option>Mid · 2 SEO posts a week</option><option>Premium · 3 SEO posts a week</option></select><span class="bfm-help">Sets how many planned slots appear in the calendar each week.</span></label>
+          <label class="bfm-field"><span class="bfm-label">Website URL</span><input class="bfm-input" value="https://www.migssinteriors.com"></label>
+          <label class="bfm-field"><span class="bfm-label">Publishing target</span><select class="bfm-input"><option>Wix Blog</option><option>Manual only</option></select></label>
+          <label class="bfm-field"><span class="bfm-label">Google Drive photo folder</span><input class="bfm-input" value="[Migss photo folder]"></label>
+          <label class="bfm-field"><span class="bfm-label">GA4 property</span><select class="bfm-input"><option>[Migss GA4 property]</option></select></label>
+          <label class="bfm-field"><span class="bfm-label">Search Console site</span><select class="bfm-input"><option>[migssinteriors.com]</option></select></label>
+          <label class="bfm-field"><span class="bfm-label">Pillar tags</span><input class="bfm-input" value="Bathroom Renovation, Kitchen Renovation"></label>
+        </div>
+      </section>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      tab: 'content',
+      kpick: 'icp',
+      plan: [
+        { id: 1, date: '27 Oct', topic: 'Wet room or shower tray: which suits your bathroom?', keyword: 'wet room vs shower tray', status: 'Needs review' },
+        { id: 2, date: '3 Nov', topic: 'How much does a bathroom renovation cost in Essex?', keyword: 'bathroom renovation cost essex', status: 'Needs review' },
+        { id: 3, date: '10 Nov', topic: 'Walk-in shower ideas for small bathrooms', keyword: 'walk in shower small bathroom', status: 'Needs review' },
+        { id: 4, date: '17 Nov', topic: 'Bathroom fitters in Chigwell', keyword: 'bathroom fitters chigwell', status: 'Approved' },
+        { id: 5, date: '24 Nov', topic: '[Topic to plan]', keyword: '[keyword]', status: 'Draft' }
+      ],
+      nextId: 6
+    };
+  }
+  renderVals() {
+    const kData = {
+      icp: { label: 'Ideal customer profiles', source: 'Edited by you', help: 'Who the posts on this site are written for.', items: ['[Profile 1: who, where, what they want, what worries them]', '[Profile 2]'] },
+      pfacts: { label: 'Project facts', source: 'Edited by you', help: 'Facts for this site only, such as its CTA and booking route.', items: ['Primary CTA: free design consultation', '[Booking route]'] },
+      pages: { label: 'Site pages', source: 'From sitemap', help: 'Every page on the site, used to avoid repeats and to find link opportunities. See the Sitemap tab.', items: ['/renovation-services/bathroom', '/renovation-services/kitchen', '/locations/loughton', '/resources/bathroom', '/our-projects'] }
+    };
+    const tabDefs = [['content', 'Content and performance'], ['sitemap', 'Sitemap'], ['plan', 'Run plan'], ['knowledge', 'Knowledge'], ['settings', 'Settings']];
+    const cur = this.state.tab;
+    const tone = { 'Needs review': 'bfm-badge-warning', 'Approved': 'bfm-badge-success', 'Published': 'bfm-badge-success', 'Draft': 'bfm-badge-neutral' };
+    return {
+      tabs: tabDefs.map(([id, label]) => ({
+        label,
+        sel: id === cur ? 'true' : 'false',
+        color: id === cur ? 'var(--ink)' : 'var(--ink-muted)',
+        line: id === cur ? 'var(--brand)' : 'transparent',
+        pick: () => this.setState({ tab: id })
+      })),
+      isContent: cur === 'content',
+      isSitemap: cur === 'sitemap',
+      siteSections: (() => {
+        const page = (name, ours) => ({ name, bg: ours ? 'var(--success-tint)' : 'var(--surface-0)', border: ours ? 'var(--success)' : 'var(--line-strong)' });
+        return [
+          { name: 'Renovation services', path: '/renovation-services', count: '3 pages', pages: [page('Bathroom'), page('Kitchen'), page('Interior')] },
+          { name: 'Our projects', path: '/our-projects', count: '[n] pages', pages: [page('[Project page]'), page('[Project page]')] },
+          { name: 'Resources', path: '/resources', count: '2 pages', pages: [page('Bathroom pillar'), page('Kitchen pillar')] },
+          { name: 'Blog', path: '/blog', count: '[n] posts', pages: [page('[Earlier post]', true), page('[Earlier post]', true), page('[Existing post]')] },
+          { name: 'Locations', path: '/locations', count: '10 pages', pages: [page('Chigwell'), page('Epping'), page('Loughton'), page('Theydon Bois'), page('Hornchurch'), page('Brentwood'), page('Wanstead'), page('Woodford'), page('Chingford'), page('Ilford')] },
+          { name: 'Company', path: '/', count: '3 pages', pages: [page('About'), page('Contact'), page('Join the team')] },
+          { name: 'Legal', path: '/', count: '4 pages', pages: [page('Terms of use'), page('Privacy policy'), page('Labour guarantee'), page('Product warranty')] }
+        ];
+      })(),
+      isPlan: cur === 'plan',
+      isKnowledge: cur === 'knowledge',
+      kSections: ['icp', 'pfacts', 'pages'].map((id) => ({
+        label: kData[id].label,
+        count: String(kData[id].items.length),
+        ac: id === this.state.kpick ? 'page' : 'false',
+        bg: id === this.state.kpick ? 'var(--brand-tint)' : 'transparent',
+        pick: () => this.setState({ kpick: id })
+      })),
+      kCurrent: kData[this.state.kpick],
+      isSettings: cur === 'settings',
+      pages: [
+        { title: 'Bathroom renovation', path: '/renovation-services/bathroom', type: 'Service page', views: '1,240', eng: '1m 52s', clicks: '310', impr: '9,800', pos: '8.4' },
+        { title: 'Kitchen renovation', path: '/renovation-services/kitchen', type: 'Service page', views: '860', eng: '1m 31s', clicks: '190', impr: '7,200', pos: '11.2' },
+        { title: 'Bathroom fitters in Loughton', path: '/locations/loughton', type: 'Location page', views: '410', eng: '1m 05s', clicks: '120', impr: '2,900', pos: '6.1' },
+        { title: '[Existing blog post]', path: '/blog/[slug]', type: 'Blog post', views: '380', eng: '2m 40s', clicks: '95', impr: '4,100', pos: '14.7' },
+        { title: 'Our projects', path: '/our-projects', type: 'Gallery', views: '720', eng: '2m 12s', clicks: '40', impr: '1,300', pos: '19.3' },
+        { title: 'Resources: bathroom', path: '/resources/bathroom', type: 'Pillar page', views: '290', eng: '1m 20s', clicks: '35', impr: '2,200', pos: '22.5' }
+      ],
+      plan: this.state.plan.map((r) => Object.assign({}, r, {
+        badgeClass: tone[r.status] || 'bfm-badge-neutral',
+        remove: () => this.setState({ plan: this.state.plan.filter((x) => x.id !== r.id) })
+      })),
+      addPlan: () => this.setState({
+        plan: this.state.plan.concat([{ id: this.state.nextId, date: '[Date]', topic: '[New topic]', keyword: '[keyword]', status: 'Draft' }]),
+        nextId: this.state.nextId + 1
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

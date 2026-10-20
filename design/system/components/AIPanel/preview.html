@@ -1,0 +1,33 @@
+<!-- @dsCard group="AI" height=300 subtitle="Generating state: aurora glow, shimmer status, progress and skeleton lines" -->
+<div class="bfm-root" style="padding: 24px;">
+  <div class="bfm-aurora bfm-aurora-active" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+      <span class="bfm-shimmer" style="font-weight: 600; font-size: 15px;" id="status">Writing post 2 of 4: Wet room vs shower tray</span>
+      <span class="bfm-badge bfm-badge-brand">Writing</span>
+    </div>
+    <div class="bfm-progress"><div class="bfm-progress-bar" id="bar" style="width: 38%;"></div></div>
+    <div style="display: flex; flex-direction: column; gap: 10px; padding-top: 8px;">
+      <div class="bfm-skeleton" style="width: 92%;"></div>
+      <div class="bfm-skeleton" style="width: 84%;"></div>
+      <div class="bfm-skeleton" style="width: 88%;"></div>
+      <div class="bfm-skeleton" style="width: 56%;"></div>
+    </div>
+  </div>
+</div>
+<script>
+  (function () {
+    var bar = document.getElementById('bar');
+    var status = document.getElementById('status');
+    var steps = [
+      ['Writing post 2 of 4: Wet room vs shower tray', 38],
+      ['Checking post 2 against the Migss rules', 50],
+      ['Writing post 3 of 4: Bathroom renovation cost in Essex', 63]
+    ];
+    var i = 0;
+    setInterval(function () {
+      i = (i + 1) % steps.length;
+      status.textContent = steps[i][0];
+      bar.style.width = steps[i][1] + '%';
+    }, 2600);
+  })();
+</script>

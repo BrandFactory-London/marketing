@@ -1,0 +1,45 @@
+<!-- @dsCard height=296 -->
+<div class="bfm-cover" style="position: relative; width: 960px; height: 296px; background: var(--surface-50); font-family: var(--font-sans); overflow: hidden;">
+  <style>
+    .bfm-cover .brand { fill: var(--brand); }
+    .bfm-cover .cyan { fill: var(--aurora-cyan); }
+    .bfm-cover .sky { fill: var(--aurora-sky); }
+    .bfm-cover .peach { fill: var(--aurora-peach); }
+    .bfm-cover .ink { fill: var(--ink); }
+    .bfm-cover .cut { fill: var(--surface-0); }
+    .bfm-cover .r-xl { rx: var(--radius-xl); }
+    .bfm-cover .r-pill56 { rx: 56px; }
+  </style>
+  <svg width="960" height="148" viewBox="0 0 960 148" style="position: absolute; left: 0; top: 0;" aria-hidden="true">
+    <!--
+      blocks: brand 360x112 (radius-xl), aurora-cyan 176x112 pill, aurora-sky 240x112 (radius-xl), aurora-peach 160x112 bleeding off the right (radius-xl), ink as discs
+      arrangement: top band, a strip of unequal bands at space-4 gaps, the last one bleeding off the right edge
+      pattern: soft discs, because the README calls the interface light and calm with large radii and pill badges
+      steps and radii: band 112 tall at space-6 from the top, gaps space-4, discs 16 across on a 24 pitch (space-6), radius-xl and radius-pill
+    -->
+    <rect class="brand r-xl" x="40" y="24" width="360" height="112"/>
+    <rect class="cyan r-pill56" x="416" y="24" width="176" height="112"/>
+    <rect class="sky r-xl" x="608" y="24" width="240" height="112"/>
+    <rect class="peach r-xl" x="864" y="24" width="160" height="112"/>
+    <circle class="cut" cx="232" cy="56" r="8"/>
+    <circle class="cut" cx="256" cy="56" r="8"/>
+    <circle class="cut" cx="280" cy="56" r="8"/>
+    <circle class="cut" cx="304" cy="56" r="8"/>
+    <circle class="cut" cx="328" cy="56" r="8"/>
+    <circle class="cut" cx="352" cy="56" r="8"/>
+    <circle class="cut" cx="304" cy="80" r="8"/>
+    <circle class="cut" cx="328" cy="80" r="8"/>
+    <circle class="cut" cx="352" cy="80" r="8"/>
+    <circle class="cut" cx="352" cy="104" r="8"/>
+    <circle class="ink" cx="656" cy="104" r="8"/>
+    <circle class="ink" cx="680" cy="104" r="8"/>
+    <circle class="ink" cx="704" cy="104" r="8"/>
+    <circle class="ink" cx="680" cy="80" r="8"/>
+    <circle class="ink" cx="704" cy="80" r="8"/>
+    <circle class="ink" cx="704" cy="56" r="8"/>
+  </svg>
+  <div style="position: absolute; left: 40px; top: 176px; width: 880px;">
+    <div style="font-size: 64px; line-height: 60px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink);">BrandFactory Marketing</div>
+    <div style="font-size: 14px; line-height: 20px; color: var(--ink-muted); margin-top: 16px; max-width: 440px;">Client knowledge in, approved content out.</div>
+  </div>
+</div>

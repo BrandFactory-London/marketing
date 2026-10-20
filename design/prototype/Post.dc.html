@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Review a post</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/bfm/tokens.css">
+<link rel="stylesheet" href="ds/bfm/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;background:#f7f9fb}
+a{color:#0e7c86}a:hover{color:#0b6770}
+</style>
+</helmet>
+<div class="bfm-root" style="display: flex; flex-wrap: wrap; min-height: 1000px; font-family: var(--font-sans); background: var(--surface-50); color: var(--ink);">
+  <dc-import name="Nav" current="review" hint-size="240px,1000px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 48px 40px; display: flex; flex-direction: column; gap: 24px; max-width: 1280px;">
+    <div style="display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap;">
+      <div>
+        <p class="small" style="margin: 0;"><a href="Review.dc.html">Review queue</a> <span style="color: var(--ink-muted);">/ Post 1 of 3</span></p>
+        <h1 class="title" style="margin: 4px 0 0;">Review a post</h1>
+      </div>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <button class="bfm-btn bfm-btn-danger">Reject</button>
+        <button class="bfm-btn bfm-btn-secondary">Regenerate with a note</button>
+        <a class="bfm-btn bfm-btn-primary" href="Publish.dc.html" style="text-decoration: none;">Approve post</a>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: start;">
+      <article class="bfm-card" style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 32px;">
+        <label class="bfm-field"><span class="bfm-label">Title</span><input class="bfm-input" value="Wet room or shower tray: which suits your bathroom?" style="font-size: 20px; font-weight: 600; height: 52px;"></label>
+        <label class="bfm-field"><span class="bfm-label">Excerpt</span><textarea class="bfm-input" style="min-height: 72px;">[Excerpt drafted by the writer. Up to 160 characters.]</textarea><span class="bfm-help">Becomes the page's meta description on migssinteriors.com.</span></label>
+        <div style="border-top: 1px solid var(--line); padding-top: 16px; display: flex; flex-direction: column; gap: 12px;">
+          <p class="label" style="margin: 0; color: var(--ink-muted);">BODY · 2,140 WORDS · EDITABLE</p>
+          <h2 class="heading" style="margin: 0;">What each option is</h2>
+          <p class="body" style="margin: 0; color: var(--ink-muted);">[Draft paragraphs from the writer appear here, fully editable. Your edits are tracked and offered back as rule candidates.]</p>
+          <h2 class="heading" style="margin: 0;">Cost and installation differences</h2>
+          <p class="body" style="margin: 0; color: var(--ink-muted);">[Draft paragraphs.]</p>
+          <h2 class="heading" style="margin: 0;">Which works in small bathrooms</h2>
+          <p class="body" style="margin: 0; color: var(--ink-muted);">[Draft paragraphs.]</p>
+          <h2 class="heading" style="margin: 0;">Frequently asked questions</h2>
+          <p class="body" style="margin: 0; color: var(--ink-muted);">[FAQ block, included because the spec asked for one.]</p>
+          <div style="padding: 16px; border-radius: var(--radius-md); background: var(--brand-tint); color: var(--brand-ink);" class="body">Call to action: Book a free design consultation</div>
+        </div>
+      </article>
+
+      <aside style="flex: 1 1 320px; max-width: 400px; display: flex; flex-direction: column; gap: 24px;">
+        <section class="bfm-aurora" style="padding: 20px; display: flex; flex-direction: column; gap: 12px; border-radius: var(--radius-lg);">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <h2 class="subheading" style="margin: 0;">Internal links</h2>
+            <span class="bfm-badge bfm-badge-neutral">Not optimised</span>
+          </div>
+          <p class="small" style="margin: 0; color: var(--ink-muted);">Scan the site for pages this post should link to. Suggested rewrites go back through the critic before you see them.</p>
+          <a class="bfm-btn bfm-btn-primary" href="Links.dc.html" style="text-decoration: none; align-self: start;">Optimise links</a>
+        </section>
+        <section class="bfm-card" style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <h2 class="subheading" style="margin: 0;">Critic notes</h2>
+            <span class="bfm-badge bfm-badge-success">Passed</span>
+          </div>
+          <p class="small" style="margin: 0; color: var(--ink-muted);">Sonnet · round 1</p>
+          <div style="padding: 12px; border-radius: var(--radius-md); background: var(--success-tint);" class="small"><span style="color: var(--success); font-weight: 600;">Voice:</span> no banned phrases, no em dashes.</div>
+          <div style="padding: 12px; border-radius: var(--radius-md); background: var(--success-tint);" class="small"><span style="color: var(--success); font-weight: 600;">Facts:</span> every claim matches the knowledge pack.</div>
+          <div style="padding: 12px; border-radius: var(--radius-md); background: var(--warning-tint);" class="small"><span style="color: var(--warning); font-weight: 600;">Suggestion:</span> the small-bathroom section could name a completed project.</div>
+        </section>
+
+        <section class="bfm-card" style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <h2 class="subheading" style="margin: 0;">Cover image</h2>
+            <span class="small" style="color: var(--ink-muted);">From Google Drive</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+            <sc-for list="{{photos}}" as="p" hint-placeholder-count="6">
+              <button onClick="{{p.pick}}" aria-label="{{p.label}}" style="aspect-ratio: 4 / 3; border-radius: var(--radius-sm); border: 2px solid {{p.border}}; background: {{p.bg}}; cursor: pointer; display: grid; place-items: center; font: 500 11px/14px var(--font-sans); color: var(--ink-muted); padding: 4px;">{{p.label}}</button>
+            </sc-for>
+          </div>
+          <p class="small" style="margin: 0; color: var(--ink-muted);">Selected: {{selectedLabel}}</p>
+        </section>
+
+        <section class="bfm-card" style="display: flex; flex-direction: column; gap: 12px;">
+          <h2 class="subheading" style="margin: 0;">Publishing details</h2>
+          <label class="bfm-field"><span class="bfm-label">Slug</span><input class="bfm-input" value="wet-room-vs-shower-tray"></label>
+          <label class="bfm-field"><span class="bfm-label">Pillar tag</span><select class="bfm-input"><option>Bathroom Renovation</option><option>Kitchen Renovation</option></select><span class="bfm-help">Places the post on the matching resources page.</span></label>
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { photo: 1 };
+  }
+  renderVals() {
+    const tints = ['var(--surface-100)', 'var(--brand-tint)', 'var(--surface-100)', 'var(--warning-tint)', 'var(--surface-100)', 'var(--success-tint)'];
+    const photos = tints.map((bg, i) => ({
+      label: '[Drive photo ' + (i + 1) + ']',
+      bg,
+      border: i === this.state.photo ? 'var(--brand)' : 'transparent',
+      pick: () => this.setState({ photo: i })
+    }));
+    return { photos, selectedLabel: '[Drive photo ' + (this.state.photo + 1) + ']' };
+  }
+}
+</script>
+</body>
+</html>

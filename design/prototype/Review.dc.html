@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Review queue</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/bfm/tokens.css">
+<link rel="stylesheet" href="ds/bfm/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;background:#f7f9fb}
+a{color:#0e7c86}a:hover{color:#0b6770}
+</style>
+</helmet>
+<div class="bfm-root" style="display: flex; flex-wrap: wrap; min-height: 1000px; font-family: var(--font-sans); background: var(--surface-50); color: var(--ink);">
+  <dc-import name="Nav" current="review" hint-size="240px,1000px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 48px 40px; display: flex; flex-direction: column; gap: 24px; max-width: 1200px;">
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div>
+        <p class="small" style="margin: 0; color: var(--ink-muted);">Every post waits here for your approval before it can publish.</p>
+        <h1 class="title" style="margin: 4px 0 0;">Review queue</h1>
+      </div>
+      <ol class="bfm-stepper" aria-label="Batch progress">
+        <li class="bfm-step bfm-step-done"><span class="bfm-step-dot">1</span>Spec</li>
+        <li class="bfm-step-line" aria-hidden="true"></li>
+        <li class="bfm-step bfm-step-done"><span class="bfm-step-dot">2</span>Confirm</li>
+        <li class="bfm-step-line" aria-hidden="true"></li>
+        <li class="bfm-step bfm-step-done"><span class="bfm-step-dot">3</span>Generate</li>
+        <li class="bfm-step-line" aria-hidden="true"></li>
+        <li class="bfm-step bfm-step-current" aria-current="step"><span class="bfm-step-dot">4</span>Review</li>
+        <li class="bfm-step-line" aria-hidden="true"></li>
+        <li class="bfm-step"><span class="bfm-step-dot">5</span>Publish</li>
+      </ol>
+    </div>
+
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <sc-for list="{{filters}}" as="f" hint-placeholder-count="3">
+        <button class="bfm-btn {{f.cls}} bfm-btn-sm" onClick="{{f.pick}}">{{f.label}}</button>
+      </sc-for>
+    </div>
+
+    <section class="bfm-card" style="display: flex; flex-direction: column; padding: 8px 24px;">
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+        <a href="{{r.href}}" style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; flex-wrap: wrap;">
+          <div style="flex: 1 1 360px; min-width: 0;">
+            <p class="subheading" style="margin: 0;">{{r.title}}</p>
+            <p class="small" style="margin: 2px 0 0; color: var(--ink-muted);">{{r.meta}}</p>
+          </div>
+          <span class="small" style="color: var(--ink-muted);">{{r.critic}}</span>
+          <span class="bfm-badge {{r.badgeClass}}">{{r.badge}}</span>
+        </a>
+      </sc-for>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { filter: 'review' };
+  }
+  renderVals() {
+    const all = [
+      { title: 'Wet room or shower tray: which suits your bathroom?', meta: 'Migss Interiors website · November · 2,140 words', critic: 'Critic passed, round 1', badge: 'Needs review', badgeClass: 'bfm-badge-warning', status: 'review', href: 'Post.dc.html' },
+      { title: 'How much does a bathroom renovation cost in Essex?', meta: 'Migss Interiors website · November · 2,310 words', critic: 'Critic passed, round 2', badge: 'Needs review', badgeClass: 'bfm-badge-warning', status: 'review', href: 'Post.dc.html' },
+      { title: 'Walk-in shower ideas for small bathrooms', meta: 'Migss Interiors website · November · 1,960 words', critic: 'Critic passed, round 1', badge: 'Needs review', badgeClass: 'bfm-badge-warning', status: 'review', href: 'Post.dc.html' },
+      { title: 'Bathroom fitters in Chigwell', meta: 'Migss Interiors website · November · 1,420 words', critic: 'Critic passed, round 1', badge: 'Approved', badgeClass: 'bfm-badge-success', status: 'approved', href: 'Publish.dc.html' }
+    ];
+    const defs = [['review', 'Needs review'], ['approved', 'Approved'], ['all', 'All']];
+    const cur = this.state.filter;
+    return {
+      filters: defs.map(([id, label]) => ({ label, cls: id === cur ? 'bfm-btn-primary' : 'bfm-btn-secondary', pick: () => this.setState({ filter: id }) })),
+      rows: all.filter((r) => cur === 'all' || r.status === cur)
+    };
+  }
+}
+</script>
+</body>
+</html>

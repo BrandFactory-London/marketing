@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/bfm/tokens.css">
+<link rel="stylesheet" href="ds/bfm/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;background:#f7f9fb}
+a{color:#0e7c86}a:hover{color:#0b6770}
+</style>
+</helmet>
+<div class="bfm-root" style="display: flex; flex-wrap: wrap; min-height: 1100px; font-family: var(--font-sans); background: var(--surface-50); color: var(--ink);">
+  <dc-import name="Nav" current="{{navCurrent}}" hint-size="240px,1100px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 48px 40px; display: flex; flex-direction: column; gap: 24px; max-width: 1100px;">
+    <div>
+      <p class="small" style="margin: 0; color: var(--ink-muted);">Rules and defaults that apply across every client and project.</p>
+      <h1 class="title" style="margin: 4px 0 0;">Settings</h1>
+    </div>
+
+    <div role="tablist" aria-label="Settings sections" style="display: flex; gap: 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap;">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+        <button role="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}" style="border: 0; background: transparent; padding: 12px 16px; font: 600 14px/20px var(--font-sans); color: {{t.color}}; border-bottom: 2px solid {{t.line}}; margin-bottom: -1px; cursor: pointer;">{{t.label}}</button>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{isRules}}" hint-placeholder-val="{{true}}">
+      <div style="display: flex; flex-direction: column; gap: 24px;">
+        <p class="small" style="margin: 0; color: var(--ink-muted);">The writer and critic apply these to every post for every client. Client knowledge (in the CRM) and project knowledge (on each project) add to them; they never override them.</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: start;">
+          <nav aria-label="Rule sections" class="bfm-card" style="flex: 1 1 220px; max-width: 280px; padding: 12px; display: flex; flex-direction: column; gap: 4px;">
+            <sc-for list="{{rSections}}" as="s" hint-placeholder-count="2">
+              <button class="bfm-nav-item" aria-current="{{s.ac}}" onClick="{{s.pick}}" style="border: 0; background: {{s.bg}}; text-align: left; cursor: pointer; width: 100%;">{{s.label}}<span class="bfm-nav-count">{{s.count}}</span></button>
+            </sc-for>
+          </nav>
+          <div class="bfm-card" style="flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+            <h2 class="heading" style="margin: 0;">{{rCurrent.label}}</h2>
+            <p class="small" style="margin: 0; color: var(--ink-muted);">{{rCurrent.help}}</p>
+            <sc-for list="{{rCurrent.items}}" as="it" hint-placeholder-count="4">
+              <div style="display: flex; gap: 12px; align-items: start; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-0);">
+                <span class="body" style="flex: 1; min-width: 0;">{{it}}</span>
+                <button class="bfm-btn bfm-btn-ghost bfm-btn-sm">Edit</button>
+                <button class="bfm-btn bfm-btn-ghost bfm-btn-sm">Remove</button>
+              </div>
+            </sc-for>
+            <button class="bfm-btn bfm-btn-secondary bfm-btn-sm" style="align-self: start;">Add rule</button>
+          </div>
+        </div>
+
+        <section class="bfm-aurora" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <h2 class="heading" style="margin: 0;">Rule candidates from your edits</h2>
+            <span class="small" style="color: var(--ink-muted);">Choose where each rule belongs</span>
+          </div>
+          <sc-for list="{{rules}}" as="r" hint-placeholder-count="2">
+            <div style="display: flex; gap: 16px; align-items: center; justify-content: space-between; padding: 12px 16px; border-radius: var(--radius-md); background: var(--surface-0); border: 1px solid var(--line); flex-wrap: wrap;">
+              <div style="flex: 1 1 320px; min-width: 0;">
+                <p class="body" style="margin: 0;">{{r.text}}</p>
+                <p class="small" style="margin: 4px 0 0; color: var(--ink-muted);">{{r.from}}</p>
+              </div>
+              <sc-if value="{{r.open}}" hint-placeholder-val="{{true}}">
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                  <select class="bfm-input" style="height: 32px; width: auto; font-size: 13px;" aria-label="Where it belongs"><option>{{r.tier}}</option><option>BrandFactory rules</option><option>Client: Migss Interiors</option><option>Project: Migss Interiors website</option></select>
+                  <button class="bfm-btn bfm-btn-ghost bfm-btn-sm" onClick="{{r.reject}}">Dismiss</button>
+                  <button class="bfm-btn bfm-btn-primary bfm-btn-sm" onClick="{{r.accept}}">Accept rule</button>
+                </div>
+              </sc-if>
+              <sc-if value="{{r.done}}" hint-placeholder-val="{{false}}">
+                <span class="bfm-badge {{r.badgeClass}}">{{r.result}}</span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </section>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isModels}}" hint-placeholder-val="{{false}}">
+      <div style="display: flex; flex-direction: column; gap: 24px;">
+        <section class="bfm-card" style="display: flex; flex-direction: column; gap: 16px;">
+          <h2 class="heading" style="margin: 0;">AI models</h2>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px 24px;">
+            <label class="bfm-field"><span class="bfm-label">Writer</span><select class="bfm-input"><option>Opus</option><option>Sonnet</option><option>Haiku</option></select><span class="bfm-help">Drafts each SEO post.</span></label>
+            <label class="bfm-field"><span class="bfm-label">Critic</span><select class="bfm-input"><option>Sonnet</option><option>Opus</option><option>Haiku</option></select><span class="bfm-help">Checks drafts and link rewrites against the rules and knowledge.</span></label>
+            <label class="bfm-field"><span class="bfm-label">Derivatives</span><select class="bfm-input"><option>Sonnet</option><option>Opus</option><option>Haiku</option></select><span class="bfm-help">Writes GMB and LinkedIn versions.</span></label>
+            <label class="bfm-field"><span class="bfm-label">Critic rounds before flagging</span><select class="bfm-input"><option>2</option><option>1</option><option>3</option></select><span class="bfm-help">After this many failed checks, the post comes to you flagged.</span></label>
+          </div>
+          <p class="small" style="margin: 0; color: var(--ink-muted);">Defaults shown are placeholders until the side-by-side model test is done. Each batch can override them.</p>
+        </section>
+        <section class="bfm-card" style="display: flex; flex-direction: column; gap: 16px;">
+          <h2 class="heading" style="margin: 0;">Run mode</h2>
+          <label style="display: flex; gap: 12px; align-items: start; padding: 16px; border: 2px solid var(--brand); border-radius: var(--radius-md); background: var(--brand-tint);">
+            <input type="radio" name="mode" checked style="margin-top: 4px; accent-color: #0e7c86;">
+            <span><span class="subheading">Immediate</span><br><span class="small" style="color: var(--ink-muted);">Batches finish in minutes at normal price.</span></span>
+          </label>
+          <label style="display: flex; gap: 12px; align-items: start; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-md); opacity: 0.6;">
+            <input type="radio" name="mode" disabled style="margin-top: 4px;">
+            <span><span class="subheading">Monthly batch</span> <span class="bfm-badge bfm-badge-neutral">Planned for v2</span><br><span class="small" style="color: var(--ink-muted);">All of a month's planned slots written on the 1st at half price, each published on its date.</span></span>
+          </label>
+        </section>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isConnections}}" hint-placeholder-val="{{false}}">
+      <section class="bfm-card" style="display: flex; flex-direction: column; gap: 4px;">
+        <h2 class="heading" style="margin: 0 0 12px;">Connections</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap;">
+          <span><span class="subheading">Anthropic API</span><br><span class="small" style="color: var(--ink-muted);">Key stored encrypted, never shown again</span></span>
+          <span class="bfm-badge bfm-badge-success">Connected</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap;">
+          <span><span class="subheading">Google</span><br><span class="small" style="color: var(--ink-muted);">Drive photo folders, GA4 and Search Console, read only. Each project picks its own folder and properties.</span></span>
+          <span class="bfm-badge bfm-badge-success">Connected</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; flex-wrap: wrap;">
+          <span><span class="subheading">Wix</span><br><span class="small" style="color: var(--ink-muted);">Blog publishing for Migss Interiors website</span></span>
+          <span class="bfm-badge bfm-badge-success">Connected</span>
+        </div>
+      </section>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'rules', rpick: 'rules', rules: { r1: null, r2: null } };
+  }
+  renderVals() {
+    const rData = {
+      rules: { label: 'Writing rules', help: 'The critic rejects any draft that breaks one.', items: ['Never use em dashes', 'No rule of three: avoid lists of three adjectives or phrases for rhythm', 'No generic writing: every paragraph carries a specific fact, example or number', 'Plain British English, short sentences'] },
+      banned: { label: 'Banned phrases', help: 'Rejected for every client.', items: ['"not just X, but Y"', '"elevate"', '"look no further"', '"in today\'s fast-paced world"'] }
+    };
+    const tabDefs = [['rules', 'BrandFactory rules'], ['models', 'AI models'], ['connections', 'Connections']];
+    const cur = this.state.tab;
+    const ruleDefs = [
+      { id: 'r1', text: 'Open cost guides with the price range before explaining what drives it.', from: 'From your edit to "Bathroom renovation cost in Essex"', tier: 'Suggested: BrandFactory rules' },
+      { id: 'r2', text: 'Name the area in the first paragraph of local posts.', from: 'From your edit to "Bathroom fitters in Chigwell"', tier: 'Suggested: Client: Migss Interiors' }
+    ];
+    return {
+      navCurrent: cur,
+      tabs: tabDefs.map(([id, label]) => ({
+        label,
+        sel: id === cur ? 'true' : 'false',
+        color: id === cur ? 'var(--ink)' : 'var(--ink-muted)',
+        line: id === cur ? 'var(--brand)' : 'transparent',
+        pick: () => this.setState({ tab: id })
+      })),
+      isRules: cur === 'rules',
+      isModels: cur === 'models',
+      isConnections: cur === 'connections',
+      rSections: ['rules', 'banned'].map((id) => ({
+        label: rData[id].label,
+        count: String(rData[id].items.length),
+        ac: id === this.state.rpick ? 'page' : 'false',
+        bg: id === this.state.rpick ? 'var(--brand-tint)' : 'transparent',
+        pick: () => this.setState({ rpick: id })
+      })),
+      rCurrent: rData[this.state.rpick],
+      rules: ruleDefs.map((r) => {
+        const v = this.state.rules[r.id];
+        const setTo = (val) => () => this.setState({ rules: Object.assign({}, this.state.rules, { [r.id]: val }) });
+        return {
+          text: r.text, from: r.from, tier: r.tier,
+          open: v === null, done: v !== null,
+          result: v === 'accepted' ? 'Accepted' : 'Dismissed',
+          badgeClass: v === 'accepted' ? 'bfm-badge-success' : 'bfm-badge-neutral',
+          accept: setTo('accepted'), reject: setTo('dismissed')
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

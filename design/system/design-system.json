@@ -1,0 +1,19 @@
+{
+  "v": 3,
+  "layout": "files",
+  "createdOnFiles": { "v": 1, "at": "2026-10-20T19:45:00Z" },
+  "title": "BrandFactory Marketing",
+  "namespace": "BFM",
+  "libraries": [],
+  "sections": {},
+  "groups": [],
+  "assetGroups": {},
+  "blobs": {},
+  "docs": { "sections": [] },
+  "lastChange": {
+    "by": "Amir Taylor",
+    "at": "2026-10-20T19:45:00Z",
+    "via": "Claude chat",
+    "note": "First version: light theme tokens, brand book, seven components and cover."
+  }
+}

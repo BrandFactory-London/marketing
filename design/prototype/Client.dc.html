@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Migss Interiors</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/bfm/tokens.css">
+<link rel="stylesheet" href="ds/bfm/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;background:#f7f9fb}
+a{color:#0e7c86}a:hover{color:#0b6770}
+</style>
+</helmet>
+<div class="bfm-root" style="display: flex; flex-wrap: wrap; min-height: 1400px; font-family: var(--font-sans); background: var(--surface-50); color: var(--ink);">
+  <dc-import name="Nav" current="crm" hint-size="240px,1400px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 48px 40px; display: flex; flex-direction: column; gap: 32px; max-width: 1200px;">
+    <div style="display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap;">
+      <div>
+        <p class="small" style="margin: 0;"><a href="CRM.dc.html">CRM</a> <span style="color: var(--ink-muted);">/ Migss Interiors</span></p>
+        <h1 class="title" style="margin: 4px 0 0;">Migss Interiors</h1>
+        <p class="small" style="margin: 4px 0 0; color: var(--ink-muted);">[Main contact] · [email] · [phone]</p>
+      </div>
+      <button class="bfm-btn bfm-btn-secondary">Edit client</button>
+    </div>
+
+    <section style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h2 class="heading" style="margin: 0;">Projects</h2>
+        <a class="small" href="Projects.dc.html">Add project</a>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px;">
+        <a class="bfm-card bfm-card-interactive" href="Project.dc.html" style="text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px;">
+            <div>
+              <p class="bfm-card-title">Migss Interiors website</p>
+              <p class="bfm-card-meta">migssinteriors.com · Wix Blog</p>
+            </div>
+            <span class="bfm-badge bfm-badge-success">Active</span>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <span class="bfm-badge bfm-badge-brand">Entry · 1 post a week</span>
+            <span class="bfm-badge bfm-badge-warning">3 to review</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="bfm-progress" style="flex: 1;"><div class="bfm-progress-bar" style="width: 75%; animation: none;"></div></div>
+            <span class="small">This month: 3 of 4 written</span>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 16px;">
+      <div>
+        <h2 class="heading" style="margin: 0;">Client knowledge</h2>
+        <p class="small" style="margin: 4px 0 0; color: var(--ink-muted);">Shared by every Migss project. Adds to the BrandFactory rules in Settings, never overrides them.</p>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: start;">
+        <nav aria-label="Knowledge sections" class="bfm-card" style="flex: 1 1 220px; max-width: 280px; padding: 12px; display: flex; flex-direction: column; gap: 4px;">
+          <sc-for list="{{sections}}" as="s" hint-placeholder-count="6">
+            <button class="bfm-nav-item" aria-current="{{s.ac}}" onClick="{{s.pick}}" style="border: 0; background: {{s.bg}}; text-align: left; cursor: pointer; width: 100%;">{{s.label}}<span class="bfm-nav-count">{{s.count}}</span></button>
+          </sc-for>
+        </nav>
+        <div class="bfm-card" style="flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <h3 class="heading" style="margin: 0;">{{current.label}}</h3>
+            <span class="bfm-badge bfm-badge-neutral">{{current.source}}</span>
+          </div>
+          <p class="small" style="margin: 0; color: var(--ink-muted);">{{current.help}}</p>
+          <sc-for list="{{current.items}}" as="it" hint-placeholder-count="4">
+            <div style="display: flex; gap: 12px; align-items: start; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-0);">
+              <span class="body" style="flex: 1; min-width: 0;">{{it}}</span>
+              <button class="bfm-btn bfm-btn-ghost bfm-btn-sm">Edit</button>
+              <button class="bfm-btn bfm-btn-ghost bfm-btn-sm">Remove</button>
+            </div>
+          </sc-for>
+          <div style="display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+            <button class="bfm-btn bfm-btn-secondary bfm-btn-sm">Add item</button>
+            <button class="bfm-btn bfm-btn-primary bfm-btn-sm">Approve changes</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bfm-card" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h2 class="heading" style="margin: 0;">Posts</h2>
+        <a class="small" href="Posts.dc.html">Open in Posts</a>
+      </div>
+      <div style="overflow-x: auto;">
+        <table class="body" style="width: 100%; border-collapse: collapse; min-width: 640px;">
+          <thead>
+            <tr style="text-align: left; color: var(--ink-muted);">
+              <th class="label" style="padding: 8px 12px; border-bottom: 1px solid var(--line);">Date</th>
+              <th class="label" style="padding: 8px 12px; border-bottom: 1px solid var(--line);">Post</th>
+              <th class="label" style="padding: 8px 12px; border-bottom: 1px solid var(--line);">Project</th>
+              <th class="label" style="padding: 8px 12px; border-bottom: 1px solid var(--line);">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{posts}}" as="p" hint-placeholder-count="5">
+              <tr>
+                <td style="padding: 12px; border-bottom: 1px solid var(--line);">{{p.date}}</td>
+                <td style="padding: 12px; border-bottom: 1px solid var(--line);"><a href="{{p.href}}">{{p.title}}</a></td>
+                <td style="padding: 12px; border-bottom: 1px solid var(--line);">Migss Interiors website</td>
+                <td style="padding: 12px; border-bottom: 1px solid var(--line);"><span class="bfm-badge {{p.badgeClass}}">{{p.status}}</span></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { pick: 'facts' };
+  }
+  renderVals() {
+    const data = {
+      facts: { label: 'Business facts', source: 'From crawl', help: 'Verified facts the writer may state. Anything else is flagged by the critic.', items: ['[Founding year]', '[Guarantee terms, as stated on the site]', '[Finance offer, as stated on the site]', '[Accreditations]'] },
+      services: { label: 'Services', source: 'From crawl', help: 'What Migss offers, in their own words.', items: ['Bathroom renovation', 'Kitchen renovation', 'Interior renovation'] },
+      locations: { label: 'Locations', source: 'From crawl', help: 'Areas served. Local posts may only target these.', items: ['Chigwell', 'Loughton', 'Epping', 'Woodford', 'Ilford', 'Brentwood'] },
+      voice: { label: 'Voice', source: 'Edited by you', help: 'How Migss sounds, on top of the BrandFactory rules.', items: ['Speak to homeowners as "you" and Migss as "we"', 'Prefer examples from completed projects over general claims'] },
+      good: { label: 'Good examples', source: 'Added by you', help: 'Passages that sound right.', items: ['[Paste a paragraph you are happy with]'] },
+      bad: { label: 'Counter-examples', source: 'Added by you', help: 'Passages that sound wrong.', items: ['[Paste a generic paragraph to avoid]'] }
+    };
+    const order = ['facts', 'services', 'locations', 'voice', 'good', 'bad'];
+    const cur = this.state.pick;
+    return {
+      sections: order.map((id) => ({
+        label: data[id].label,
+        count: String(data[id].items.length),
+        ac: id === cur ? 'page' : 'false',
+        bg: id === cur ? 'var(--brand-tint)' : 'transparent',
+        pick: () => this.setState({ pick: id })
+      })),
+      current: data[cur],
+      posts: [
+        { date: '17 Nov', title: 'Bathroom fitters in Chigwell', status: 'Approved', badgeClass: 'bfm-badge-brand', href: 'Publish.dc.html' },
+        { date: '10 Nov', title: 'Walk-in shower ideas for small bathrooms', status: 'Needs review', badgeClass: 'bfm-badge-warning', href: 'Post.dc.html' },
+        { date: '3 Nov', title: 'How much does a bathroom renovation cost in Essex?', status: 'Needs review', badgeClass: 'bfm-badge-warning', href: 'Post.dc.html' },
+        { date: '27 Oct', title: 'Wet room or shower tray: which suits your bathroom?', status: 'Needs review', badgeClass: 'bfm-badge-warning', href: 'Post.dc.html' },
+        { date: '13 Oct', title: '[Earlier post]', status: 'Published', badgeClass: 'bfm-badge-success', href: 'Publish.dc.html' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

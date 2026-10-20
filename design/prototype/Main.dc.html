@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Home</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/bfm/tokens.css">
+<link rel="stylesheet" href="ds/bfm/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;background:#f7f9fb}
+a{color:#0e7c86}a:hover{color:#0b6770}
+</style>
+</helmet>
+<div class="bfm-root" style="display: flex; flex-wrap: wrap; min-height: 1400px; font-family: var(--font-sans); background: var(--surface-50); color: var(--ink);">
+  <dc-import name="Nav" current="home" hint-size="240px,1400px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 48px 40px; display: flex; flex-direction: column; gap: 32px; max-width: 1200px;">
+    <div style="display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap;">
+      <div>
+        <p class="small" style="margin: 0; color: var(--ink-muted);">BrandFactory Marketing</p>
+        <h1 class="title" style="margin: 4px 0 0;">Home</h1>
+      </div>
+      <a class="bfm-btn bfm-btn-primary" href="BatchSpec.dc.html" style="text-decoration: none;">New batch</a>
+    </div>
+
+    <section style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h2 class="heading" style="margin: 0;">Projects</h2>
+        <a class="small" href="Projects.dc.html">All projects</a>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px;">
+        <a class="bfm-card bfm-card-interactive bfm-reveal" href="Project.dc.html" style="text-decoration: none; color: inherit; padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+          <div style="aspect-ratio: 16 / 10; background: var(--surface-100); border-bottom: 1px solid var(--line); display: flex; flex-direction: column;">
+            <div style="display: flex; gap: 6px; align-items: center; padding: 8px 12px; background: var(--surface-0); border-bottom: 1px solid var(--line);">
+              <span style="width: 8px; height: 8px; border-radius: 999px; background: var(--line);"></span>
+              <span style="width: 8px; height: 8px; border-radius: 999px; background: var(--line);"></span>
+              <span style="width: 8px; height: 8px; border-radius: 999px; background: var(--line);"></span>
+              <span class="small" style="margin-left: 8px; color: var(--ink-muted);">migssinteriors.com</span>
+            </div>
+            <div style="flex: 1; display: grid; place-items: center;" class="small"><span style="color: var(--ink-muted);">[Live screenshot of the homepage]</span></div>
+          </div>
+          <div style="padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 12px;">
+            <div>
+              <p class="bfm-card-title">Migss Interiors website</p>
+              <p class="bfm-card-meta">Migss Interiors · Wix Blog</p>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              <span class="bfm-badge bfm-badge-warning">3 to review</span>
+              <span class="bfm-badge bfm-badge-brand">Next post 27 Oct</span>
+              <span class="bfm-badge bfm-badge-success">GA4 connected</span>
+              <span class="bfm-badge bfm-badge-neutral">Entry · 1 a week</span>
+            </div>
+          </div>
+        </a>
+        <a href="Projects.dc.html" class="bfm-reveal" style="--i: 1; text-decoration: none; min-height: 240px; border: 1px dashed var(--line-strong); border-radius: var(--radius-lg); display: grid; place-items: center; color: var(--ink-muted); font: 600 14px/20px var(--font-sans);">Add project</a>
+      </div>
+    </section>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px;">
+      <a class="bfm-card bfm-card-interactive bfm-reveal" href="Review.dc.html" style="text-decoration: none; color: inherit; --i: 0;">
+        <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px;">
+          <p class="bfm-card-title">Review queue</p>
+          <span class="bfm-badge bfm-badge-warning">Needs review</span>
+        </div>
+        <p class="display" style="margin: 16px 0 0;">3</p>
+        <p class="bfm-card-meta">posts waiting for your approval</p>
+      </a>
+      <a class="bfm-card bfm-card-interactive bfm-reveal" href="Generating.dc.html" style="text-decoration: none; color: inherit; --i: 1;">
+        <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px;">
+          <p class="bfm-card-title">In progress</p>
+          <span class="bfm-badge bfm-badge-brand">Writing</span>
+        </div>
+        <p class="display" style="margin: 16px 0 0;">1</p>
+        <p class="bfm-card-meta">batch being written: November SEO posts</p>
+      </a>
+      <a class="bfm-card bfm-card-interactive bfm-reveal" href="CRM.dc.html" style="text-decoration: none; color: inherit; --i: 2;">
+        <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px;">
+          <p class="bfm-card-title">Clients</p>
+          <span class="bfm-badge bfm-badge-neutral">1 active project</span>
+        </div>
+        <p class="display" style="margin: 16px 0 0;">2</p>
+        <p class="bfm-card-meta">Migss Interiors, BrandFactory London</p>
+      </a>
+    </div>
+
+    <section class="bfm-card" style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div>
+          <h2 class="heading" style="margin: 0;">Next two weeks</h2>
+          <p class="small" style="margin: 4px 0 0; color: var(--ink-muted);">All projects. Dashed slots are planned but not written yet.</p>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span class="bfm-badge bfm-badge-neutral">Sample data</span>
+          <a class="bfm-btn bfm-btn-secondary bfm-btn-sm" href="Calendar.dc.html" style="text-decoration: none;">Open calendar</a>
+        </div>
+      </div>
+      <div style="overflow-x: auto;">
+        <div style="min-width: 700px; display: flex; flex-direction: column; gap: 8px;">
+          <sc-for list="{{weeks}}" as="week" hint-placeholder-count="2">
+            <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px;">
+              <sc-for list="{{week.days}}" as="d" hint-placeholder-count="7">
+                <div style="min-height: 96px; padding: 8px; border-radius: var(--radius-md); border: 1px solid {{d.border}}; background: var(--surface-0); display: flex; flex-direction: column; gap: 6px;">
+                  <span class="small" style="color: {{d.labelColor}}; font-weight: {{d.weight}};">{{d.label}}</span>
+                  <sc-for list="{{d.events}}" as="e" hint-placeholder-count="0">
+                    <a href="{{e.href}}" style="text-decoration: none; border-radius: var(--radius-sm); padding: 6px 8px; font: 600 12px/16px var(--font-sans); background: {{e.bg}}; color: {{e.color}}; border: 1px {{e.borderStyle}} {{e.border}};">{{e.title}}</a>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const events = [
+      { date: '2026-10-27', title: 'Wet room or shower tray', status: 'review', href: 'Post.dc.html' },
+      { date: '2026-10-30', title: '[Kitchen topic]', status: 'planned', href: 'Calendar.dc.html' },
+      { date: '2026-11-03', title: 'Bathroom renovation cost in Essex', status: 'review', href: 'Post.dc.html' }
+    ];
+    const look = {
+      review: { bg: 'var(--warning-tint)', color: 'var(--warning)', border: 'var(--warning-tint)', style: 'solid' },
+      planned: { bg: 'var(--surface-0)', color: 'var(--ink-muted)', border: 'var(--line-strong)', style: 'dashed' }
+    };
+    const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const start = Date.UTC(2026, 9, 20);
+    const weeks = [];
+    for (let w = 0; w < 2; w += 1) {
+      const days = [];
+      for (let k = 0; k < 7; k += 1) {
+        const dt = new Date(start + (w * 7 + k) * 864e5);
+        const iso = dt.toISOString().slice(0, 10);
+        const isToday = w === 0 && k === 0;
+        days.push({
+          label: (isToday ? 'Today, ' : names[dt.getUTCDay()] + ' ') + dt.getUTCDate() + ' ' + months[dt.getUTCMonth()],
+          labelColor: isToday ? 'var(--brand-ink)' : 'var(--ink-muted)',
+          weight: isToday ? '700' : '500',
+          border: isToday ? 'var(--brand)' : 'var(--line)',
+          events: events.filter((e) => e.date === iso).map((e) => ({
+            title: e.title, href: e.href,
+            bg: look[e.status].bg, color: look[e.status].color, border: look[e.status].border, borderStyle: look[e.status].style
+          }))
+        });
+      }
+      weeks.push({ days });
+    }
+    return { weeks };
+  }
+}
+</script>
+</body>
+</html>

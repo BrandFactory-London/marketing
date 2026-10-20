@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Publish and derivatives</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/bfm/tokens.css">
+<link rel="stylesheet" href="ds/bfm/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;background:#f7f9fb}
+a{color:#0e7c86}a:hover{color:#0b6770}
+</style>
+</helmet>
+<div class="bfm-root" style="display: flex; flex-wrap: wrap; min-height: 1000px; font-family: var(--font-sans); background: var(--surface-50); color: var(--ink);">
+  <dc-import name="Nav" current="review" hint-size="240px,1000px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 48px 40px; display: flex; flex-direction: column; gap: 24px; max-width: 1200px;">
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div>
+        <p class="small" style="margin: 0; color: var(--ink-muted);">Migss Interiors website · November SEO posts</p>
+        <h1 class="title" style="margin: 4px 0 0;">Wet room or shower tray: which suits your bathroom?</h1>
+      </div>
+      <ol class="bfm-stepper" aria-label="Batch progress">
+        <li class="bfm-step bfm-step-done"><span class="bfm-step-dot">1</span>Spec</li>
+        <li class="bfm-step-line" aria-hidden="true"></li>
+        <li class="bfm-step bfm-step-done"><span class="bfm-step-dot">2</span>Confirm</li>
+        <li class="bfm-step-line" aria-hidden="true"></li>
+        <li class="bfm-step bfm-step-done"><span class="bfm-step-dot">3</span>Generate</li>
+        <li class="bfm-step-line" aria-hidden="true"></li>
+        <li class="bfm-step bfm-step-done"><span class="bfm-step-dot">4</span>Review</li>
+        <li class="bfm-step-line" aria-hidden="true"></li>
+        <li class="bfm-step bfm-step-current" aria-current="step"><span class="bfm-step-dot">5</span>Publish</li>
+      </ol>
+    </div>
+
+    <section class="bfm-card" style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h2 class="heading" style="margin: 0;">Publish</h2>
+        <span class="bfm-badge {{pubBadgeClass}}">{{pubBadge}}</span>
+      </div>
+      <sc-if value="{{notPublished}}" hint-placeholder-val="{{true}}">
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <p class="body" style="margin: 0;">Approved by you, with your accepted internal links. Goes to the Migss Wix Blog with the Bathroom Renovation tag, your chosen cover photo and the excerpt as its meta description.</p>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button class="bfm-btn bfm-btn-primary" onClick="{{publish}}">Publish to Wix</button>
+            <button class="bfm-btn bfm-btn-secondary">Copy as HTML</button>
+            <button class="bfm-btn bfm-btn-secondary">Download Markdown</button>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{published}}" hint-placeholder-val="{{false}}">
+        <div class="bfm-reveal" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 16px; border-radius: var(--radius-md); background: var(--success-tint);">
+          <p class="body" style="margin: 0;">Live at <a href="#">migssinteriors.com/blog/wet-room-vs-shower-tray</a></p>
+          <button class="bfm-btn bfm-btn-ghost bfm-btn-sm" onClick="{{unpublish}}">Unpublish</button>
+        </div>
+      </sc-if>
+    </section>
+
+    <section class="bfm-card" style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div>
+          <h2 class="heading" style="margin: 0;">Derivatives</h2>
+          <p class="small" style="margin: 4px 0 0; color: var(--ink-muted);">Shorter versions of this post, written in the same voice. Copy them to post by hand.</p>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="bfm-btn bfm-btn-secondary bfm-btn-sm" onClick="{{genGmb}}">Generate GMB post</button>
+          <button class="bfm-btn bfm-btn-secondary bfm-btn-sm" onClick="{{genLi}}">Generate LinkedIn post</button>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
+        <sc-for list="{{derivs}}" as="d" hint-placeholder-count="2">
+          <div class="bfm-aurora {{d.auroraClass}}" style="padding: 20px; display: flex; flex-direction: column; gap: 12px; border-radius: var(--radius-lg);">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <p class="subheading" style="margin: 0;">{{d.name}}</p>
+              <span class="bfm-badge {{d.badgeClass}}">{{d.badge}}</span>
+            </div>
+            <sc-if value="{{d.empty}}" hint-placeholder-val="{{true}}">
+              <p class="small" style="margin: 0; color: var(--ink-muted);">Not generated yet.</p>
+            </sc-if>
+            <sc-if value="{{d.busy}}" hint-placeholder-val="{{false}}">
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <span class="bfm-shimmer small">Writing the {{d.name}} from the approved post</span>
+                <div class="bfm-skeleton" style="width: 92%;"></div>
+                <div class="bfm-skeleton" style="width: 78%;"></div>
+                <div class="bfm-skeleton" style="width: 60%;"></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{d.ready}}" hint-placeholder-val="{{false}}">
+              <div class="bfm-reveal" style="display: flex; flex-direction: column; gap: 12px;">
+                <textarea class="bfm-input" style="min-height: 140px;">{{d.text}}</textarea>
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                  <button class="bfm-btn bfm-btn-ghost bfm-btn-sm">Regenerate</button>
+                  <button class="bfm-btn bfm-btn-primary bfm-btn-sm">Copy</button>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { published: false, gmb: 'empty', li: 'empty' };
+  }
+  run(key) {
+    this.setState({ [key]: 'busy' });
+    setTimeout(() => this.setState({ [key]: 'ready' }), 2800);
+  }
+  renderVals() {
+    const make = (name, s, text) => ({
+      name,
+      text,
+      empty: s === 'empty',
+      busy: s === 'busy',
+      ready: s === 'ready',
+      auroraClass: s === 'busy' ? 'bfm-aurora-active' : '',
+      badge: s === 'ready' ? 'Ready to copy' : s === 'busy' ? 'Writing' : 'Draft',
+      badgeClass: s === 'ready' ? 'bfm-badge-success' : s === 'busy' ? 'bfm-badge-brand' : 'bfm-badge-neutral'
+    });
+    return {
+      published: this.state.published,
+      notPublished: !this.state.published,
+      pubBadge: this.state.published ? 'Published' : 'Approved',
+      pubBadgeClass: 'bfm-badge-success',
+      publish: () => this.setState({ published: true }),
+      unpublish: () => this.setState({ published: false }),
+      genGmb: () => this.run('gmb'),
+      genLi: () => this.run('li'),
+      derivs: [
+        make('GMB post', this.state.gmb, '[GMB post drafted from the approved article, under 1,500 characters, ending with a link to the post.]'),
+        make('LinkedIn post', this.state.li, '[LinkedIn post drafted from the approved article, with a short hook and a link to the post.]')
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

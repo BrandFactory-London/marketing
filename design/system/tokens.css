@@ -1,0 +1,56 @@
+/* BrandFactory Marketing - generated from tokens.json */
+:root, [data-theme="light"] {
+  --surface-0: #ffffff;
+  --surface-50: #f7f9fb;
+  --surface-100: #eef2f6;
+  --line: #e3e8ee;
+  --line-strong: #7f8e9b;
+  --ink: #14212b;
+  --ink-muted: #566673;
+  --brand: #0e7c86;
+  --brand-hover: #0b6770;
+  --brand-tint: #e3f4f5;
+  --brand-ink: #0a5a62;
+  --on-brand: #ffffff;
+  --aurora-cyan: #2fc3d3;
+  --aurora-sky: #7fb0ff;
+  --aurora-peach: #ffa585;
+  --success: #1d6f47;
+  --success-tint: #e4f3ea;
+  --warning: #8a4f00;
+  --warning-tint: #fbf0dc;
+  --danger: #b3261e;
+  --danger-tint: #fbe7e5;
+  --shadow-card: 0 1px 2px rgba(20,33,43,0.04), 0 4px 16px rgba(20,33,43,0.05);
+  --shadow-raised: 0 2px 6px rgba(20,33,43,0.06), 0 12px 32px rgba(20,33,43,0.08);
+  --shadow-focus: 0 0 0 3px rgba(14,124,134,0.28);
+}
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+  --duration-fast: 160ms;
+  --duration-base: 240ms;
+  --duration-slow: 420ms;
+  --duration-aurora: 6s;
+  --duration-shimmer: 1600ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+}
+.display { font-family: var(--font-sans); font-size: 40px; line-height: 46px; font-weight: 600; letter-spacing: -0.02em; }
+.title { font-family: var(--font-sans); font-size: 28px; line-height: 34px; font-weight: 600; letter-spacing: -0.01em; }
+.heading { font-family: var(--font-sans); font-size: 20px; line-height: 28px; font-weight: 600; }
+.subheading { font-family: var(--font-sans); font-size: 16px; line-height: 24px; font-weight: 600; }
+.body { font-family: var(--font-sans); font-size: 15px; line-height: 24px; font-weight: 400; }
+.small { font-family: var(--font-sans); font-size: 13px; line-height: 20px; font-weight: 400; }
+.label { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.02em; }

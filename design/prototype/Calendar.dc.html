@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Calendar</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/bfm/tokens.css">
+<link rel="stylesheet" href="ds/bfm/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;background:#f7f9fb}
+a{color:#0e7c86}a:hover{color:#0b6770}
+</style>
+</helmet>
+<div class="bfm-root" style="display: flex; flex-wrap: wrap; min-height: 1200px; font-family: var(--font-sans); background: var(--surface-50); color: var(--ink);">
+  <dc-import name="Nav" current="calendar" hint-size="240px,1200px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 48px 40px; display: flex; flex-direction: column; gap: 24px; max-width: 1400px;">
+    <div style="display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap;">
+      <div>
+        <p class="small" style="margin: 0; color: var(--ink-muted);">Every post across all projects. Click a post to open it, or a planned slot to generate it.</p>
+        <h1 class="title" style="margin: 4px 0 0;">BrandFactory calendar</h1>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <select class="bfm-input" style="height: 40px; width: auto;" aria-label="Project"><option>All projects</option><option>Migss Interiors website</option></select>
+        <button class="bfm-btn bfm-btn-secondary" onClick="{{prev}}" aria-label="Previous month">‹</button>
+        <span class="subheading" style="min-width: 140px; text-align: center;">{{monthLabel}}</span>
+        <button class="bfm-btn bfm-btn-secondary" onClick="{{next}}" aria-label="Next month">›</button>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 16px; flex-wrap: wrap;" class="small">
+      <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 14px; height: 14px; border-radius: 4px; background: var(--success-tint); border: 1px solid var(--success);"></span>Published</span>
+      <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 14px; height: 14px; border-radius: 4px; background: var(--brand-tint); border: 1px solid var(--brand);"></span>Approved</span>
+      <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 14px; height: 14px; border-radius: 4px; background: var(--warning-tint); border: 1px solid var(--warning);"></span>Needs review</span>
+      <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 14px; height: 14px; border-radius: 4px; background: var(--surface-0); border: 1px dashed var(--line-strong);"></span>Planned, not written yet</span>
+      <span class="bfm-badge bfm-badge-neutral">Sample data</span>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: start;">
+      <section class="bfm-card" style="flex: 999 1 640px; min-width: 0; padding: 0; overflow-x: auto;">
+        <div style="min-width: 700px;">
+          <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--line);">
+            <sc-for list="{{weekdays}}" as="w" hint-placeholder-count="7">
+              <div class="label" style="padding: 12px; color: var(--ink-muted);">{{w}}</div>
+            </sc-for>
+          </div>
+          <sc-for list="{{weeks}}" as="week" hint-placeholder-count="6">
+            <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--line);">
+              <sc-for list="{{week.days}}" as="d" hint-placeholder-count="7">
+                <div style="min-height: 120px; padding: 8px; border-right: 1px solid var(--line); background: {{d.bg}}; display: flex; flex-direction: column; gap: 6px;">
+                  <span class="small" style="font-weight: {{d.weight}}; color: {{d.numColor}}; align-self: start; padding: 0 6px; border-radius: var(--radius-pill); background: {{d.numBg}};">{{d.num}}</span>
+                  <sc-for list="{{d.events}}" as="e" hint-placeholder-count="0">
+                    <button onClick="{{e.pick}}" style="text-align: left; border-radius: var(--radius-sm); padding: 6px 8px; font: 600 12px/16px var(--font-sans); cursor: pointer; background: {{e.bg}}; color: {{e.color}}; border: 1px {{e.borderStyle}} {{e.border}}; box-shadow: {{e.ring}};">{{e.title}}</button>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <aside class="bfm-card" style="flex: 1 1 300px; max-width: 360px; display: flex; flex-direction: column; gap: 14px; position: relative;">
+        <sc-if value="{{noneSelected}}" hint-placeholder-val="{{true}}">
+          <p class="subheading" style="margin: 0;">Select a post</p>
+          <p class="small" style="margin: 0; color: var(--ink-muted);">Its details and actions appear here.</p>
+        </sc-if>
+        <sc-if value="{{hasSel}}" hint-placeholder-val="{{false}}">
+          <div class="bfm-reveal" style="display: flex; flex-direction: column; gap: 14px;">
+            <span class="bfm-badge {{sel.badgeClass}}" style="align-self: start;">{{sel.statusLabel}}</span>
+            <p class="heading" style="margin: 0;">{{sel.title}}</p>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px;" class="small">
+              <span style="color: var(--ink-muted);">Date</span><span>{{sel.dateLabel}}</span>
+              <span style="color: var(--ink-muted);">Project</span><span>{{sel.project}}</span>
+              <span style="color: var(--ink-muted);">Keyword</span><span>{{sel.keyword}}</span>
+            </div>
+            <sc-if value="{{sel.planned}}" hint-placeholder-val="{{false}}">
+              <p class="small" style="margin: 0; color: var(--ink-muted);">Not written yet. Generating starts with the spec for you to confirm.</p>
+              <a class="bfm-btn bfm-btn-primary" href="SpecConfirm.dc.html" style="text-decoration: none;">Generate post</a>
+              <button class="bfm-btn bfm-btn-secondary">Edit plan entry</button>
+            </sc-if>
+            <sc-if value="{{sel.created}}" hint-placeholder-val="{{false}}">
+              <a class="bfm-btn bfm-btn-primary" href="{{sel.href}}" style="text-decoration: none;">Open post</a>
+              <button class="bfm-btn bfm-btn-secondary">Move date</button>
+            </sc-if>
+          </div>
+        </sc-if>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { month: 10, sel: null };
+  }
+  renderVals() {
+    const events = [
+      { id: 'a', date: '2026-10-06', title: '[Earlier post]', status: 'published', keyword: '[keyword]' },
+      { id: 'b', date: '2026-10-13', title: '[Earlier post]', status: 'published', keyword: '[keyword]' },
+      { id: 'c', date: '2026-10-27', title: 'Wet room or shower tray', status: 'review', keyword: 'wet room vs shower tray' },
+      { id: 'd', date: '2026-10-30', title: '[Kitchen topic]', status: 'planned', keyword: '[keyword]' },
+      { id: 'e', date: '2026-11-03', title: 'Bathroom renovation cost in Essex', status: 'review', keyword: 'bathroom renovation cost essex' },
+      { id: 'f', date: '2026-11-10', title: 'Walk-in shower ideas', status: 'review', keyword: 'walk in shower small bathroom' },
+      { id: 'g', date: '2026-11-17', title: 'Bathroom fitters in Chigwell', status: 'approved', keyword: 'bathroom fitters chigwell' },
+      { id: 'h', date: '2026-11-24', title: '[Topic to plan]', status: 'planned', keyword: '[keyword]' },
+      { id: 'i', date: '2026-12-01', title: '[Topic to plan]', status: 'planned', keyword: '[keyword]' }
+    ];
+    const look = {
+      published: { bg: 'var(--success-tint)', color: 'var(--success)', border: 'var(--success-tint)', style: 'solid', label: 'Published', badge: 'bfm-badge-success', href: 'Publish.dc.html' },
+      approved: { bg: 'var(--brand-tint)', color: 'var(--brand-ink)', border: 'var(--brand-tint)', style: 'solid', label: 'Approved', badge: 'bfm-badge-brand', href: 'Publish.dc.html' },
+      review: { bg: 'var(--warning-tint)', color: 'var(--warning)', border: 'var(--warning-tint)', style: 'solid', label: 'Needs review', badge: 'bfm-badge-warning', href: 'Post.dc.html' },
+      planned: { bg: 'var(--surface-0)', color: 'var(--ink-muted)', border: 'var(--line-strong)', style: 'dashed', label: 'Planned, not written', badge: 'bfm-badge-neutral', href: '' }
+    };
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const m = this.state.month;
+    const first = new Date(Date.UTC(2026, m, 1));
+    const offset = (first.getUTCDay() + 6) % 7;
+    const start = Date.UTC(2026, m, 1) - offset * 864e5;
+    const today = '2026-10-20';
+    const weeks = [];
+    for (let w = 0; w < 6; w += 1) {
+      const days = [];
+      for (let k = 0; k < 7; k += 1) {
+        const dt = new Date(start + (w * 7 + k) * 864e5);
+        const iso = dt.toISOString().slice(0, 10);
+        const inMonth = dt.getUTCMonth() === m;
+        const isToday = iso === today;
+        days.push({
+          num: String(dt.getUTCDate()),
+          bg: inMonth ? 'var(--surface-0)' : 'var(--surface-50)',
+          numColor: isToday ? 'var(--on-brand)' : (inMonth ? 'var(--ink)' : 'var(--ink-muted)'),
+          numBg: isToday ? 'var(--brand)' : 'transparent',
+          weight: isToday ? '700' : '500',
+          events: events.filter((e) => e.date === iso).map((e) => ({
+            title: e.title,
+            bg: look[e.status].bg,
+            color: look[e.status].color,
+            border: look[e.status].border,
+            borderStyle: look[e.status].style,
+            ring: this.state.sel === e.id ? '0 0 0 2px var(--brand)' : 'none',
+            pick: () => this.setState({ sel: e.id })
+          }))
+        });
+      }
+      weeks.push({ days });
+    }
+    const s = events.find((e) => e.id === this.state.sel);
+    const sel = s ? {
+      title: s.title,
+      statusLabel: look[s.status].label,
+      badgeClass: look[s.status].badge,
+      dateLabel: Number(s.date.slice(8)) + ' ' + monthNames[Number(s.date.slice(5, 7)) - 1].slice(0, 3),
+      project: 'Migss Interiors website',
+      keyword: s.keyword,
+      planned: s.status === 'planned',
+      created: s.status !== 'planned',
+      href: look[s.status].href
+    } : {};
+    return {
+      weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      weeks,
+      monthLabel: monthNames[m] + ' 2026',
+      prev: () => this.setState({ month: Math.max(9, m - 1) }),
+      next: () => this.setState({ month: Math.min(11, m + 1) }),
+      hasSel: Boolean(s),
+      noneSelected: !s,
+      sel
+    };
+  }
+}
+</script>
+</body>
+</html>

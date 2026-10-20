@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Posts</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/bfm/tokens.css">
+<link rel="stylesheet" href="ds/bfm/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;background:#f7f9fb}
+a{color:#0e7c86}a:hover{color:#0b6770}
+</style>
+</helmet>
+<div class="bfm-root" style="display: flex; flex-wrap: wrap; min-height: 1000px; font-family: var(--font-sans); background: var(--surface-50); color: var(--ink);">
+  <dc-import name="Nav" current="posts" hint-size="240px,1000px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 48px 40px; display: flex; flex-direction: column; gap: 24px; max-width: 1300px;">
+    <div style="display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap;">
+      <div>
+        <p class="small" style="margin: 0; color: var(--ink-muted);">Every post written, across all clients and projects. Planned slots live in the calendar.</p>
+        <h1 class="title" style="margin: 4px 0 0;">Posts</h1>
+      </div>
+      <a class="bfm-btn bfm-btn-secondary" href="Calendar.dc.html" style="text-decoration: none;">Open calendar</a>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center;">
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <sc-for list="{{filters}}" as="f" hint-placeholder-count="4">
+          <button class="bfm-btn {{f.cls}} bfm-btn-sm" onClick="{{f.pick}}">{{f.label}}</button>
+        </sc-for>
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <input class="bfm-input" placeholder="Search posts" aria-label="Search posts" style="height: 36px; width: 220px;">
+        <select class="bfm-input" style="height: 36px; width: auto;" aria-label="Client"><option>All clients</option><option>Migss Interiors</option></select>
+      </div>
+    </div>
+
+    <section class="bfm-card" style="padding: 8px 0;">
+      <div style="overflow-x: auto;">
+        <table class="body" style="width: 100%; border-collapse: collapse; min-width: 900px;">
+          <thead>
+            <tr style="text-align: left; color: var(--ink-muted);">
+              <th class="label" style="padding: 10px 24px; border-bottom: 1px solid var(--line);">Post</th>
+              <th class="label" style="padding: 10px 12px; border-bottom: 1px solid var(--line);">Client / project</th>
+              <th class="label" style="padding: 10px 12px; border-bottom: 1px solid var(--line);">Date</th>
+              <th class="label" style="padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: right;">Words</th>
+              <th class="label" style="padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: right;">Internal links</th>
+              <th class="label" style="padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: right;">Views (GA4)</th>
+              <th class="label" style="padding: 10px 24px 10px 12px; border-bottom: 1px solid var(--line);">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+              <tr>
+                <td style="padding: 14px 24px; border-bottom: 1px solid var(--line);"><a href="{{r.href}}" style="font-weight: 600;">{{r.title}}</a></td>
+                <td style="padding: 14px 12px; border-bottom: 1px solid var(--line);"><span>Migss Interiors</span><br><span class="small" style="color: var(--ink-muted);">Website</span></td>
+                <td style="padding: 14px 12px; border-bottom: 1px solid var(--line);">{{r.date}}</td>
+                <td style="padding: 14px 12px; border-bottom: 1px solid var(--line); text-align: right;">{{r.words}}</td>
+                <td style="padding: 14px 12px; border-bottom: 1px solid var(--line); text-align: right;">{{r.links}}</td>
+                <td style="padding: 14px 12px; border-bottom: 1px solid var(--line); text-align: right;">{{r.views}}</td>
+                <td style="padding: 14px 24px 14px 12px; border-bottom: 1px solid var(--line);"><span class="bfm-badge {{r.badgeClass}}">{{r.status}}</span></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <span class="bfm-badge bfm-badge-neutral" style="align-self: start;">Sample data</span>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { filter: 'all' };
+  }
+  renderVals() {
+    const all = [
+      { title: 'Bathroom fitters in Chigwell', date: '17 Nov', words: '1,420', links: '3', views: 'Not live', status: 'Approved', key: 'approved', badgeClass: 'bfm-badge-brand', href: 'Publish.dc.html' },
+      { title: 'Walk-in shower ideas for small bathrooms', date: '10 Nov', words: '1,960', links: 'Not optimised', views: 'Not live', status: 'Needs review', key: 'review', badgeClass: 'bfm-badge-warning', href: 'Post.dc.html' },
+      { title: 'How much does a bathroom renovation cost in Essex?', date: '3 Nov', words: '2,310', links: 'Not optimised', views: 'Not live', status: 'Needs review', key: 'review', badgeClass: 'bfm-badge-warning', href: 'Post.dc.html' },
+      { title: 'Wet room or shower tray: which suits your bathroom?', date: '27 Oct', words: '2,140', links: 'Not optimised', views: 'Not live', status: 'Needs review', key: 'review', badgeClass: 'bfm-badge-warning', href: 'Post.dc.html' },
+      { title: '[Earlier post]', date: '13 Oct', words: '1,880', links: '4', views: '[views]', status: 'Published', key: 'published', badgeClass: 'bfm-badge-success', href: 'Publish.dc.html' },
+      { title: '[Earlier post]', date: '6 Oct', words: '2,050', links: '5', views: '[views]', status: 'Published', key: 'published', badgeClass: 'bfm-badge-success', href: 'Publish.dc.html' }
+    ];
+    const defs = [['all', 'All'], ['review', 'Needs review'], ['approved', 'Approved'], ['published', 'Published']];
+    const cur = this.state.filter;
+    return {
+      filters: defs.map(([id, label]) => ({ label, cls: id === cur ? 'bfm-btn-primary' : 'bfm-btn-secondary', pick: () => this.setState({ filter: id }) })),
+      rows: all.filter((r) => cur === 'all' || r.key === cur)
+    };
+  }
+}
+</script>
+</body>
+</html>

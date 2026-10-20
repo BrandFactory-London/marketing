@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Projects</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/bfm/tokens.css">
+<link rel="stylesheet" href="ds/bfm/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;background:#f7f9fb}
+a{color:#0e7c86}a:hover{color:#0b6770}
+</style>
+</helmet>
+<div class="bfm-root" style="display: flex; flex-wrap: wrap; min-height: 1000px; font-family: var(--font-sans); background: var(--surface-50); color: var(--ink);">
+  <dc-import name="Nav" current="projects" hint-size="240px,1000px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 48px 40px; display: flex; flex-direction: column; gap: 32px; max-width: 1200px;">
+    <div style="display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap;">
+      <div>
+        <p class="small" style="margin: 0; color: var(--ink-muted);">Each project is one site that gets marketing content, grouped by client.</p>
+        <h1 class="title" style="margin: 4px 0 0;">Projects</h1>
+      </div>
+      <button class="bfm-btn bfm-btn-primary" onClick="{{toggleAdd}}">Add project</button>
+    </div>
+
+    <sc-if value="{{showAdd}}" hint-placeholder-val="{{false}}">
+      <section class="bfm-card bfm-reveal" style="display: flex; flex-direction: column; gap: 16px;">
+        <h2 class="heading" style="margin: 0;">Add a project</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px 24px;">
+          <label class="bfm-field"><span class="bfm-label">Client</span><select class="bfm-input"><option>Migss Interiors</option><option>New client…</option></select><span class="bfm-help">Client facts and voice are shared by all of a client's projects.</span></label>
+          <label class="bfm-field"><span class="bfm-label">Marketing package</span><select class="bfm-input"><option>Entry · 1 SEO post a week</option><option>Mid · 2 SEO posts a week</option><option>Premium · 3 SEO posts a week</option></select></label>
+          <label class="bfm-field"><span class="bfm-label">Status</span><select class="bfm-input"><option>Active</option><option>Paused</option></select><span class="bfm-help">Active projects get planned slots in the calendar.</span></label>
+          <label class="bfm-field"><span class="bfm-label">Project name</span><input class="bfm-input" placeholder="e.g. Migss Interiors website"></label>
+          <label class="bfm-field"><span class="bfm-label">Website URL</span><input class="bfm-input" placeholder="https://"><span class="bfm-help">The sitemap is read from here for content and link finding.</span></label>
+          <label class="bfm-field"><span class="bfm-label">Publishing target</span><select class="bfm-input"><option>Wix Blog</option><option>BrandFactory posts feed</option><option>Manual only (copy and download)</option></select></label>
+          <label class="bfm-field"><span class="bfm-label">Google Drive photo folder</span><input class="bfm-input" placeholder="Paste the folder link"></label>
+          <label class="bfm-field"><span class="bfm-label">GA4 property</span><select class="bfm-input"><option>Choose after connecting Google</option></select></label>
+          <label class="bfm-field"><span class="bfm-label">Search Console site</span><select class="bfm-input"><option>Choose after connecting Google</option></select></label>
+        </div>
+        <div style="display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap;">
+          <button class="bfm-btn bfm-btn-ghost" onClick="{{toggleAdd}}">Cancel</button>
+          <a class="bfm-btn bfm-btn-primary" href="Project.dc.html" style="text-decoration: none;">Save and read site</a>
+        </div>
+      </section>
+    </sc-if>
+
+    <section style="display: flex; flex-direction: column; gap: 16px;">
+      <h2 class="label" style="margin: 0; color: var(--ink-muted);">MIGSS INTERIORS</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+        <a class="bfm-card bfm-card-interactive bfm-reveal" href="Project.dc.html" style="text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px;">
+            <div>
+              <p class="bfm-card-title">Migss Interiors website</p>
+              <p class="bfm-card-meta">migssinteriors.com</p>
+            </div>
+            <span class="bfm-badge bfm-badge-success">Active</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px;" class="small">
+            <span style="color: var(--ink-muted);">Package</span><span>Entry · 1 post a week</span>
+            <span style="color: var(--ink-muted);">Publishes to</span><span>Wix Blog</span>
+            <span style="color: var(--ink-muted);">Analytics</span><span>GA4 and Search Console</span>
+            <span style="color: var(--ink-muted);">Next in run plan</span><span>3 Nov</span>
+            <span style="color: var(--ink-muted);">To review</span><span>3 posts</span>
+          </div>
+        </a>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { showAdd: false };
+  }
+  renderVals() {
+    return {
+      showAdd: this.state.showAdd,
+      toggleAdd: () => this.setState({ showAdd: !this.state.showAdd })
+    };
+  }
+}
+</script>
+</body>
+</html>

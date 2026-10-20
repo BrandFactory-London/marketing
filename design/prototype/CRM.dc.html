@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CRM</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/bfm/tokens.css">
+<link rel="stylesheet" href="ds/bfm/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;background:#f7f9fb}
+a{color:#0e7c86}a:hover{color:#0b6770}
+</style>
+</helmet>
+<div class="bfm-root" style="display: flex; flex-wrap: wrap; min-height: 1000px; font-family: var(--font-sans); background: var(--surface-50); color: var(--ink);">
+  <dc-import name="Nav" current="crm" hint-size="240px,1000px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 48px 40px; display: flex; flex-direction: column; gap: 32px; max-width: 1200px;">
+    <div style="display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap;">
+      <div>
+        <p class="small" style="margin: 0; color: var(--ink-muted);">Clients and the marketing packages their projects run on.</p>
+        <h1 class="title" style="margin: 4px 0 0;">CRM</h1>
+      </div>
+      <button class="bfm-btn bfm-btn-primary" onClick="{{toggleAdd}}">Add client</button>
+    </div>
+
+    <sc-if value="{{showAdd}}" hint-placeholder-val="{{false}}">
+      <section class="bfm-card bfm-reveal" style="display: flex; flex-direction: column; gap: 16px;">
+        <h2 class="heading" style="margin: 0;">Add a client</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px 24px;">
+          <label class="bfm-field"><span class="bfm-label">Client name</span><input class="bfm-input" placeholder="Business name"></label>
+          <label class="bfm-field"><span class="bfm-label">Main contact</span><input class="bfm-input" placeholder="Name"></label>
+          <label class="bfm-field"><span class="bfm-label">Email</span><input class="bfm-input" placeholder="name@business.com"></label>
+          <label class="bfm-field"><span class="bfm-label">Phone</span><input class="bfm-input" placeholder="Number"></label>
+        </div>
+        <div style="display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap;">
+          <button class="bfm-btn bfm-btn-ghost" onClick="{{toggleAdd}}">Cancel</button>
+          <a class="bfm-btn bfm-btn-primary" href="Client.dc.html" style="text-decoration: none;">Save client</a>
+        </div>
+      </section>
+    </sc-if>
+
+    <section style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h2 class="heading" style="margin: 0;">Marketing packages</h2>
+        <span class="small" style="color: var(--ink-muted);">Chosen per project in its settings</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px;">
+        <sc-for list="{{packages}}" as="p" hint-placeholder-count="3">
+          <div class="bfm-card bfm-reveal" style="display: flex; flex-direction: column; gap: 12px; --i: {{p.i}};">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <p class="bfm-card-title">{{p.name}}</p>
+              <button class="bfm-btn bfm-btn-ghost bfm-btn-sm">Edit</button>
+            </div>
+            <p class="display" style="margin: 0;">{{p.posts}}</p>
+            <p class="small" style="margin: 0; color: var(--ink-muted);">SEO posts a week, each with GMB and LinkedIn derivatives. Active projects get planned slots at this cadence.</p>
+            <p class="small" style="margin: 0;">{{p.clients}}</p>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section class="bfm-card" style="display: flex; flex-direction: column; gap: 12px;">
+      <h2 class="heading" style="margin: 0;">Clients</h2>
+      <div style="overflow-x: auto;">
+        <table class="body" style="width: 100%; border-collapse: collapse; min-width: 720px;">
+          <thead>
+            <tr style="text-align: left; color: var(--ink-muted);">
+              <th class="label" style="padding: 8px 12px; border-bottom: 1px solid var(--line);">Client</th>
+              <th class="label" style="padding: 8px 12px; border-bottom: 1px solid var(--line);">Projects and packages</th>
+              <th class="label" style="padding: 8px 12px; border-bottom: 1px solid var(--line);">This month</th>
+              <th class="label" style="padding: 8px 12px; border-bottom: 1px solid var(--line);">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 14px 12px; border-bottom: 1px solid var(--line);"><a href="Client.dc.html" style="font-weight: 600;">Migss Interiors</a></td>
+              <td style="padding: 14px 12px; border-bottom: 1px solid var(--line);">Website: Entry</td>
+              <td style="padding: 14px 12px; border-bottom: 1px solid var(--line);">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div class="bfm-progress" style="width: 96px;"><div class="bfm-progress-bar" style="width: 75%; animation: none;"></div></div>
+                  <span class="small">3 of 4 written</span>
+                </div>
+              </td>
+              <td style="padding: 14px 12px; border-bottom: 1px solid var(--line);"><span class="bfm-badge bfm-badge-success">Active</span></td>
+            </tr>
+            <tr>
+              <td style="padding: 14px 12px;"><a href="Client.dc.html" style="font-weight: 600;">BrandFactory London</a></td>
+              <td style="padding: 14px 12px;">No projects yet</td>
+              <td style="padding: 14px 12px;"><span class="small" style="color: var(--ink-muted);">No posts scheduled</span></td>
+              <td style="padding: 14px 12px;"><span class="bfm-badge bfm-badge-neutral">Set up</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { showAdd: false };
+  }
+  renderVals() {
+    return {
+      showAdd: this.state.showAdd,
+      toggleAdd: () => this.setState({ showAdd: !this.state.showAdd }),
+      packages: [
+        { i: '0', name: 'Entry', posts: '1', clients: '1 project: Migss Interiors website' },
+        { i: '1', name: 'Mid', posts: '2', clients: 'No projects' },
+        { i: '2', name: 'Premium', posts: '3', clients: 'No projects' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

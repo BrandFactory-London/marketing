@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Confirm spec</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/bfm/tokens.css">
+<link rel="stylesheet" href="ds/bfm/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;background:#f7f9fb}
+a{color:#0e7c86}a:hover{color:#0b6770}
+</style>
+</helmet>
+<div class="bfm-root" style="display: flex; flex-wrap: wrap; min-height: 1000px; font-family: var(--font-sans); background: var(--surface-50); color: var(--ink);">
+  <dc-import name="Nav" current="projects" hint-size="240px,1000px"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; padding: 48px 40px; display: flex; flex-direction: column; gap: 24px; max-width: 1200px;">
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap;">
+        <div>
+          <p class="small" style="margin: 0; color: var(--ink-muted);">Migss Interiors website · November SEO posts</p>
+          <h1 class="title" style="margin: 4px 0 0;">Confirm the spec</h1>
+          <p class="small" style="margin: 4px 0 0; color: var(--ink-muted);">Nothing is written until every post's spec is confirmed.</p>
+        </div>
+        <button class="bfm-btn bfm-btn-secondary" onClick="{{confirmAll}}">Confirm all</button>
+      </div>
+      <ol class="bfm-stepper" aria-label="Batch progress">
+        <li class="bfm-step bfm-step-done"><span class="bfm-step-dot">1</span>Spec</li>
+        <li class="bfm-step-line" aria-hidden="true"></li>
+        <li class="bfm-step bfm-step-current" aria-current="step"><span class="bfm-step-dot">2</span>Confirm</li>
+        <li class="bfm-step-line" aria-hidden="true"></li>
+        <li class="bfm-step"><span class="bfm-step-dot">3</span>Generate</li>
+        <li class="bfm-step-line" aria-hidden="true"></li>
+        <li class="bfm-step"><span class="bfm-step-dot">4</span>Review</li>
+        <li class="bfm-step-line" aria-hidden="true"></li>
+        <li class="bfm-step"><span class="bfm-step-dot">5</span>Publish</li>
+      </ol>
+    </div>
+
+    <sc-for list="{{specs}}" as="s" hint-placeholder-count="4">
+      <section class="bfm-card bfm-reveal" style="display: flex; flex-direction: column; gap: 16px; --i: {{s.i}};">
+        <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px; flex-wrap: wrap;">
+          <div style="flex: 1 1 320px; min-width: 0;">
+            <p class="label" style="margin: 0; color: var(--ink-muted);">POST {{s.n}} · {{s.type}}</p>
+            <h2 class="heading" style="margin: 4px 0 0;">{{s.title}}</h2>
+            <p class="small" style="margin: 4px 0 0; color: var(--ink-muted);">Keyword: {{s.keyword}} · {{s.length}} · CTA: {{s.cta}} · FAQ: {{s.faq}}</p>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span class="bfm-badge {{s.badgeClass}}">{{s.badge}}</span>
+            <button class="bfm-btn bfm-btn-ghost bfm-btn-sm" onClick="{{s.toggle}}">{{s.toggleLabel}}</button>
+          </div>
+        </div>
+        <sc-if value="{{s.open}}" hint-placeholder-val="{{false}}">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px 24px;">
+            <div>
+              <p class="label" style="margin: 0 0 8px;">Angle</p>
+              <p class="body" style="margin: 0;">{{s.angle}}</p>
+            </div>
+            <div>
+              <p class="label" style="margin: 0 0 8px;">Outline</p>
+              <ol class="body" style="margin: 0; padding-left: 20px;">
+                <sc-for list="{{s.outline}}" as="h" hint-placeholder-count="4"><li>{{h}}</li></sc-for>
+              </ol>
+            </div>
+            <div>
+              <p class="label" style="margin: 0 0 8px;">Facts from the pack</p>
+              <p class="body" style="margin: 0;">{{s.facts}}</p>
+            </div>
+            <div>
+              <p class="label" style="margin: 0 0 8px;">Internal links</p>
+              <p class="body" style="margin: 0;">{{s.links}}</p>
+            </div>
+          </div>
+        </sc-if>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
+          <button class="bfm-btn bfm-btn-secondary bfm-btn-sm">Edit spec</button>
+          <button class="bfm-btn bfm-btn-secondary bfm-btn-sm">Redraft with a note</button>
+          <button class="bfm-btn {{s.confirmClass}} bfm-btn-sm" onClick="{{s.confirm}}">{{s.confirmLabel}}</button>
+        </div>
+      </section>
+    </sc-for>
+
+    <div class="bfm-card" style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+      <p class="body" style="margin: 0;">{{done}} of {{total}} specs confirmed</p>
+      <sc-if value="{{ready}}" hint-placeholder-val="{{false}}">
+        <a class="bfm-btn bfm-btn-primary" href="Generating.dc.html" style="text-decoration: none;">Generate {{total}} posts</a>
+      </sc-if>
+      <sc-if value="{{notReady}}" hint-placeholder-val="{{true}}">
+        <button class="bfm-btn bfm-btn-primary" disabled>Generate {{total}} posts</button>
+      </sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { open: { 0: true }, confirmed: {} };
+  }
+  renderVals() {
+    const base = [
+      { title: 'Wet room or shower tray: which suits your bathroom?', type: 'Comparison', keyword: 'wet room vs shower tray', length: '1,800 to 2,500 words', cta: 'Design consultation', faq: 'Yes', angle: 'Help a homeowner choose by space, budget and upkeep, with a clear recommendation per situation.', outline: ['What each option is', 'Cost and installation differences', 'Which works in small bathrooms', 'Upkeep and resale', 'Our recommendation'], facts: '[Guarantee terms], [project example from the pack]', links: '/renovation-services/bathroom, /resources/bathroom' },
+      { title: 'How much does a bathroom renovation cost in Essex?', type: 'Cost guide', keyword: 'bathroom renovation cost essex', length: '1,800 to 2,500 words', cta: 'Design consultation', faq: 'Yes', angle: 'Lead with the price range, then explain what moves it, using only figures in the pack.', outline: ['Typical price range', 'What drives the cost', 'Where to save and where not to', 'Finance options', 'Getting an accurate quote'], facts: '[Price ranges from the pack], [finance offer]', links: '/renovation-services/bathroom' },
+      { title: 'Walk-in shower ideas for small bathrooms', type: 'Ideas', keyword: 'walk in shower small bathroom', length: '1,800 to 2,500 words', cta: 'Design consultation', faq: 'Only where useful', angle: 'Practical layouts that make a small room feel larger, each tied to a real constraint.', outline: ['Glass panel layouts', 'Corner showers', 'Drainage and floor levels', 'Storage that fits'], facts: '[Completed small-bathroom project]', links: '/our-projects' },
+      { title: 'Bathroom fitters in Chigwell', type: 'Local area page', keyword: 'bathroom fitters chigwell', length: '1,200 to 1,800 words', cta: 'Book a free visit', faq: 'Yes', angle: 'Show local work and explain the process for Chigwell homeowners.', outline: ['Our work in Chigwell', 'How a renovation runs', 'Typical timelines', 'Book a visit'], facts: '[Chigwell project from the pack]', links: '/locations/chigwell' }
+    ];
+    const total = base.length;
+    let done = 0;
+    const specs = base.map((s, i) => {
+      const isOpen = Boolean(this.state.open[i]);
+      const isDone = Boolean(this.state.confirmed[i]);
+      if (isDone) done += 1;
+      return Object.assign({}, s, {
+        i: String(i),
+        n: String(i + 1),
+        open: isOpen,
+        toggleLabel: isOpen ? 'Hide details' : 'Show details',
+        toggle: () => this.setState({ open: Object.assign({}, this.state.open, { [i]: !isOpen }) }),
+        badge: isDone ? 'Confirmed' : 'Spec ready',
+        badgeClass: isDone ? 'bfm-badge-success' : 'bfm-badge-brand',
+        confirmLabel: isDone ? 'Confirmed' : 'Confirm spec',
+        confirmClass: isDone ? 'bfm-btn-secondary' : 'bfm-btn-primary',
+        confirm: () => this.setState({ confirmed: Object.assign({}, this.state.confirmed, { [i]: !isDone }) })
+      });
+    });
+    const all = {};
+    base.forEach((_, i) => { all[i] = true; });
+    return {
+      specs,
+      done: String(done),
+      total: String(total),
+      ready: done === total,
+      notReady: done !== total,
+      confirmAll: () => this.setState({ confirmed: all })
+    };
+  }
+}
+</script>
+</body>
+</html>

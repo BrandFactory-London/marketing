@@ -1,0 +1,57 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-10-20T19:50:00Z" },
+  "title": "BrandFactory Marketing prototype",
+  "launch": { "view": "focused", "file": "Main.dc.html" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 300, "w": 1440, "h": 1400, "title": "1 Home", "expand": "fill", "is_interactive": true },
+    "Calendar.dc.html": { "x": 1520, "y": 300, "w": 1440, "h": 1200, "title": "2 Calendar", "expand": "fill", "is_interactive": true },
+    "CRM.dc.html": { "x": 3040, "y": 300, "w": 1440, "h": 1000, "title": "3 CRM: clients and packages", "expand": "fill", "is_interactive": true },
+    "Client.dc.html": { "x": 4560, "y": 300, "w": 1440, "h": 1400, "title": "4 Client: Migss Interiors (with client knowledge)", "expand": "fill", "is_interactive": true },
+    "Projects.dc.html": { "x": 6080, "y": 300, "w": 1440, "h": 1000, "title": "5 Projects", "expand": "fill", "is_interactive": true },
+    "Project.dc.html": { "x": 7600, "y": 300, "w": 1440, "h": 1200, "title": "6 Project: Migss Interiors website (with project knowledge)", "expand": "fill", "is_interactive": true },
+    "Posts.dc.html": { "x": 9120, "y": 300, "w": 1440, "h": 1000, "title": "7 Posts", "expand": "fill", "is_interactive": true },
+    "BatchSpec.dc.html": { "x": 0, "y": 2120, "w": 1440, "h": 1000, "title": "8 New batch: spec form", "expand": "fill", "is_interactive": true },
+    "SpecConfirm.dc.html": { "x": 1520, "y": 2120, "w": 1440, "h": 1000, "title": "9 Confirm spec", "expand": "fill", "is_interactive": true },
+    "Generating.dc.html": { "x": 3040, "y": 2120, "w": 1440, "h": 1000, "title": "10 Generating", "expand": "fill", "is_interactive": true },
+    "Review.dc.html": { "x": 4560, "y": 2120, "w": 1440, "h": 1000, "title": "11 Review queue", "expand": "fill", "is_interactive": true },
+    "Post.dc.html": { "x": 0, "y": 3540, "w": 1440, "h": 1000, "title": "12 Review a post", "expand": "fill", "is_interactive": true },
+    "Links.dc.html": { "x": 1520, "y": 3540, "w": 1440, "h": 1000, "title": "13 Optimise links", "expand": "fill", "is_interactive": true },
+    "Publish.dc.html": { "x": 3040, "y": 3540, "w": 1440, "h": 1000, "title": "14 Publish and derivatives", "expand": "fill", "is_interactive": true },
+    "Settings.dc.html": { "x": 4560, "y": 3540, "w": 1440, "h": 1100, "title": "15 Settings: BrandFactory rules, AI models, connections", "expand": "fill", "is_interactive": true },
+    "Nav.dc.html": { "x": 6080, "y": 3540, "w": 240, "h": 1000, "title": "Shared sidebar" }
+  },
+  "order": [
+    "Main.dc.html",
+    "Calendar.dc.html",
+    "CRM.dc.html",
+    "Client.dc.html",
+    "Projects.dc.html",
+    "Project.dc.html",
+    "Posts.dc.html",
+    "BatchSpec.dc.html",
+    "SpecConfirm.dc.html",
+    "Generating.dc.html",
+    "Review.dc.html",
+    "Post.dc.html",
+    "Links.dc.html",
+    "Publish.dc.html",
+    "Settings.dc.html",
+    "Nav.dc.html"
+  ],
+  "notes": {
+    "row1": { "x": 0, "y": 0, "text": "Home, calendar, CRM, projects and posts", "kind": "title1", "maxW": 10560 },
+    "row2": { "x": 0, "y": 1820, "text": "Batch workflow: spec, confirm, generate, review", "kind": "title1", "maxW": 5920 },
+    "row3": { "x": 0, "y": 3240, "text": "Review, optimise links, publish, settings", "kind": "title1", "maxW": 6320 }
+  },
+  "designSystems": [
+    {
+      "title": "BrandFactory Marketing",
+      "namespace": "bfm",
+      "artifact": "https://claude.ai/artifact/56GmKVvAqtCX7Jnw6m2edJ",
+      "version": "1792524583-2298",
+      "copiedAt": "2026-10-20T19:50:00Z"
+    }
+  ]
+}
