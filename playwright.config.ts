@@ -21,6 +21,7 @@ export default defineConfig({
       AUTH_GOOGLE_SECRET: "playwright-client-secret",
       ALLOWED_EMAIL: "hello@brandfactorylondon.com",
       APP_ENCRYPTION_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      DRIVE_PROOF_FOLDER_ID: "playwright-folder",
     },
   },
 });

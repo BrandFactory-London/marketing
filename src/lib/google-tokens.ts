@@ -67,7 +67,7 @@ export async function getGoogleAccessToken(
   const now = options.now ?? (() => new Date());
 
   const [row] = await db.select().from(googleTokens).where(eq(googleTokens.userId, userId));
-  if (!row) throw new GoogleReconnectRequired("No Google connection is stored. Sign in again.");
+  if (!row) throw new GoogleReconnectRequired("No Google connection is stored.");
 
   const stillValid =
     row.accessTokenEnc && row.accessTokenExpiresAt && row.accessTokenExpiresAt.getTime() - now().getTime() > EXPIRY_MARGIN_MS;
@@ -88,7 +88,7 @@ export async function getGoogleAccessToken(
   const body = (await response.json()) as TokenResponse;
   if (!response.ok || !body.access_token) {
     if (body.error === "invalid_grant") {
-      throw new GoogleReconnectRequired("Google no longer accepts the stored connection. Sign in again.");
+      throw new GoogleReconnectRequired("Google no longer accepts the stored connection.");
     }
     throw new Error(`Google token refresh failed with status ${response.status}${body.error ? ` (${body.error})` : ""}.`);
   }
