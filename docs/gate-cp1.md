@@ -1,6 +1,6 @@
 # Verification gate: Phase 1, checkpoint γ1 (foundation)
 
-20 Oct 2026. Written from `docs/templates/verification-gate.md`. Covers γ1.1 (approved at its check-in), γ1.2 and γ1.3.
+20 Oct 2026. Written from `docs/templates/verification-gate.md`. Covers γ1.1 (approved at its check-in), γ1.2 and γ1.3, Amir's smoke on the branch preview, and the sign-in hardening that followed it.
 
 ## Git state
 
@@ -10,7 +10,7 @@ HEAD:   0d7649c γ1.3: Drive proof page and Vercel framework setting
 Status: clean working tree before this gate file was added
 ```
 
-Follow-up on the same branch: the migration script runs Neon targets over HTTPS (see Migrations). `git log` shows the commit after `7e389e0 Add γ1 verification gate`.
+Follow-ups on the same branch, after this gate was first written: `fbc3136` runs Neon migrations over HTTPS (see Migrations), `4546e28` records the Neon dev migration and pins the region to `lhr1`, `8cb8f2e` refuses sign-in when the Google token cannot be stored (see Smoke results).
 
 ```
 $ git log --oneline -6
@@ -29,18 +29,18 @@ The orientation estimated about 1,700 lines. The overshoot is mostly tests: the 
 
 ## Test count
 
-Vitest, with the local test database (`TEST_DATABASE_URL` set), after the neon-http migration change:
+Vitest, with the local test database (`TEST_DATABASE_URL` set), after the sign-in hardening (`8cb8f2e`):
 ```
- Test Files  11 passed (11)
-      Tests  51 passed (51)
-```
-
-Playwright (production build, local test database):
-```
-  23 passed (17.3s)
+ Test Files  12 passed (12)
+      Tests  66 passed (66)
 ```
 
-Delta against the γ1.1 check-in: Vitest 7 to 51, Playwright 11 to 23. The earlier gate draft said 43 Vitest tests; the 8 new ones are in `scripts/migrate.test.ts`. Without `TEST_DATABASE_URL` the database suites skip rather than fail. Playwright was not rerun for this change, which touches only the migration script.
+Playwright (production build, local test database), after the same change:
+```
+  26 passed (29.6s)
+```
+
+Delta against the γ1.1 check-in: Vitest 7 to 66, Playwright 11 to 26. Corrections to earlier counts in this gate: 43 Vitest became 51 with `scripts/migrate.test.ts` (8 tests), then 66 with the sign-in hardening (15 tests: key check, sign-in rules, after-link step, store-and-verify against the local Postgres). Playwright went from 23 to 26 with the three new sign-in error messages. Without `TEST_DATABASE_URL` the database suites skip rather than fail.
 
 ## Typecheck, lint and build
 
@@ -48,7 +48,7 @@ Delta against the γ1.1 check-in: Vitest 7 to 51, Playwright 11 to 23. The earli
 Typecheck: pnpm typecheck (next typegen && tsc --noEmit), exit 0
 Lint: pnpm lint, exit 0
 Build: pnpm build, exit 0. `vercel.json` pins functions to `lhr1` (London), next to the Neon database in `eu-west-2`. Every page is a partial prerender; /api/auth/[...nextauth] is dynamic; Proxy present.
-Vercel preview: 0d7649c READY (dpl_BbwEZY4xqiMPGu3s5tdsZBXRn2je)
+Vercel preview: 0d7649c READY; 4546e28 READY in region lhr1 (dpl_4JiwkVMggWn9DDtS8z2iDP3Pb4NV)
 ```
 
 The γ1.2 preview (`fec798e`) failed on Vercel after a successful `next build`: `[STATIC_BUILD_NO_OUT_DIR] No Output Directory named "public" found`. The Vercel project was created while the repo held only docs, so its framework preset is not Next.js. `vercel.json` now sets `"framework": "nextjs"` and the next preview built. No Vercel project settings were changed.
@@ -97,7 +97,7 @@ The γ1.2 preview (`fec798e`) failed on Vercel after a successful `next build`: 
   Applied migrations: 1
     1 bc9dce5f5136 1792531354466
   ```
-  Exit code 0. The tables and migrations lines come from the script's own check queries after the migrator. **Independent check pending:** Amir runs the SQL in smoke step 2 in the Neon SQL editor.
+  Exit code 0. The tables and migrations lines come from the script's own check queries after the migrator. Amir ran the independent SQL check in the Neon SQL editor; the smoke that followed (steps 3 to 8) ran against these tables.
 - Follow-up: backlog item 6 moves Neon migrations to a transactional route over port 443 before production holds real data, at the latest before γ2 merges.
 
 ## Consumer audit (D.3.3)
@@ -105,6 +105,9 @@ The γ1.2 preview (`fec798e`) failed on Vercel after a successful `next build`: 
 - **`Sidebar` gained a `footer` prop:** 1 consumer, `src/app/(app)/layout.tsx` (passes the account panel). Verified clean.
 - **`src/lib/nav.ts`:** 4 consumers: `Sidebar.tsx`, `settings/SettingsTabs.tsx`, `nav.test.ts`, `e2e/shell.spec.ts`. Verified clean.
 - **`GoogleReconnectRequired` messages (shortened in γ1.3):** 2 consumers: `dev/drive-check/page.tsx` (appends the instruction) and `e2e/drive-check.spec.ts`. Verified clean.
+- **`withoutStoredTokens` gained an `afterLink` argument:** 1 consumer, `src/auth.ts`, plus its tests. Verified clean.
+- **Token storage moved out of `events.signIn`:** `src/auth.ts` no longer has an `events` block. The `signIn` callback (`checkGoogleSignIn`) and the adapter's after-link step both call `storeGoogleGrant`. Verified clean.
+- **Sign-in error codes:** `src/app/signin/SignInError.tsx` handles `AccessDenied`, `EncryptionKey`, `GoogleTokenNotSaved` and `Configuration`; `SIGN_IN_ERRORS` in `src/lib/google-sign-in.ts` produces the two new ones; `e2e/auth.spec.ts` covers all four. Verified clean.
 - **Design system CSS:** `git diff 64ead3a HEAD -- design/` is empty. The app imports both files from `design/system/`. `src/styles.test.ts` fails on any hex, rgb or hsl colour in `src/` and on any Tailwind, shadcn or Radix dependency.
 
 ## What was verified vs code-inspection only (MANDATORY)
@@ -124,23 +127,47 @@ The γ1.2 preview (`fec798e`) failed on Vercel after a successful `next build`: 
 - Token refresh: cached token used while valid, exchange when close to expiry or forced, `invalid_grant` maps to "sign in again": Vitest against the local Postgres with a mocked Google endpoint.
 - Settings row: created on first read with Opus 5.5, updates one role, refuses unknown models, only one row allowed: Vitest against the local Postgres.
 - Drive page: needs a session, not in the nav, shows the reconnect message with no stored connection: Playwright; I viewed the screenshot. Drive request building and error mapping: Vitest with a mocked endpoint.
-- The Vercel preview builds: Vercel reports READY for `0d7649c`.
+- The Vercel preview builds: Vercel reports READY for `0d7649c` and, in `lhr1`, for `4546e28`.
+- A missing or malformed `APP_ENCRYPTION_KEY` refuses sign-in before anything is written, with the `EncryptionKey` message and a server log line naming the problem: Vitest (`google-sign-in.test.ts`, `crypto.test.ts`).
+- A token that fails to save, or is missing afterwards, refuses sign-in with `GoogleTokenNotSaved` on a returning account; on a first sign-in the after-link step throws, which Auth.js turns into `?error=Configuration` before a session exists: Vitest, including store-and-verify against the local Postgres with the key removed.
+- The three new sign-in messages render: Playwright; I viewed the `EncryptionKey` screenshot.
+- Smoke on the branch preview (Amir, before the hardening): steps 3 to 8 passed. Details under Smoke results.
 
 **Code-inspection only (needs smoke):**
-- The real Google round trip: consent screen, callback, `events.signIn` storing the encrypted token. Needs the OAuth client, so smoke steps 4 and 5.
-- That a different Google account is refused by real Google and no user row is written: smoke step 6.
-- A real refresh-token exchange and a real Drive listing: smoke step 8.
+- The hardened sign-in against real Google: the refusal paths can only be triggered by real Google callbacks with a bad configuration, so they are covered by unit tests and need the repeat smoke steps under Smoke results.
+- The first-sign-in path (after-link storage) has not run against real Google: the smoke user already exists on the dev branch. It is covered by Vitest and runs for real on the first production sign-in.
 - That the Drive page returns 404 when `DRIVE_PROOF_FOLDER_ID` is unset: Playwright runs with it set, so this path is read in code only (`notFound()` in `dev/drive-check/page.tsx`).
-- Neon: the read-only connection test passed over HTTPS; the migration and the app's runtime behaviour on Neon's pooled endpoint are untested. The app connects with node-postgres on port 5432, which works from Vercel; only Claude's cloud environment blocks that port.
-- The preview deployment's pages: not opened, because its environment variables are not set yet and Vercel's deployment protection may apply.
 
 ## Deliberately unchanged / out of scope
 
 - No feature work on any page; empty states only.
 - Cover, Stepper and AIPanel wrappers wait for the checkpoints that need them.
-- No Vercel project settings, environment variables or Google settings were changed from this session.
+- No Vercel project settings, environment variables or Google settings were changed from this session. `vercel.json` sets the framework and region from the repo.
 - Status words (decision 16 against the design system README): γ3.
 - Sidebar product name wraps onto two lines, kept as is pending your choice.
+
+## Smoke results (Amir, branch preview)
+
+All steps passed:
+- Step 3: signed-out visitors are redirected to sign-in.
+- Step 4: Google sign-in works and asks for Drive read access.
+- Step 5: `accounts` has all three token columns null; `google_tokens` has one `v1.` row.
+- Step 6: a non-domain account is blocked by Google itself (`org_internal`: the OAuth client is internal to the Workspace); `users` holds only hello@brandfactorylondon.com. The app's own refusal (`AccessDenied`) is therefore a second line behind Google's, and remains covered by Vitest and Playwright.
+- Step 7: every nav item and the mobile menu look right.
+- Step 8: the Drive check lists the Migss folder, and the refresh time changes on reload.
+
+**Finding.** Step 5 first failed: `APP_ENCRYPTION_KEY` was missing from Preview. Sign-in looked successful while `google_tokens` stayed empty. Cause: the token was saved in `events.signIn`, and Auth.js logs and swallows errors thrown from events (`eventsErrorHandler` in `@auth/core/lib/init.js`). Adding the key fixed the smoke.
+
+**Fix (`8cb8f2e`).**
+- The `signIn` callback (`checkGoogleSignIn` in `src/lib/google-sign-in.ts`) runs before Auth.js writes anything. After the allowlist it checks that `APP_ENCRYPTION_KEY` is set, is base64 and decodes to 32 bytes. If not, it logs `Sign-in refused: APP_ENCRYPTION_KEY <problem>` and redirects to `/signin?error=EncryptionKey`: "Sign-in is switched off: the server's encryption key (APP_ENCRYPTION_KEY) is missing or invalid."
+- For a returning account it saves the token and then checks a `google_tokens` row exists. If either fails it logs the cause and redirects to `/signin?error=GoogleTokenNotSaved`: "Google accepted the sign-in, but the Google connection could not be saved, so you are not signed in."
+- On a first sign-in (no user yet) the adapter wrapper saves and checks straight after linking the account. A failure throws inside the adapter, so Auth.js stops before creating a session and shows `/signin?error=Configuration`: "Sign-in could not finish because of a server problem. Check the server log." The user and account rows from that attempt stay; the next attempt takes the returning-account path.
+- `events.signIn` is removed.
+
+**Smoke steps to repeat** on the branch preview once `8cb8f2e` (or later) is deployed:
+- **R1 (step 4 and 5 again).** Sign out, sign in as hello@brandfactorylondon.com, then rerun the step 5 SQL. Expected: sign-in works; `accounts` tokens still null; `google_tokens` still one `v1.` row, with `access_token_expires_at` about an hour after this sign-in. This proves the new returning-account path stores the token.
+- **R2 (the failure is now visible).** In Vercel Preview, change `APP_ENCRYPTION_KEY` to a short value such as `dGVzdA==` (4 bytes), redeploy, sign out and sign in. Expected: back on the sign-in page with "Sign-in is switched off: the server's encryption key (APP_ENCRYPTION_KEY) is missing or invalid.", and the function log shows `Sign-in refused: APP_ENCRYPTION_KEY decodes to 4 bytes, not 32`. Then restore the real key, redeploy, and sign in again. Do not delete the variable to test this: restoring the same key keeps the stored token readable; a new key makes it unreadable until you sign in again.
+- **R3 (step 8 again).** Open `/dev/drive-check`. Expected: the folder still lists, with a new refresh time.
 
 ## Smoke instructions for Amir
 
@@ -204,4 +231,37 @@ Always use that branch address for the smoke, not a per-deployment `marketing-xx
 
 ---
 
-**Stopping for smoke and review. PR "γ1 foundation" is open against main; it will not be merged without your go-ahead. Proceed to γ2 on go-ahead.**
+## Production checklist
+
+Production is the Vercel project's production deployment from `main`, on `https://marketing-cyan-nu.vercel.app` (the project's production domain; `marketing-brandfactorylondon.vercel.app` is also an alias). It uses the Neon **main** branch, not the dev branch.
+
+1. **Neon.** Copy the pooled connection string for the Neon **main** branch.
+2. **Vercel environment variables, Production environment:**
+
+   | Variable | Value |
+   |---|---|
+   | `DATABASE_URL` | Neon **main** branch, pooled connection string |
+   | `AUTH_SECRET` | a new value from `openssl rand -base64 32` (do not reuse Preview's) |
+   | `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | the same Google OAuth client as Preview |
+   | `ALLOWED_EMAIL` | `hello@brandfactorylondon.com` |
+   | `APP_ENCRYPTION_KEY` | a new value from `openssl rand -base64 32`. Store it in your password manager: losing or changing it makes stored Google tokens unreadable until you sign in again, and Wix credentials from γ6 would have to be re-entered. |
+   | `DRIVE_PROOF_FOLDER_ID` | leave unset in Production (the Drive check stays a 404). Set it only for a one-off check, then remove it. |
+
+3. **Google OAuth client.** Add this authorised redirect URI exactly, keeping the preview one:
+   ```
+   https://marketing-cyan-nu.vercel.app/api/auth/callback/google
+   ```
+   Use that address for production sign-in. If you add a custom domain later, add its callback URL too.
+4. **Production migration (waits for your go-ahead).** From a Claude session whose `DATABASE_URL` is the Neon **main** branch, on the merged `main`:
+   ```
+   node -e 'console.log(new URL(process.env.DATABASE_URL).hostname)'   # confirm it is the main branch endpoint, not ep-square-mode-zatw6e39
+   pnpm install
+   pnpm db:migrate --remote
+   ```
+   Expected: `Driver: neon-http (HTTPS, port 443)`, the five tables, `Applied migrations: 1` with hash `bc9dce5f5136`. Then run the step 2 SQL in the Neon SQL editor against the main branch. The main branch is empty, so the non-transactional caveat carries little risk; backlog item 6 (transactional migrations over 443) is due before production holds real data, at the latest before γ2 merges.
+5. **Order.** Migrate (step 4) before or straight after the merge deploys, then sign in. Until the migration runs, production sign-in fails with the `Configuration` message.
+6. **Production smoke.** Sign in on `https://marketing-cyan-nu.vercel.app`; this is the first real run of the first-sign-in path. Then run the step 5 SQL against the main branch: tokens null in `accounts`, one `v1.` row in `google_tokens`. Click through the nav.
+
+---
+
+**Stopping for the repeat smoke (R1 to R3) and review. PR "γ1 foundation" is open against main; it will not be merged, and nothing will run against production, without your go-ahead. Proceed to γ2 on go-ahead.**
