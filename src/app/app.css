@@ -37,3 +37,17 @@ body { margin: 0; min-height: 100vh; }
   .app-sidebar .bfm-nav-brand { display: none; }
   .app-main { padding: var(--space-8) var(--space-4); }
 }
+
+/* Account panel at the foot of the sidebar */
+.app-account { margin-top: auto; padding-top: var(--space-4); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: var(--space-2); min-height: 96px; }
+.app-account-who { display: flex; flex-direction: column; padding: 0 var(--space-3); min-width: 0; }
+.app-account-name { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-account-email { color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-account-signout { width: 100%; border: 0; background: transparent; cursor: pointer; text-align: left; }
+
+/* Sign-in page */
+.app-signin { min-height: 100vh; display: grid; place-items: center; padding: var(--space-4); }
+.app-signin-card { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: var(--space-4); }
+.app-signin-brand { font-weight: 700; font-size: 15px; }
+.app-signin-error { margin: 0; padding: var(--space-3); border-radius: var(--radius-md); background: var(--danger-tint); color: var(--danger); }
+.app-signin-button { width: 100%; }

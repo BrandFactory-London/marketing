@@ -12,5 +12,15 @@ export default defineConfig({
     url: `http://localhost:${port}`,
     reuseExistingServer: false,
     timeout: 240_000,
+    // Local test values only. The database is the local Postgres used by the Vitest integration tests.
+    env: {
+      DATABASE_URL: process.env.TEST_DATABASE_URL ?? "postgres://postgres@localhost:5433/bfm_test",
+      AUTH_SECRET: "playwright-local-secret-not-used-anywhere-else",
+      AUTH_TRUST_HOST: "true",
+      AUTH_GOOGLE_ID: "playwright-client-id",
+      AUTH_GOOGLE_SECRET: "playwright-client-secret",
+      ALLOWED_EMAIL: "hello@brandfactorylondon.com",
+      APP_ENCRYPTION_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    },
   },
 });
