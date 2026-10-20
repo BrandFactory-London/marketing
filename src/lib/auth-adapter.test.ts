@@ -37,4 +37,24 @@ describe("adapter wrapper", () => {
     const wrapped = withoutStoredTokens({ getUser, linkAccount: vi.fn() } as unknown as Adapter);
     expect(wrapped.getUser).toBe(getUser);
   });
+
+  it("runs afterLink with the full account once the stripped account is linked", async () => {
+    const order: string[] = [];
+    const linkAccount = vi.fn(async () => {
+      order.push("link");
+    });
+    const afterLink = vi.fn(async (linked: AdapterAccount) => {
+      order.push("after");
+      expect(linked.refresh_token).toBe("1//refresh");
+    });
+    await withoutStoredTokens({ linkAccount } as unknown as Adapter, afterLink).linkAccount!(account);
+    expect(order).toEqual(["link", "after"]);
+  });
+
+  it("fails linking when afterLink fails, so Auth.js stops the sign-in", async () => {
+    const wrapped = withoutStoredTokens({ linkAccount: vi.fn() } as unknown as Adapter, async () => {
+      throw new Error("token not saved");
+    });
+    await expect(wrapped.linkAccount!(account)).rejects.toThrow("token not saved");
+  });
 });

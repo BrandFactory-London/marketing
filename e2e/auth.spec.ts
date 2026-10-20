@@ -27,6 +27,18 @@ test.describe("signed out", () => {
     await page.screenshot({ path: "e2e/screenshots/signin-refused.png", fullPage: true });
   });
 
+  for (const [code, text] of [
+    ["EncryptionKey", "Sign-in is switched off: the server's encryption key (APP_ENCRYPTION_KEY) is missing or invalid."],
+    ["GoogleTokenNotSaved", "Google accepted the sign-in, but the Google connection could not be saved, so you are not signed in."],
+    ["Configuration", "Sign-in could not finish because of a server problem. Check the server log."],
+  ]) {
+    test(`the sign-in page explains the ${code} error`, async ({ page }) => {
+      await page.goto(`/signin?error=${code}`);
+      await expect(page.getByRole("alert").filter({ hasText: "ign" }).first()).toContainText(text);
+      if (code === "EncryptionKey") await page.screenshot({ path: "e2e/screenshots/signin-key-error.png", fullPage: true });
+    });
+  }
+
   test("an expired session is treated as signed out", async ({ context, page, baseURL }) => {
     const token = await createSession(new Date(Date.now() - 60_000));
     await context.addCookies([{ name: SESSION_COOKIE, value: token, url: baseURL! }]);

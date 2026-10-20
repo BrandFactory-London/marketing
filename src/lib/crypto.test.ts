@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
-import { decrypt, encrypt, parseKey } from "./crypto";
+import { decrypt, encrypt, encryptionKeyProblem, parseKey } from "./crypto";
 
 const key = randomBytes(32);
 
@@ -51,5 +51,15 @@ describe("AES-GCM helper", () => {
     expect(() => encrypt("secret", "aad")).toThrow("APP_ENCRYPTION_KEY");
     process.env.APP_ENCRYPTION_KEY = key.toString("base64");
     expect(decrypt(encrypt("secret", "aad"), "aad")).toBe("secret");
+  });
+
+  it("names the problem with an unusable APP_ENCRYPTION_KEY, and accepts a 32-byte base64 key", () => {
+    expect(encryptionKeyProblem(undefined)).toBe("is not set");
+    expect(encryptionKeyProblem("")).toBe("is not set");
+    expect(encryptionKeyProblem("not base64 at all!")).toBe("is not valid base64");
+    expect(encryptionKeyProblem(randomBytes(16).toString("base64"))).toBe("decodes to 16 bytes, not 32");
+    expect(encryptionKeyProblem(randomBytes(48).toString("base64"))).toBe("decodes to 48 bytes, not 32");
+    expect(encryptionKeyProblem(key.toString("base64"))).toBeNull();
+    expect(encryptionKeyProblem(`${key.toString("base64")}\n`)).toBeNull();
   });
 });

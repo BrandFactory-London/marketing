@@ -9,6 +9,18 @@ const VERSION = "v1";
 const IV_BYTES = 12;
 const KEY_BYTES = 32;
 
+const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
+
+// Says what is wrong with an APP_ENCRYPTION_KEY value, or null when it is usable. Sign-in checks
+// this first, so a missing or malformed key stops sign-in instead of failing later.
+export function encryptionKeyProblem(value: string | undefined): string | null {
+  if (!value) return "is not set";
+  if (!BASE64.test(value.trim())) return "is not valid base64";
+  const bytes = Buffer.from(value.trim(), "base64").length;
+  if (bytes !== KEY_BYTES) return `decodes to ${bytes} bytes, not ${KEY_BYTES}`;
+  return null;
+}
+
 export function parseKey(base64Key: string): Buffer {
   const key = Buffer.from(base64Key, "base64");
   if (key.length !== KEY_BYTES) {

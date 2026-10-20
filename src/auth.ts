@@ -3,9 +3,9 @@ import Google from "next-auth/providers/google";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { getDb } from "@/db/client";
 import { accounts, sessions, users } from "@/db/schema";
-import { isAllowedSignIn } from "@/lib/allowlist";
 import { withoutStoredTokens } from "@/lib/auth-adapter";
-import { saveGoogleTokens } from "@/lib/google-tokens";
+import { checkGoogleSignIn, storeGoogleGrant, type SignInDeps } from "@/lib/google-sign-in";
+import { findGoogleUserId, hasGoogleTokens, saveGoogleTokens } from "@/lib/google-tokens";
 
 export const GOOGLE_SCOPES = [
   "openid",
@@ -14,11 +14,33 @@ export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/drive.readonly",
 ].join(" ");
 
+function signInDeps(): SignInDeps {
+  return {
+    allowedEmail: process.env.ALLOWED_EMAIL,
+    encryptionKey: process.env.APP_ENCRYPTION_KEY,
+    findUserId: (providerAccountId) => findGoogleUserId(providerAccountId),
+    saveTokens: (grant) => saveGoogleTokens(grant),
+    hasTokens: (userId) => hasGoogleTokens(userId),
+    logError: (message, error) => console.error(message, error ?? ""),
+  };
+}
+
 // The config is built per request so that importing this module (for example during a build)
 // does not need DATABASE_URL.
 export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
+  // On a first sign-in the token is stored right after the account row is linked. A failure there
+  // aborts the sign-in (Auth.js sends the visitor to /signin?error=Configuration).
   adapter: withoutStoredTokens(
     DrizzleAdapter(getDb(), { usersTable: users, accountsTable: accounts, sessionsTable: sessions }),
+    async (account) => {
+      if (account.provider !== "google") return;
+      try {
+        await storeGoogleGrant(account.userId, account, signInDeps());
+      } catch (error) {
+        console.error("Sign-in refused: the Google connection could not be saved on first sign-in.", error);
+        throw error;
+      }
+    },
   ),
   session: { strategy: "database" },
   providers: [
@@ -30,20 +52,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
   ],
   pages: { signIn: "/signin", error: "/signin" },
   callbacks: {
-    // Runs before any user row is created, so a refused account writes nothing.
-    signIn: ({ profile }) => isAllowedSignIn(profile, process.env.ALLOWED_EMAIL),
-  },
-  events: {
-    // Runs on every sign-in, not only the first, so a fresh refresh token always gets stored.
-    signIn: async ({ user, account }) => {
-      if (account?.provider !== "google" || !user.id) return;
-      await saveGoogleTokens({
-        userId: user.id,
-        refreshToken: account.refresh_token ?? null,
-        accessToken: account.access_token ?? null,
-        expiresAt: account.expires_at ? new Date(account.expires_at * 1000) : null,
-        scope: account.scope ?? null,
-      });
-    },
+    // Runs before Auth.js writes anything: allowlist, encryption key, and (for a returning account)
+    // storing the Google token. Token storage is deliberately not in events: Auth.js logs and
+    // swallows errors thrown from events, which let sign-in succeed without a stored token.
+    signIn: ({ profile, account }) => checkGoogleSignIn(profile, account, signInDeps()),
   },
 }));

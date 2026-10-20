@@ -1,10 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { googleTokens, users } from "@/db/schema";
+import { accounts, googleTokens, users } from "@/db/schema";
 import { createTestDb, testDatabaseUrl } from "@/test/db";
 import { decrypt } from "./crypto";
-import { GoogleReconnectRequired, getGoogleAccessToken, saveGoogleTokens } from "./google-tokens";
+import { storeGoogleGrant } from "./google-sign-in";
+import { GoogleReconnectRequired, findGoogleUserId, getGoogleAccessToken, hasGoogleTokens, saveGoogleTokens } from "./google-tokens";
 
 describe.skipIf(!testDatabaseUrl)("Google token store (local Postgres)", () => {
   const { db, close } = createTestDb();
@@ -90,5 +91,39 @@ describe.skipIf(!testDatabaseUrl)("Google token store (local Postgres)", () => {
 
   it("asks for a new sign-in when nothing is stored", async () => {
     await expect(getGoogleAccessToken(userId, { db, fetchImpl: vi.fn() })).rejects.toBeInstanceOf(GoogleReconnectRequired);
+  });
+
+  it("finds the user linked to a Google account, and null on a first sign-in", async () => {
+    expect(await findGoogleUserId("g-test-1", db)).toBeNull();
+    await db.insert(accounts).values({ userId, type: "oidc", provider: "google", providerAccountId: "g-test-1" });
+    expect(await findGoogleUserId("g-test-1", db)).toBe(userId);
+  });
+
+  it("store-and-verify succeeds with a refresh token and fails loudly without one", async () => {
+    const realDeps = {
+      saveTokens: (grant: Parameters<typeof saveGoogleTokens>[0]) => saveGoogleTokens(grant, db),
+      hasTokens: (id: string) => hasGoogleTokens(id, db),
+    };
+    await expect(storeGoogleGrant(userId, { provider: "google", providerAccountId: "g", access_token: "ya29" }, realDeps)).rejects.toThrow(
+      "No Google connection is stored",
+    );
+    await storeGoogleGrant(userId, { provider: "google", providerAccountId: "g", refresh_token: "1//new" }, realDeps);
+    expect(await hasGoogleTokens(userId, db)).toBe(true);
+  });
+
+  it("store-and-verify fails loudly when the encryption key is missing", async () => {
+    const saved = process.env.APP_ENCRYPTION_KEY;
+    delete process.env.APP_ENCRYPTION_KEY;
+    try {
+      await expect(
+        storeGoogleGrant(userId, { provider: "google", providerAccountId: "g", refresh_token: "1//new" }, {
+          saveTokens: (grant) => saveGoogleTokens(grant, db),
+          hasTokens: (id) => hasGoogleTokens(id, db),
+        }),
+      ).rejects.toThrow("Saving the Google connection failed.");
+      expect(await hasGoogleTokens(userId, db)).toBe(false);
+    } finally {
+      process.env.APP_ENCRYPTION_KEY = saved;
+    }
   });
 });

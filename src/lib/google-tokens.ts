@@ -1,7 +1,7 @@
 import "server-only";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { getDb, type Database } from "@/db/client";
-import { googleTokens } from "@/db/schema";
+import { accounts, googleTokens } from "@/db/schema";
 import { decrypt, encrypt } from "./crypto";
 import { requireEnv } from "./env";
 
@@ -43,6 +43,20 @@ export async function saveGoogleTokens(grant: GoogleTokenGrant, db: Database = g
       .set({ ...access, ...scope, updatedAt: sql`now()` })
       .where(eq(googleTokens.userId, grant.userId));
   }
+}
+
+export async function hasGoogleTokens(userId: string, db: Database = getDb()): Promise<boolean> {
+  const rows = await db.select({ userId: googleTokens.userId }).from(googleTokens).where(eq(googleTokens.userId, userId));
+  return rows.length > 0;
+}
+
+// The app user already linked to this Google account, if any (null on a first sign-in).
+export async function findGoogleUserId(providerAccountId: string, db: Database = getDb()): Promise<string | null> {
+  const rows = await db
+    .select({ userId: accounts.userId })
+    .from(accounts)
+    .where(and(eq(accounts.provider, "google"), eq(accounts.providerAccountId, providerAccountId)));
+  return rows[0]?.userId ?? null;
 }
 
 export class GoogleReconnectRequired extends Error {
