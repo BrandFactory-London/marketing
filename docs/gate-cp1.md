@@ -47,7 +47,7 @@ Delta against the γ1.1 check-in: Vitest 7 to 51, Playwright 11 to 23. The earli
 ```
 Typecheck: pnpm typecheck (next typegen && tsc --noEmit), exit 0
 Lint: pnpm lint, exit 0
-Build: pnpm build, exit 0. Every page is a partial prerender; /api/auth/[...nextauth] is dynamic; Proxy present.
+Build: pnpm build, exit 0. `vercel.json` pins functions to `lhr1` (London), next to the Neon database in `eu-west-2`. Every page is a partial prerender; /api/auth/[...nextauth] is dynamic; Proxy present.
 Vercel preview: 0d7649c READY (dpl_BbwEZY4xqiMPGu3s5tdsZBXRn2je)
 ```
 
@@ -85,7 +85,20 @@ The γ1.2 preview (`fec798e`) failed on Vercel after a successful `next build`: 
   Public tables: 0. Drizzle migrations table present: false
   TCP 5432: blocked or timed out
   ```
-- **Not applied to Neon.** Waiting for Amir to confirm that this endpoint is the dev branch and to give the go-ahead.
+- **Applied to the Neon dev branch** (Amir confirmed `ep-square-mode-zatw6e39` is the dev branch and gave the go-ahead), from this session with `pnpm db:migrate --remote`, output verbatim:
+  ```
+  > brandfactory-marketing@0.1.0 db:migrate /home/user/marketing
+  > tsx scripts/migrate.ts --remote
+
+  Target: ep-square-mode-zatw6e39-pooler.c-2.eu-west-2.aws.neon.tech/neondb
+  Driver: neon-http (HTTPS, port 443)
+  Migrator finished.
+  Public tables: accounts, app_settings, google_tokens, sessions, users
+  Applied migrations: 1
+    1 bc9dce5f5136 1792531354466
+  ```
+  Exit code 0. The tables and migrations lines come from the script's own check queries after the migrator. **Independent check pending:** Amir runs the SQL in smoke step 2 in the Neon SQL editor.
+- Follow-up: backlog item 6 moves Neon migrations to a transactional route over port 443 before production holds real data, at the latest before γ2 merges.
 
 ## Consumer audit (D.3.3)
 
@@ -128,7 +141,6 @@ The γ1.2 preview (`fec798e`) failed on Vercel after a successful `next build`: 
 - No Vercel project settings, environment variables or Google settings were changed from this session.
 - Status words (decision 16 against the design system README): γ3.
 - Sidebar product name wraps onto two lines, kept as is pending your choice.
-- Vercel runs functions in `iad1` (US East) by default. If the Neon database is in London, consider setting the function region to `lhr1` or moving the database so they match. Raise it if pages feel slow at smoke.
 
 ## Smoke instructions for Amir
 
@@ -152,7 +164,7 @@ https://marketing-git-claude-wizardly-heisenb-faa75e-brandfactorylondon.vercel.a
 Always use that branch address for the smoke, not a per-deployment `marketing-xxxx` address, or Google will reject the redirect.
 
 1. **Confirm the database.** The connection test reached `ep-square-mode-zatw6e39-pooler.c-2.eu-west-2.aws.neon.tech` (database `neondb`, empty). Confirm in the Neon console that this endpoint belongs to the **dev** branch, and use the same connection string for `DATABASE_URL` in Vercel Preview.
-2. **Migration on the Neon dev branch, after your go-ahead.** From a session that can see `DATABASE_URL`, on branch `claude/wizardly-heisenberg-qqorrz`:
+2. **Migration on the Neon dev branch. Done** (output under Migrations). Only the independent check remains. For reference, the command was, from a session that can see `DATABASE_URL`, on branch `claude/wizardly-heisenberg-qqorrz`:
    ```
    pnpm install
    pnpm db:migrate --remote
