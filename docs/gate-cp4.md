@@ -1,12 +1,13 @@
 # Verification gate: Phase 1, checkpoint γ4 (batch spec and generation)
 
-Status: **complete.** The real end-to-end run is recorded below. Every check passes, so per the process change the PR is opened and merged, and the production smoke list is at the end.
+Status: **complete and live.** The real end-to-end run is recorded below. PR #4 merged as `975614c`. Production went live with `81bbf19` at 15:13 UTC, with the `0003` migration applied in the Vercel build ("Production deploy"). The production smoke list is at the end.
 
 ## Git state
 
 ```
 Branch: claude/gamma4-cost-cache-validation-jpq1pb (pushed). It continues claude/loving-cannon-ksyp3b from 26953ac.
 Commits since main (267a6c3):
+fae50fc Gate: name its own commit
 78cfb5b γ4 gate: real run on Neon dev, Vercel and Trigger.dev deploy notes, smoke list
 6f0e7cf Real run driver: dev-only Neon WebSocket client for trigger.dev dev workers
 26953ac γ4 gate draft and backlog items 15 to 17
@@ -86,7 +87,7 @@ checks: ai_calls_purpose_check, critic_verdicts_verdict_check, post_generations_
 row counts: {"batches":"0","specs":"0","posts":"24"}
 ```
 
-**Production:** not from this session. It runs in the Vercel production build of the merge (next section).
+**Production:** not from this session. It ran in the Vercel production build of `81bbf19`, in "Production deploy" below.
 
 ## Production migrations in the Vercel build
 
@@ -188,8 +189,9 @@ The batch and its two posts stay on Neon dev as test data, for the γ5 review sc
 - The Connections check reading a real run result (the stand-in does not serve results, and the real run did not use the Connections page).
 - The app's own database driver (node-postgres) in a Trigger.dev worker: the dev run used the WebSocket alias. Production workers reach Neon over TCP, which only the production smoke proves.
 - The batch form and Generate button calling Trigger.dev Production from Vercel: the real run called the same functions from a script, not through the signed-in UI.
-- The production migration step against real Neon: the first real run is this merge's own production build.
-- Trigger.dev deploying the tasks from the Vercel production deploy: read from the Trigger.dev docs (next section), checked after merge.
+- Trigger.dev deploying the tasks from the Vercel production deploy: read from the Trigger.dev docs (next section). This session cannot read Trigger.dev Production's deployments (smoke step 1).
+
+The production migration step against real Neon was code-inspection only until the `81bbf19` production build. It is now verified from that build's log ("Production deploy" below).
 
 ## Deliberately unchanged / out of scope
 
@@ -234,14 +236,45 @@ Amir reports the Trigger.dev Vercel integration connected, with the variables in
 - Non-sensitive production variables, such as `AUTH_*` and `APP_ENCRYPTION_KEY` if they are not Sensitive, are also copied into Trigger.dev Production. The tasks do not use them.
 - `MIGRATION_DATABASE_URL` and the `NEON_*` keys should stay Sensitive, so they are not copied.
 
+## Production deploy
+
+**Why it was late.** The γ4 merge (`975614c`, PR #4, 14:24 UTC) produced no Vercel production deployment. Amir found the cause: Trigger.dev's GitHub connection was saved after the merge, so no push to `main` had reached it since. With Amir's go-ahead, this session pushed an empty commit to `main`: `81bbf19 Trigger production deploy of γ4`.
+
+**Deployment.** `dpl_9JrL99oxPsc2fWQKKo7a6bZqhT4f`, target production, commit `81bbf19`. It went READY at 15:13 UTC and is aliased to `marketing-brandfactorylondon.vercel.app`. The deployment record and build log were read from Vercel by this session. Migration lines from the build log, verbatim:
+```
+> tsx scripts/deploy-migrate.ts && next build
+Target: ep-falling-mouse-zac5gkqe.c-2.eu-west-2.aws.neon.tech/neondb
+Pending: 0003_generation
+Backup branch requested: backup/pre-0003_generation-81bbf19-20261021T151255Z (br-billowing-darkness-zanl08u7)
+Backup branch ready: backup/pre-0003_generation-81bbf19-20261021T151255Z
+Backups kept: no more than 3, nothing to delete.
+Migrator finished.
+Public tables: accounts, ai_calls, app_settings, batches, clients, critic_verdicts, google_tokens, knowledge_versions, post_drafts, post_generations, post_specs, posts, project_pillars, projects, sessions, site_pages, users
+Applied migrations: 4
+  1 bc9dce5f5136 1792531354466
+  2 58801d2dc19d 1792542524859
+  3 9b771848e2a2 1792547861813
+  4 019250fdfb17 1792588397103
+Check passed: applied hashes match the journal.
+▲ Next.js 16.4.2 (Turbopack)
+```
+- **Target:** the production endpoint `ep-falling-mouse-zac5gkqe`, which is not the dev endpoint, over a direct (non-pooler) connection.
+- **Hash:** `0003`'s hash, `019250fdfb17`, is the one recorded on Neon dev.
+- **Order:** backup, prune, migrate, check, then `next build`, as tested in `scripts/deploy-migrate.test.ts`.
+- **Backups:** nothing was deleted.
+
+**Not checked from this session:**
+- the backup branch in the Neon console (smoke step 3);
+- the Trigger.dev Production deployment of `81bbf19` (smoke step 1).
+
 ## Production smoke list
 
-1. **Trigger.dev, Production, Deployments:** a deployment tagged with the merge commit (checked from this session after merge, below). In Environment variables, `DATABASE_URL` and `ANTHROPIC_API_KEY` are present.
-2. **Vercel build log of the merge:** read the migration lines. Expect `backup/pre-0003_generation-...` created and ready, `Migrator finished.`, and the hash check passing, then `next build`.
-3. **Neon console, Branches:** the `backup/pre-0003_generation-...` branch exists.
+1. **Trigger.dev, Production, Deployments:** a deployment for `81bbf19`. This session cannot read it. In Environment variables, `DATABASE_URL` and `ANTHROPIC_API_KEY` are present.
+2. **Vercel build log:** done, in "Production deploy" above.
+3. **Neon console, Branches:** `backup/pre-0003_generation-81bbf19-20261021T151255Z` exists.
 4. **Settings, Connections:** Check connection on the Anthropic row shows Connected. The Trigger.dev row shows Production.
 5. **Migss Knowledge:** replace the price range placeholder, and add finance and payment terms if Migss offers them (the real run's drafts carried both as placeholders).
 6. **Migss Settings:** add pillars Bathroom Renovation (`bathroom-renovation`) and Kitchen Renovation (`kitchen-renovation`).
 7. **Create content on Migss:** one slot with a topic. Confirm its spec when it appears, then Generate 1 post.
 8. **Generating screen:** it moves through Writing and Checking to Needs review or Failed. Then open the draft from the Review queue and note the cost shown. Expect about $0.40 to $0.70 on Opus 5.5, from this run.
-9. **Trigger.dev Production, Runs:** the generate-post run is on the merge commit's version.
+9. **Trigger.dev Production, Runs:** the generate-post run is on the `81bbf19` version.
