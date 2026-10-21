@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { listClients } from "@/lib/clients";
 import { listProjects } from "@/lib/projects";
 import { addDays, londonToday, monthOf } from "@/lib/dates";
-import { listSlotsBetween, type SlotView } from "@/lib/posts";
+import { listSlotsBetween, nextSlots, type SlotView } from "@/lib/posts";
 import { requireUser } from "@/lib/session";
 import { ensureSlots } from "@/lib/slots";
 
@@ -33,7 +33,9 @@ export default function HomePage() {
 
 async function HomeContent() {
   await requireUser();
-  const [projects, clients] = await Promise.all([listProjects(), listClients()]);
+  // The tiles' next slot must see today's top-up, which the two-week section also runs (idempotent).
+  await ensureSlots();
+  const [projects, clients, next] = await Promise.all([listProjects(), listClients(), nextSlots()]);
   const active = projects.filter((project) => project.status === "active").length;
 
   return (
@@ -49,7 +51,7 @@ async function HomeContent() {
         </div>
         <div className="app-card-grid">
           {projects.map((project, index) => (
-            <ProjectTile key={project.id} project={project} index={index} />
+            <ProjectTile key={project.id} project={project} next={next.get(project.id)} index={index} />
           ))}
           <Link href="/projects?add=1" className="bfm-reveal app-add-tile" style={{ "--i": projects.length } as CSSProperties}>
             Add project

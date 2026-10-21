@@ -207,3 +207,13 @@ a:hover { color: var(--brand-hover); }
   .app-cal-home + .app-cal-narrow .app-cal-agenda { padding: 0; }
 }
 .app-loading { display: flex; align-items: flex-start; }
+
+/* Run plan (γ3) */
+.app-plan { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.app-plan-row { padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: var(--space-2); }
+.app-plan-main { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+.app-plan-main > .body { flex: 1 1 260px; min-width: 0; }
+.app-plan-date { width: 140px; flex: none; }
+.app-plan-edit summary { cursor: pointer; color: var(--brand); font-weight: 600; }
+.app-plan-edit[open] summary { margin-bottom: var(--space-3); }
+.app-plan-edit .app-stack { max-width: 480px; }

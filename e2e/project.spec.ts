@@ -171,12 +171,13 @@ test("the Drive folder is checked before it is saved", async ({ page, signedIn }
   await page.screenshot(shot("project-drive-error"));
 });
 
-test("Content and performance and Run plan are empty states", async ({ page, signedIn }) => {
+test("Content and performance is an empty state, and a paused project's Run plan says so", async ({ page, signedIn }) => {
   void signedIn;
   await page.goto(`/projects/${projectId}/content`);
   await expect(page.getByRole("heading", { name: "No performance figures yet" })).toBeVisible();
+  // The settings test above paused this project.
   await page.goto(`/projects/${projectId}/plan`);
-  await expect(page.getByRole("heading", { name: "No run plan yet" })).toBeVisible();
+  await expect(page.getByText("Paused: no planned slots. Resume it in Settings to plan again.")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Project sections" }).getByRole("link", { name: "Run plan" })).toHaveAttribute("aria-current", "page");
 });
 
