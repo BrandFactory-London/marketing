@@ -41,7 +41,7 @@ describe("knowledge pack", () => {
   });
 
   it("holds no em dashes of its own", () => {
-    expect(buildPack(input)).not.toContain("—");
+    expect(buildPack(input)).not.toContain("\u2014");
   });
 });
 

@@ -43,7 +43,7 @@ describe("prompts", () => {
     const dir = __dirname;
     for (const file of readdirSync(dir).filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))) {
       const text = readFileSync(join(dir, file), "utf8");
-      expect(text, file).not.toMatch(/[–—]/);
+      expect(text, file).not.toMatch(/[\u2013\u2014]/);
     }
   });
 

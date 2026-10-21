@@ -68,7 +68,7 @@ describe("individual checks", () => {
   });
 
   it("finds em and en dashes, each with its place", () => {
-    const result = runChecks({ ...base, markdown: doc("One — two – three — four.") });
+    const result = runChecks({ ...base, markdown: doc("One \u2014 two \u2013 three \u2014 four.") });
     expect(result.issues.map((issue) => issue.check)).toEqual(["em_dash", "em_dash", "en_dash"]);
   });
 
