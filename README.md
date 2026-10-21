@@ -19,7 +19,9 @@ pnpm lint
 pnpm test:e2e     # Playwright: builds, starts on port 3100, saves screenshots to e2e/screenshots/
 pnpm db:generate  # after a schema change; never drizzle-kit push
 pnpm db:migrate   # applies migrations, then prints an independent check; refuses remote databases without --remote;
-                  # Neon targets run over HTTPS (port 443), local ones over node-postgres
+                  # Neon targets run over WebSocket (port 443), local ones over node-postgres; both in one transaction
+pnpm db:migrate --check-only           # prints the check only
+pnpm db:migrate --rehearse <tag>       # runs one migration's SQL inside BEGIN ... ROLLBACK, changes nothing
 ```
 
 Database tests and Playwright expect a local Postgres with migrations applied, at `postgres://postgres@localhost:5433/bfm_test` unless `TEST_DATABASE_URL` says otherwise.

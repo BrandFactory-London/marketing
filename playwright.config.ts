@@ -6,6 +6,8 @@ export default defineConfig({
   testDir: "e2e",
   outputDir: "e2e/.results",
   reporter: "list",
+  // Specs share the local test database and some reset its tables, so they run one file at a time.
+  workers: 1,
   use: { baseURL: `http://localhost:${port}`, ...devices["Desktop Chrome"], viewport: { width: 1440, height: 1000 } },
   webServer: {
     command: `pnpm build && pnpm start --port ${port}`,
