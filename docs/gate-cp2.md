@@ -141,6 +141,23 @@ pnpm db:migrate --remote
 ```
 Expected: `Migrator finished.`, the nine tables, `Applied migrations: 2` with the second hash starting `58801d2dc19d`. Then the independent check in the Neon SQL editor (smoke step 2).
 
+**Step 2 result (run 21 Oct 2026 on Amir's go-ahead).** Branch `claude/loving-cannon-ksyp3b` at `47b07f0`, clean tree, target confirmed as `ep-square-mode-zatw6e39` (dev). Output verbatim, exit code 0:
+```
+Target: ep-square-mode-zatw6e39-pooler.c-2.eu-west-2.aws.neon.tech/neondb
+Driver: neon-serverless (WebSocket, port 443, one transaction)
+Migrator finished.
+Public tables: accounts, app_settings, clients, google_tokens, knowledge_versions, projects, sessions, site_pages, users
+Applied migrations: 2
+  1 bc9dce5f5136 1792531354466
+  2 58801d2dc19d 1792542524859
+```
+Independent check afterwards, on a fresh read-only connection:
+- all 14 constraints that the local check found are present;
+- `knowledge_versions_owner_version_unique` is `UNIQUE NULLS NOT DISTINCT (tier, client_id, project_id, version)`;
+- the four new tables are empty.
+
+`pg_constraint` lists 35 constraints for the new tables, not 14. The extra 21 are `*_not_null` entries: Postgres 18 (Neon) records NOT NULL columns as named constraints, and Postgres 16 (local) does not. Amir's SQL check in smoke step 2 is still to do.
+
 ## Consumer audit (D.3.3)
 
 - **Migration driver vocabulary** (`neon-http` to `neon-serverless`): consumers are `scripts/migrate.ts`, `scripts/migrate.test.ts` and `README.md`, all updated. `grep -rn neon-http` outside `docs/` and `node_modules`: no matches. The γ1 gate keeps its historical mentions.
