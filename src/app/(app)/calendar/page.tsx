@@ -6,7 +6,7 @@ import { SlotEditor } from "@/components/SlotEditor";
 import { ButtonLink } from "@/components/ui/Button";
 import { LoadingCard } from "@/components/ui/LoadingCard";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { PRE_WRITING_STATUSES } from "@/config/post-status";
+import { DRAFTED_STATUSES, PRE_WRITING_STATUSES } from "@/config/post-status";
 import { isMonth, londonToday, longDate, monthGrid, monthLabel, monthOf, shiftMonth } from "@/lib/dates";
 import { getSlot, listSlotsBetween, type SlotView } from "@/lib/posts";
 import { listProjects } from "@/lib/projects";
@@ -148,8 +148,10 @@ function SlotPanel({ slot, today, closeHref, project }: { slot: SlotView | null;
         <dt>Client</dt>
         <dd>{slot.clientName}</dd>
       </dl>
-      {slot.batchId ? (
-        <ButtonLink href={`/batches/${slot.batchId}`}>Open batch</ButtonLink>
+      {DRAFTED_STATUSES.includes(slot.status) ? (
+        <ButtonLink href={`/posts/${slot.id}`}>Open post</ButtonLink>
+      ) : slot.batchId ? (
+        <ButtonLink href={slot.status === "generating" ? `/batches/${slot.batchId}/generating` : `/batches/${slot.batchId}`}>Open batch</ButtonLink>
       ) : slot.status === "topic_set" ? (
         <ButtonLink href={`/batches/new?project=${slot.projectId}&post=${slot.id}`}>Generate post</ButtonLink>
       ) : null}

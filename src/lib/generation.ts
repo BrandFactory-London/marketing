@@ -16,6 +16,9 @@ import { AiClient, ModelOutputError, ModelRefusal, type Effort, type Transport }
 import { loadPack, type LoadedPack } from "@/lib/ai/pack";
 import { parseAllowedLinks, parseBannedPhrases, runChecks, type CheckResult } from "@/lib/checks";
 import { listSitePages } from "@/lib/sitemap";
+import { MAX_ROUNDS } from "./generation-limits";
+
+export { MAX_ROUNDS };
 import * as criticPrompt from "@/prompts/critic";
 import * as specPrompt from "@/prompts/spec";
 import * as writerPrompt from "@/prompts/writer";
@@ -26,7 +29,6 @@ import type { SpecForPrompt } from "@/prompts/shared";
 // a run moves the post to generating, a critic pass to in_review, two failed fix rounds to flagged, and a
 // run that could not finish puts it back to spec_confirmed with the error on its generation row.
 
-export const MAX_ROUNDS = 3;
 export const EFFORT: Record<"spec" | "writer" | "critic", Effort> = { spec: "medium", writer: "high", critic: "high" };
 export const MAX_TOKENS = { spec: 16000, writer: 32000, critic: 16000 } as const;
 
@@ -227,6 +229,7 @@ export async function runGeneration(generationId: string, deps: GenerationDeps):
     // A draft that passed the checks and has no verdict yet goes to the critic.
     if (latest && latest.checksPassed && !verdict) {
       await setPost(db, post.id, "generating", "critic");
+      await db.update(postGenerations).set({ updatedAt: sql`now()` }).where(eq(postGenerations.id, generationId));
       const checks = latest.checks as CheckResult;
       const { value, call: record } = await ai.parsed(
         {
@@ -334,12 +337,14 @@ async function saveDraft(
 }
 
 async function finish(db: Database, generationId: string, postId: string, outcome: "in_review" | "flagged"): Promise<GenerationOutcome> {
+  // A run closed meanwhile (stalled, then retried) leaves the post to the newer run.
   await db.transaction(async (tx) => {
-    await tx
+    const [row] = await tx
       .update(postGenerations)
       .set({ status: outcome, finishedAt: sql`now()`, updatedAt: sql`now()` })
-      .where(eq(postGenerations.id, generationId));
-    await setPost(tx, postId, outcome, null);
+      .where(and(eq(postGenerations.id, generationId), inArray(postGenerations.status, ["queued", "running"])))
+      .returning({ id: postGenerations.id });
+    if (row) await setPost(tx, postId, outcome, null);
   });
   return outcome;
 }

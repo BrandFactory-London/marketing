@@ -4,6 +4,7 @@ import { getDb, type Database, type Executor } from "@/db/client";
 import { aiCalls, batches, postGenerations, posts, postSpecs, projectPillars } from "@/db/schema";
 import { isModelId, type ModelId } from "@/config/models";
 import type { FaqMode } from "@/prompts/spec";
+import { STALL_MS } from "./progress";
 import { getModelSettings } from "./settings";
 import { isUuid, optionalText, type FieldErrors, type FormInput, type Parsed } from "./validation";
 
@@ -418,4 +419,22 @@ export async function markSpecNotStarted(specId: string, message: string, db: Da
     .update(postSpecs)
     .set({ status: "failed", error: message })
     .where(and(eq(postSpecs.id, specId), eq(postSpecs.status, "drafting")));
+}
+
+// A run that stopped reporting progress (no saved step for STALL_MS) is closed so the post can be retried.
+export async function closeStalledGeneration(postId: string, db: Database = getDb()): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(postGenerations)
+      .set({ status: "failed", error: "This post stopped reporting progress.", finishedAt: sql`now()`, updatedAt: sql`now()` })
+      .where(
+        and(
+          eq(postGenerations.postId, postId),
+          inArray(postGenerations.status, ["queued", "running"]),
+          sql`${postGenerations.updatedAt} < now() - make_interval(secs => ${STALL_MS / 1000})`,
+        ),
+      )
+      .returning({ postId: postGenerations.postId });
+    if (row) await setPostStatus(tx, row.postId, "spec_confirmed");
+  });
 }

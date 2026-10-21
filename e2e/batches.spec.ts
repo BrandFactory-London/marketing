@@ -178,6 +178,117 @@ test("the calendar links a slot in a batch to its batch", async ({ page, signedI
   await expect(page.getByRole("link", { name: "Generate from planned slots" })).toHaveAttribute("href", "/batches/new");
 });
 
+test("Generate starts one run per post and the Generating screen follows them by polling", async ({ page, signedIn }) => {
+  void signedIn;
+  await resetStandin();
+  // The redrafted spec comes back and is confirmed, as the task and Amir would do it.
+  await query(
+    `update post_specs set status = 'confirmed', confirmed_at = now(), keyword = 'wet room or shower tray', post_type = 'comparison',
+       angle = 'Answer first.', outline = '["What each one is"]', facts = '[]', links = '["/contact"]', faq = false
+     where post_id = $1 and status = 'drafting'`,
+    [postIds[0]],
+  );
+  await query("update posts set status = 'spec_confirmed' where id = $1", [postIds[0]]);
+  await page.goto(`/batches/${batchId}`);
+  await page.getByRole("button", { name: "Generate 2 posts" }).click();
+  await page.waitForURL(`**/batches/${batchId}/generating`);
+  await expect(page.getByRole("heading", { name: "Generating" })).toBeVisible();
+  await expect(page.getByText("Queued", { exact: true })).toHaveCount(2);
+  await expect(page.locator(".bfm-aurora-active")).toBeVisible();
+  const runs = await triggered();
+  expect(runs.map((run) => run.task)).toEqual(["generate-post", "generate-post"]);
+  const generations = await query<{ id: string; post_id: string; trigger_run_id: string }>(
+    "select id, post_id, trigger_run_id from post_generations where batch_id = $1 order by created_at",
+    [batchId],
+  );
+  expect(generations.map((row) => row.trigger_run_id).sort()).toEqual(runs.map((run) => (run as unknown as { id: string }).id).sort());
+
+  // The generate-post task's part: post A writes, checks and passes; post B could not finish.
+  const a = generations.find((row) => row.post_id === postIds[0])!;
+  const b = generations.find((row) => row.post_id === postIds[1])!;
+  await query(
+    `update post_generations set status = 'running', round = 1, started_at = now(), updated_at = now(),
+       project_version_id = (select id from knowledge_versions where project_id = $2 and version = 1)
+     where id = $1`,
+    [a.id, projectId],
+  );
+  await query("update posts set status = 'generating', generation_step = 'writer' where id = $1", [postIds[0]]);
+  await expect(page.getByText("Writing", { exact: true })).toBeVisible({ timeout: 10_000 });
+  await page.screenshot(shot("g4-generating"));
+
+  const [{ id: callId }] = await query<{ id: string }>(
+    `insert into ai_calls (batch_id, post_id, purpose, requested_model, served_model, prompt_version, effort, input_tokens, output_tokens, cache_read_tokens, cost_usd)
+     values ($1, $2, 'writer', 'claude-opus-5-5', 'claude-opus-5-5', 'writer-1', 'high', 5800, 8000, 1200, 0.18344) returning id`,
+    [batchId, postIds[0]],
+  );
+  const body = "# Wet room or shower tray?\n\nExcerpt: Which one suits a small bathroom.\n\nA wet room suits small rooms. <b>raw html</b>\n\n## Book a free design consultation\n\n[Contact us](/contact).";
+  const [{ id: draftId }] = await query<{ id: string }>(
+    `insert into post_drafts (generation_id, round, title, excerpt, body_md, word_count, checks, checks_passed, ai_call_id)
+     values ($1, 1, 'Wet room or shower tray?', 'Which one suits a small bathroom.', $2, 1850, $3, true, $4) returning id`,
+    [a.id, body, JSON.stringify({ passed: true, issues: [], title: "Wet room or shower tray?", excerpt: "x", wordCount: 1850, info: { links: ["/contact"], placeholders: [], moneyFigures: [], yearsClaims: [], percentages: [], h2: 1 } }), callId],
+  );
+  const [{ id: criticCall }] = await query<{ id: string }>(
+    `insert into ai_calls (batch_id, post_id, purpose, requested_model, served_model, prompt_version, effort, input_tokens, output_tokens, cost_usd)
+     values ($1, $2, 'critic', 'claude-opus-5-5', 'claude-opus-5-5', 'critic-1', 'high', 10000, 4000, 0.12) returning id`,
+    [batchId, postIds[0]],
+  );
+  await query(
+    `insert into critic_verdicts (draft_id, verdict, summary, issues, scores, ai_call_id) values ($1, 'pass', 'Clear and specific.', $2, $3, $4)`,
+    [draftId, JSON.stringify([{ quote: "suits small rooms", category: "voice", note: "Could name a room size.", severity: "minor" }]), JSON.stringify({ voice: 8, usefulness: 8, specificity: 7 }), criticCall],
+  );
+  await query("update post_generations set status = 'in_review', finished_at = now(), updated_at = now() where id = $1", [a.id]);
+  await query("update posts set status = 'in_review', generation_step = null where id = $1", [postIds[0]]);
+  await query("update post_generations set status = 'failed', error = 'claude-opus-5-5 declined to write this. Retry the post, or choose another model for the batch.', finished_at = now() where id = $1", [b.id]);
+  await query("update posts set status = 'spec_confirmed' where id = $1", [postIds[1]]);
+
+  await expect(page.getByText("2 of 2 posts finished")).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator(".bfm-aurora-active")).toHaveCount(0);
+  await expect(page.locator(".bfm-progress")).toHaveCount(0);
+  await expect(page.getByText("Could not finish")).toBeVisible();
+  await expect(page.getByText("declined to write this", { exact: false })).toBeVisible();
+  await expect(page.getByText("1,850 words", { exact: false })).toBeVisible();
+  await expect(page.getByText("$0.30", { exact: false }).first()).toBeVisible();
+  await page.screenshot(shot("g4-generating-done"));
+
+  await page.getByRole("button", { name: "Retry post" }).click();
+  await expect(page.getByText("Queued", { exact: true })).toBeVisible();
+  expect((await triggered()).map((run) => run.task)).toEqual(["generate-post", "generate-post", "generate-post"]);
+  expect(await query("select status from post_generations where post_id = $1 order by created_at", [postIds[1]])).toEqual([{ status: "failed" }, { status: "queued" }]);
+});
+
+test("the review queue lists the drafted post and the draft view shows it read only", async ({ page, signedIn }) => {
+  void signedIn;
+  await page.goto("/review");
+  await expect(page.locator(".bfm-step-current")).toHaveText("4Review");
+  await page.getByRole("link", { name: /Wet room or shower tray\?/ }).click();
+  await page.waitForURL(`**/posts/${postIds[0]}`);
+  await expect(page.getByRole("heading", { name: "Wet room or shower tray?", level: 1 })).toBeVisible();
+  await expect(page.getByText("Which one suits a small bathroom.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Book a free design consultation", level: 2 })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Contact us" })).toHaveAttribute("href", "https://www.migssinteriors.com/contact");
+  // Raw HTML in a draft is never rendered.
+  await expect(page.locator(".app-draft-body b")).toHaveCount(0);
+  await expect(page.getByText("Critic passed it")).toBeVisible();
+  await expect(page.getByText("Claude Opus 5.5: Clear and specific.")).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Writer call 1" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "version 1" })).toHaveAttribute("href", `/projects/${projectId}/knowledge?version=1`);
+  await page.screenshot(shot("g4-draft"));
+
+  const [{ month }] = await query<{ month: string }>("select to_char(slot_date, 'YYYY-MM') as month from posts where id = $1", [postIds[0]]);
+  await page.goto(`/calendar?month=${month}&slot=${postIds[0]}`);
+  await expect(page.getByRole("link", { name: "Open post" })).toHaveAttribute("href", `/posts/${postIds[0]}`);
+});
+
+test("Connections shows the Trigger.dev environment and runs the Anthropic check through it", async ({ page, signedIn }) => {
+  void signedIn;
+  await page.goto("/settings/connections");
+  await expect(page.getByText("Specs and posts are written by tasks in Development.", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Check connection" }).click();
+  // The stand-in accepts the run but cannot report on it, so the check says so plainly.
+  await expect(page.getByText("Not working")).toBeVisible({ timeout: 10_000 });
+  expect((await triggered()).at(-1)?.task).toBe("check-anthropic");
+});
+
 test("phone width: the batch form and spec page fit", async ({ page, signedIn }) => {
   void signedIn;
   await page.setViewportSize({ width: 390, height: 844 });

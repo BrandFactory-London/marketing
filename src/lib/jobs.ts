@@ -36,7 +36,13 @@ export async function checkAnthropicConnection(options: { budgetMs?: number; pol
   const handle = await tasks.trigger<typeof checkAnthropic>("check-anthropic", undefined);
   const deadline = Date.now() + budget;
   while (Date.now() < deadline) {
-    const run = await runs.retrieve<typeof checkAnthropic>(handle.id);
+    let run;
+    try {
+      run = await runs.retrieve<typeof checkAnthropic>(handle.id);
+    } catch (error) {
+      console.error("Could not read the check run:", error);
+      return { ok: false, message: "The check started, but its result could not be read from Trigger.dev." };
+    }
     if (run.isCompleted && run.output) return run.output;
     if (run.isFailed || run.isCancelled) return { ok: false, message: "The check run failed in Trigger.dev." };
     await new Promise((resolve) => setTimeout(resolve, poll));

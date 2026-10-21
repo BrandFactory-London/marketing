@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import {
   BatchError,
+  closeStalledGeneration,
   confirmAllSpecs,
   confirmSpecs,
   createBatch,
@@ -123,6 +124,7 @@ export async function generateBatchAction(batchId: string): Promise<void> {
 
 export async function retryPostAction(batchId: string, postId: string): Promise<void> {
   await requireUser();
+  await closeStalledGeneration(postId);
   await startRuns(await queueGenerations(batchId, { postId }));
   refresh();
 }

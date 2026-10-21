@@ -54,7 +54,7 @@ test("AI models default to Opus 5.5 and save a change", async ({ page, signedIn 
   await page.screenshot(shot("settings-models"));
 });
 
-test("Connections shows the Google connection, and Anthropic and Wix as not connected yet", async ({ page, signedIn }) => {
+test("Connections shows the Google connection, the Anthropic check, Trigger.dev and Wix", async ({ page, signedIn }) => {
   void signedIn;
   const [user] = await query<{ id: string }>("select id from users where email = $1", [TEST_EMAIL]);
   await query("delete from google_tokens where user_id = $1", [user.id]);
@@ -72,9 +72,9 @@ test("Connections shows the Google connection, and Anthropic and Wix as not conn
     await expect(google).toContainText("Connected as hello@brandfactorylondon.com.");
     await expect(google).toContainText("Access: Sign-in, Email address, Name and photo, Google Drive, read only.");
     await expect(google).toContainText("Last refreshed 21 Oct 2026 at 10:15.");
-    for (const name of ["Anthropic API", "Wix"]) {
-      await expect(page.getByRole("listitem").filter({ hasText: name })).toContainText("Not connected yet");
-    }
+    await expect(page.getByRole("listitem").filter({ hasText: "Anthropic API" })).toContainText("Not checked");
+    await expect(page.getByRole("listitem").filter({ has: page.getByText("Trigger.dev", { exact: true }) })).toContainText("Configured");
+    await expect(page.getByRole("listitem").filter({ hasText: "Wix" })).toContainText("Not connected yet");
     await page.screenshot(shot("settings-connections"));
 
     let googleUrl: URL | undefined;

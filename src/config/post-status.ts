@@ -45,8 +45,10 @@ export const LISTED_STATUSES: readonly PostStatus[] = POST_STATUS_KEYS.filter((k
 // that still has fix rounds left needs another pass; a run that hit an API error, a refusal or a timeout
 // could not finish, and the post goes back to Spec ready so it can be retried.
 export const GENERATION_LINES = {
+  queued: { label: "Queued", tone: "neutral" },
   anotherPass: { label: "Needs another pass", tone: "warning" },
   couldNotFinish: { label: "Could not finish", tone: "danger" },
+  stalled: { label: "Stopped reporting", tone: "danger" },
 } as const;
 
 // A spec's own state on the batch page (γ4 orientation Q4). Specs are not posts, so these are not post statuses.
@@ -57,6 +59,9 @@ export const SPEC_LINES = {
   superseded: { label: "Replaced", tone: "neutral" },
   failed: { label: "Spec not drafted", tone: "danger" },
 } as const;
+
+// Statuses at which a post has a draft to open (γ4 draft view).
+export const DRAFTED_STATUSES: readonly PostStatus[] = ["in_review", "flagged", "approved", "published", "rejected"];
 
 // "Missed" is derived, never stored: a slot whose date has passed before writing started (γ3 orientation Q4).
 export const MISSED = { label: "Missed", tone: "warning" } as const;
