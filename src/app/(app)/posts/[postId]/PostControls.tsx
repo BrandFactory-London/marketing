@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
-import { Field, SelectField, type SelectOption } from "@/components/ui/Field";
+import { Field, SelectField, TextAreaField, type SelectOption } from "@/components/ui/Field";
 import type { DetailsState, ReviewActionResult } from "./actions";
 
 // Slug and pillar tag, ready for γ6's publish (γ5 orientation, item 9). The slug starts from the title.
@@ -79,6 +79,54 @@ export function ReopenButton({ action }: { action: () => Promise<ReviewActionRes
           {error}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+// Regenerate with a note from a post that is not open in the editor, such as a rejected one (γ5 orientation Q4).
+export function RegenerateForm({ action }: { action: (note: string, input: null) => Promise<ReviewActionResult> }) {
+  const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  return (
+    <div className="app-stack">
+      <TextAreaField
+        label="Regenerate with a note"
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        rows={2}
+        help="The writer starts from the current text and your note, then the checks and the critic run again. About $0.15 to $0.70."
+      />
+      <div className="app-review-buttons">
+        <Button
+          variant="secondary"
+          disabled={pending || !note.trim()}
+          onClick={() =>
+            startTransition(async () => {
+              const result = await action(note, null);
+              setError(result.ok ? null : result.message);
+            })
+          }
+        >
+          Regenerate post
+        </Button>
+      </div>
+      {error ? (
+        <p className="small app-form-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+export function StopWaitingButton({ action }: { action: () => Promise<ReviewActionResult> }) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <div className="app-review-buttons">
+      <Button variant="secondary" disabled={pending} onClick={() => startTransition(async () => void (await action()))}>
+        Stop waiting
+      </Button>
     </div>
   );
 }

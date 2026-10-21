@@ -8,7 +8,34 @@ import { saveKnowledge } from "./knowledge";
 import { runChecks } from "./checks";
 import { editHunks } from "./edit-diff";
 import { approvalState, composeMarkdown, slugFormatProblem, slugify, splitDraft } from "./review-rules";
-import { approvePost, currentText, rejectPost, reopenPost, ReviewError, savePublishingDetails, saveVersion } from "./review";
+import type { Message, MessageCreateParamsNonStreaming } from "@anthropic-ai/sdk/resources/messages/messages";
+import type { Transport } from "./ai/client";
+import { markNotStarted } from "./batches";
+import { failGeneration, runGeneration } from "./generation";
+import { approvePost, currentText, queueRegeneration, rejectPost, reopenPost, ReviewError, savePublishingDetails, saveVersion } from "./review";
+import * as criticPrompt from "@/prompts/critic";
+
+// Answers writer calls with `writer` and critic calls with a pass, recording every request.
+function fakeApi(writer: string) {
+  const calls: MessageCreateParamsNonStreaming[] = [];
+  const transport: Transport = async (params) => {
+    calls.push(params);
+    const critic = (params.system as { text: string }[])[1].text === criticPrompt.INSTRUCTIONS;
+    const text = critic ? JSON.stringify({ summary: "Better.", issues: [], placeholders: [], scores: { voice: 8, usefulness: 8, specificity: 8 } }) : writer;
+    const message = {
+      id: "msg",
+      type: "message",
+      role: "assistant",
+      model: params.model,
+      content: [{ type: "text", text, citations: null }],
+      stop_reason: "end_turn",
+      stop_sequence: null,
+      usage: { input_tokens: 1000, output_tokens: 500, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+    } as unknown as Message;
+    return { message, requestId: `req_${calls.length}` };
+  };
+  return { transport, calls };
+}
 
 // The production smoke post's placeholders (γ5 orientation approval).
 const SMOKE_BODY =
@@ -156,5 +183,50 @@ describe.skipIf(!testDatabaseUrl)("review (local Postgres)", () => {
     await db.insert(sitePages).values({ projectId: ids.project, url: "https://www.migss.co.uk/blog/tiling", path: "/blog/tiling", title: "Tiling" });
     await expect(savePublishingDetails(other.id, { slug: "tiling", pillarId: null }, db)).rejects.toThrow("A page on the site already uses this address.");
     await expect(savePublishingDetails(other.id, { slug: "Bad Slug", pillarId: null }, db)).rejects.toThrow("lower-case");
+  });
+
+  describe("regenerate with a note (γ5 Q4)", () => {
+    const NEW = "# Wet room maintenance\n\nExcerpt: How to keep a wet room watertight.\n\nWet rooms are our speciality. " + "Fresh words here. ".repeat(12) + "\n\n## Book a consultation\n\n[Contact us](/contact).\n";
+
+    it("saves Amir's text, starts the writer from it with the note, and lands back in Needs review", async () => {
+      const edited = { ...filled(), body: `Wet rooms are our speciality. ${filled().body}` };
+      const generationId = await queueRegeneration(ids.post, "Make the guarantee line plainer.", edited, db);
+      expect((await post()).status).toBe("generating");
+      const [generation] = await db.select().from(postGenerations).where(eq(postGenerations.id, generationId));
+      expect(generation.note).toBe("Make the guarantee line plainer.");
+      // While the run has no draft, Review still shows Amir's version.
+      expect((await currentText(ids.post, db))?.source.kind).toBe("version");
+
+      const api = fakeApi(NEW);
+      expect(await runGeneration(generationId, { db, transport: api.transport })).toBe("in_review");
+      const first = api.calls[0].messages[0].content as string;
+      expect(first).toContain("Amir's note:\nMake the guarantee line plainer.");
+      expect(first).toContain("Wet rooms are our speciality.");
+      expect(first).not.toContain("[CONFIRM: Migss wet room specialism wording]");
+      expect((await post()).status).toBe("in_review");
+      const current = await currentText(ids.post, db);
+      expect(current?.source.kind).toBe("draft");
+      expect(current?.text.body).toContain("Fresh words here.");
+      const [event] = await db.select().from(reviewEvents).where(eq(reviewEvents.action, "regenerate"));
+      expect(event.note).toBe("Make the guarantee line plainer.");
+    });
+
+    it("needs a note, and runs from Needs review, Failed or Rejected only", async () => {
+      await expect(queueRegeneration(ids.post, " ", null, db)).rejects.toThrow("Say what the writer should change.");
+      await db.update(posts).set({ status: "approved" }).where(eq(posts.id, ids.post));
+      await expect(queueRegeneration(ids.post, "Shorter.", null, db)).rejects.toThrow("Reopen it for editing first.");
+      await db.update(posts).set({ status: "rejected" }).where(eq(posts.id, ids.post));
+      expect(await queueRegeneration(ids.post, "Shorter.", null, db)).toBeTruthy();
+    });
+
+    it("puts the post back to Needs review, not Spec ready, when a regenerate cannot start or finish", async () => {
+      const notStarted = await queueRegeneration(ids.post, "Shorter.", null, db);
+      await markNotStarted(notStarted, "Trigger.dev could not be reached.", db);
+      expect((await post()).status).toBe("in_review");
+      const failed = await queueRegeneration(ids.post, "Shorter still.", null, db);
+      await failGeneration(failed, new Error("Overloaded"), db);
+      expect((await post()).status).toBe("in_review");
+      expect((await currentText(ids.post, db))?.text.body).toContain("[CONFIRM: Migss wet room specialism wording]");
+    });
   });
 });

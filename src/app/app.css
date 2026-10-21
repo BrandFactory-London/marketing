@@ -304,3 +304,4 @@ a:hover { color: var(--brand-hover); }
   .app-review-buttons > * { flex: 1 1 auto; }
   .app-review-buttons > :last-child { margin-left: 0; }
 }
+.app-cost .app-cost-run th, .app-cost .app-cost-run td { padding-top: var(--space-3); font-weight: 600; text-align: left; }

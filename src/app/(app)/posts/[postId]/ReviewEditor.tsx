@@ -25,8 +25,7 @@ type Props = {
   saveAction: (postId: string, input: TextInput) => Promise<ReviewActionResult>;
   approveAction: (postId: string, input: TextInput) => Promise<ReviewActionResult>;
   rejectAction: (postId: string, note: string) => Promise<ReviewActionResult>;
-  // Regenerate with a note (γ5.3) and anything else the page adds under the actions.
-  extraActions?: (input: { text: PostText; dirty: boolean }) => ReactNode;
+  regenerateAction: (postId: string, note: string, input: TextInput | null) => Promise<ReviewActionResult>;
   aside: ReactNode;
 };
 
@@ -71,7 +70,7 @@ export function ReviewEditor(props: Props) {
   const [offerDismissed, setOfferDismissed] = useState(false);
   const [pane, setPane] = useState<"edit" | "preview">("edit");
   const [message, setMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
-  const [rejecting, setRejecting] = useState(false);
+  const [open, setOpen] = useState<"reject" | "regenerate" | null>(null);
   const [pending, startTransition] = useTransition();
   const editor = useRef<MarkdownEditorHandle>(null);
   const dirty = !sameText(text, saved);
@@ -227,10 +226,12 @@ export function ReviewEditor(props: Props) {
             <Button variant="secondary" onClick={save} disabled={pending || !dirty}>
               Save draft
             </Button>
-            <Button variant="danger" onClick={() => setRejecting((open) => !open)} disabled={pending} aria-expanded={rejecting}>
+            <Button variant="danger" onClick={() => setOpen(open === "reject" ? null : "reject")} disabled={pending} aria-expanded={open === "reject"}>
               Reject post
             </Button>
-            {props.extraActions?.({ text, dirty })}
+            <Button variant="secondary" onClick={() => setOpen(open === "regenerate" ? null : "regenerate")} disabled={pending} aria-expanded={open === "regenerate"}>
+              Regenerate with a note
+            </Button>
             <Button onClick={approve} disabled={pending || !approval.canApprove} aria-describedby="approve-reason">
               Approve post
             </Button>
@@ -238,7 +239,35 @@ export function ReviewEditor(props: Props) {
           <p id="approve-reason" className={`small ${approval.canApprove ? "app-muted" : "app-text-warning"}`} style={{ margin: 0 }}>
             {approval.reason ?? (dirty ? "Approving saves your changes first." : "Ready to approve.")}
           </p>
-          {rejecting ? <RejectForm pending={pending} onCancel={() => setRejecting(false)} onReject={(note) => run(() => props.rejectAction(postId, note))} /> : null}
+          {open === "reject" ? (
+            <NoteForm
+              label="Why are you rejecting it?"
+              help="Kept with the post. The slot shows Rejected on the calendar."
+              submit="Reject post"
+              variant="danger"
+              pending={pending}
+              onCancel={() => setOpen(null)}
+              onSubmit={(note) => run(() => props.rejectAction(postId, note))}
+            />
+          ) : null}
+          {open === "regenerate" ? (
+            <NoteForm
+              label="What should the writer change?"
+              help={`The writer starts from the text above${dirty ? ", which is saved first" : ""}, keeps your edits, then the checks and the critic run again. About $0.15 to $0.70.`}
+              submit="Regenerate post"
+              variant="primary"
+              pending={pending}
+              onCancel={() => setOpen(null)}
+              onSubmit={(note) =>
+                run(
+                  () => props.regenerateAction(postId, note, text),
+                  (result) => {
+                    if (result.ok) writeStored(key, null);
+                  },
+                )
+              }
+            />
+          ) : null}
           {message ? (
             <p className={`small ${message.tone === "danger" ? "app-form-error" : "app-text-success"}`} role={message.tone === "danger" ? "alert" : "status"} style={{ margin: 0 }}>
               {message.text}
@@ -367,17 +396,33 @@ export function ReviewEditor(props: Props) {
   );
 }
 
-function RejectForm({ pending, onCancel, onReject }: { pending: boolean; onCancel: () => void; onReject: (note: string) => void }) {
+function NoteForm({
+  label,
+  help,
+  submit,
+  variant,
+  pending,
+  onCancel,
+  onSubmit,
+}: {
+  label: string;
+  help: string;
+  submit: string;
+  variant: "primary" | "danger";
+  pending: boolean;
+  onCancel: () => void;
+  onSubmit: (note: string) => void;
+}) {
   const [note, setNote] = useState("");
   return (
     <div className="app-stack app-inline-form">
-      <TextAreaField label="Why are you rejecting it?" value={note} onChange={(event) => setNote(event.target.value)} rows={3} help="Kept with the post. The slot shows Rejected on the calendar." />
+      <TextAreaField label={label} value={note} onChange={(event) => setNote(event.target.value)} rows={3} help={help} />
       <div className="app-review-buttons">
         <Button variant="ghost" onClick={onCancel}>
           Cancel
         </Button>
-        <Button variant="danger" onClick={() => onReject(note)} disabled={pending || !note.trim()}>
-          Reject post
+        <Button variant={variant} onClick={() => onSubmit(note)} disabled={pending || !note.trim()}>
+          {submit}
         </Button>
       </div>
     </div>

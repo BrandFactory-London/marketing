@@ -9,6 +9,11 @@ import { MAX_ROUNDS } from "./generation-limits";
 // A run with no saved progress for this long has stopped (Q6: 20 minutes per post run).
 export const STALL_MS = 20 * 60 * 1000;
 
+// A run whose last saved step is older than STALL_MS has stopped reporting progress.
+export function hasStalled(updatedAt: Date, now: Date = new Date()): boolean {
+  return now.getTime() - updatedAt.getTime() > STALL_MS;
+}
+
 export type ProgressInput = {
   status: PostStatus;
   generationStep: GenerationStep | null;

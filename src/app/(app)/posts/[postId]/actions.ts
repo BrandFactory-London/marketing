@@ -2,7 +2,9 @@
 
 import { refresh } from "next/cache";
 import type { CheckResult } from "@/lib/checks";
-import { approvePost, parsePostText, rejectPost, reopenPost, ReviewError, savePublishingDetails, saveVersion } from "@/lib/review";
+import { closeStalledGeneration, markNotStarted } from "@/lib/batches";
+import { startGeneration } from "@/lib/jobs";
+import { approvePost, parsePostText, queueRegeneration, rejectPost, reopenPost, ReviewError, savePublishingDetails, saveVersion } from "@/lib/review";
 import { requireUser } from "@/lib/session";
 import { isUuid, optionalText } from "@/lib/validation";
 
@@ -56,6 +58,38 @@ export async function reopenAction(postId: string): Promise<ReviewActionResult> 
   }
   refresh();
   return { ok: true, message: "Post reopened for editing." };
+}
+
+const RUN_NOT_STARTED = "Trigger.dev could not be reached, so the regenerate did not start. Your text is saved; try again.";
+
+// Regenerate with a note: saves the text, queues a run that starts from it, and starts the run.
+export async function regenerateAction(postId: string, note: string, input: TextInput | null): Promise<ReviewActionResult> {
+  await requireUser();
+  let generationId: string;
+  try {
+    generationId = await queueRegeneration(postId, note, input ? parsePostText(input) : null);
+  } catch (error) {
+    return failure(error);
+  }
+  try {
+    await startGeneration(generationId);
+  } catch (error) {
+    console.error("Could not start generate-post:", error);
+    await markNotStarted(generationId, RUN_NOT_STARTED);
+    refresh();
+    return { ok: false, message: RUN_NOT_STARTED };
+  }
+  refresh();
+  return { ok: true, message: "The writer is working on a new version." };
+}
+
+// A regenerate that stopped reporting progress is closed, so the post goes back to Needs review.
+export async function stopWaitingAction(postId: string): Promise<ReviewActionResult> {
+  await requireUser();
+  if (!isUuid(postId)) return { ok: false, message: "This post no longer exists." };
+  await closeStalledGeneration(postId);
+  refresh();
+  return { ok: true };
 }
 
 export type DetailsState = { message?: string; error?: string; saved?: boolean };

@@ -242,6 +242,40 @@ export async function reopenPost(postId: string, db: Database = getDb()): Promis
   });
 }
 
+// ---- Regenerate with a note (γ5 orientation Q4) ----
+
+// Statuses a post can be regenerated from. A rejected post can come back this way.
+export const REGENERATE_STATUSES: readonly PostStatus[] = ["in_review", "flagged", "rejected"];
+
+// Saves the text as a version (so nothing typed is lost and the writer starts from exactly it), then queues a new
+// run with the note. Returns the generation to start.
+export async function queueRegeneration(postId: string, note: string, input: PostText | null, db: Database = getDb()): Promise<string> {
+  const trimmed = note.trim();
+  if (!trimmed) throw new ReviewError("Say what the writer should change.");
+  if (trimmed.length > NOTE_MAX) throw new ReviewError(`Keep the note under ${NOTE_MAX} characters.`);
+  if (!isUuid(postId)) throw new ReviewError("This post no longer exists.");
+  const checkInput = await checkInputFor(postId, db);
+  return db.transaction(async (tx) => {
+    const post = await lockPost(tx, postId);
+    if (!REGENERATE_STATUSES.includes(post.status)) throw new ReviewError(lockedMessage(post.status));
+    const current = await currentText(postId, tx);
+    if (!current) throw new ReviewError("This post has not been drafted yet.");
+    const text = input ?? current.text;
+    const base =
+      current.source.kind === "version" && sameText(current.text, text)
+        ? current.source.version
+        : await insertVersion(tx, postId, current.generationId, text, runChecks({ ...checkInput, markdown: composeMarkdown(text) }));
+    const [previous] = await tx.select().from(postGenerations).where(eq(postGenerations.id, current.generationId));
+    const [generation] = await tx
+      .insert(postGenerations)
+      .values({ postId, specId: previous.specId, batchId: previous.batchId, note: trimmed, baseVersionId: base.id })
+      .returning({ id: postGenerations.id });
+    await setStatus(tx, postId, "generating");
+    await tx.insert(reviewEvents).values({ postId, action: "regenerate", note: trimmed, versionId: base.id, draftId: current.writerDraft.id });
+    return generation.id;
+  });
+}
+
 // ---- Publishing details ----
 
 export async function slugProblem(tx: Executor, projectId: string, postId: string, slug: string): Promise<string | null> {

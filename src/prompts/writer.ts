@@ -31,9 +31,18 @@ function issueLine(issue: { message?: string; note?: string; quote?: string; cat
   return issue.quote ? `${what} Quote: "${issue.quote}"` : what;
 }
 
-export function writerUserMessage(spec: SpecForPrompt, fix?: WriterFix | null): string {
+// Regenerate with a note (γ5 orientation Q4): Amir's note and the post as it stands, his edits included.
+export type WriterRegenerate = { note: string; current: string };
+
+export function writerUserMessage(spec: SpecForPrompt, fix?: WriterFix | null, regenerate?: WriterRegenerate | null): string {
   const parts = [`The spec:\n${specText(spec)}`, `Target length: about ${targetLength(spec.lengthMin, spec.lengthMax)} words.`];
-  if (fix) {
+  if (regenerate && !fix) {
+    parts.push(
+      "Amir has reviewed this post and asks for a new version. Apply his note. Keep everything else, including the edits he made himself, unless the note says otherwise. Placeholders he has not filled stay as placeholders.",
+      `Amir's note:\n${regenerate.note}`,
+      `The post as it stands:\n\n${regenerate.current}`,
+    );
+  } else if (fix) {
     const issues = [...fix.checkIssues.map(issueLine), ...fix.criticIssues.map(issueLine)];
     parts.push(
       `Your previous draft failed review. Rewrite it so every issue below is fixed, keeping what works. Do not introduce new problems.`,

@@ -15,8 +15,11 @@ import { formatCost } from "@/lib/format";
 import { listPillars } from "@/lib/pillars";
 import { checkInputFor, currentText, DETAILS_STATUSES, EDITABLE_STATUSES, listReviewEvents, placeholderAsks, suggestedSlug } from "@/lib/review";
 import { requireUser } from "@/lib/session";
-import { approveAction, detailsAction, rejectAction, reopenAction, saveDraftAction } from "./actions";
-import { DetailsForm, ReopenButton } from "./PostControls";
+import { AutoRefresh } from "@/components/AutoRefresh";
+import { GENERATION_STEPS, GENERATION_LINES } from "@/config/post-status";
+import { hasStalled } from "@/lib/progress";
+import { approveAction, detailsAction, regenerateAction, rejectAction, reopenAction, saveDraftAction, stopWaitingAction } from "./actions";
+import { DetailsForm, RegenerateForm, ReopenButton, StopWaitingButton } from "./PostControls";
 import { ReviewEditor } from "./ReviewEditor";
 
 export const metadata: Metadata = { title: "Review a post" };
@@ -47,6 +50,11 @@ async function Post({ params }: Pick<PageProps<"/posts/[postId]">, "params">) {
   const [pillars, events] = await Promise.all([listPillars(project.id), listReviewEvents(post.id)]);
   const slug = post.slug ?? (DETAILS_STATUSES.includes(post.status) ? await suggestedSlug(post.id, project.id, current.text.title) : "");
   const lastEvent = events.at(-1);
+  // A regenerate that is running, or that could not finish (γ5 orientation Q4).
+  const newest = view.newest;
+  const running = post.status === "generating";
+  const stalled = running && newest !== null && hasStalled(newest.updatedAt);
+  const failedRegenerate = !running && newest?.status === "failed" && newest.note ? newest : null;
 
   const details = (
     <section className="bfm-card app-stack" aria-labelledby="details-heading">
@@ -95,12 +103,34 @@ async function Post({ params }: Pick<PageProps<"/posts/[postId]">, "params">) {
           <ReopenButton action={reopenAction.bind(null, post.id)} />
         </div>
       ) : null}
-      {post.status === "rejected" && lastEvent?.action === "reject" ? (
-        <div className="bfm-card" role="status">
-          <p className="body" style={{ margin: 0 }}>
-            Rejected: {lastEvent.note}
-          </p>
+      {post.status === "rejected" ? (
+        <div className="bfm-card app-stack" role="status">
+          {lastEvent?.action === "reject" ? (
+            <p className="body" style={{ margin: 0 }}>
+              Rejected: {lastEvent.note}
+            </p>
+          ) : null}
+          <RegenerateForm action={regenerateAction.bind(null, post.id)} />
         </div>
+      ) : null}
+      {running ? (
+        <div className={`bfm-card app-stack ${stalled ? "" : "bfm-aurora bfm-aurora-active"}`} role="status">
+          <AutoRefresh active={!stalled} />
+          <div className="app-card-head">
+            <p className="body" style={{ margin: 0 }}>
+              {stalled
+                ? "This post stopped reporting progress."
+                : `${post.generationStep ? GENERATION_STEPS[post.generationStep] : GENERATION_LINES.queued.label}: the writer is working on a new version${newest?.note ? ` for your note "${newest.note.replace(/[.!?]+$/, "")}"` : ""}.`}
+            </p>
+            <Badge tone={stalled ? GENERATION_LINES.stalled.tone : "brand"}>{stalled ? GENERATION_LINES.stalled.label : `Round ${newest?.round ?? 0}`}</Badge>
+          </div>
+          {stalled ? <StopWaitingButton action={stopWaitingAction.bind(null, post.id)} /> : <p className="small app-muted" style={{ margin: 0 }}>This page updates by itself. The text below is the version the writer started from.</p>}
+        </div>
+      ) : null}
+      {failedRegenerate ? (
+        <p className="app-form-error small" role="alert">
+          {GENERATION_LINES.couldNotFinish.label}: {failedRegenerate.error ?? "the regenerate stopped."} Your text is unchanged; you can regenerate again.
+        </p>
       ) : null}
 
       {editable ? (
@@ -116,6 +146,7 @@ async function Post({ params }: Pick<PageProps<"/posts/[postId]">, "params">) {
           saveAction={saveDraftAction}
           approveAction={approveAction}
           rejectAction={rejectAction}
+          regenerateAction={regenerateAction}
           aside={aside}
         />
       ) : (
@@ -203,13 +234,7 @@ function PostFacts({ view }: { view: DraftView }) {
           </thead>
           <tbody>
             {view.costs.map((line, index) => (
-              <tr key={index}>
-                <td>{line.label}</td>
-                <td>
-                  {line.inputTokens.toLocaleString("en-GB")}, {line.cachedTokens.toLocaleString("en-GB")}, {line.outputTokens.toLocaleString("en-GB")}
-                </td>
-                <td>{formatCost(line.costUsd)}</td>
-              </tr>
+              <CostRow key={index} line={line} first={index === 0 || view.costs[index - 1].run !== line.run} total={runTotal(view, line.run)} />
             ))}
           </tbody>
         </table>
@@ -217,6 +242,32 @@ function PostFacts({ view }: { view: DraftView }) {
           US dollars before VAT, at list prices checked {longDate(PRICES_CHECKED)}. Cached input is the knowledge pack read again from the cache, at a much lower price.
         </p>
       </section>
+    </>
+  );
+}
+
+function runTotal(view: DraftView, run: string): number {
+  return view.costs.filter((line) => line.run === run).reduce((sum, line) => sum + line.costUsd, 0);
+}
+
+function CostRow({ line, first, total }: { line: DraftView["costs"][number]; first: boolean; total: number }) {
+  return (
+    <>
+      {first ? (
+        <tr className="app-cost-run">
+          <th scope="rowgroup" colSpan={2}>
+            {line.run}
+          </th>
+          <td>{formatCost(total)}</td>
+        </tr>
+      ) : null}
+      <tr>
+        <td>{line.label}</td>
+        <td>
+          {line.inputTokens.toLocaleString("en-GB")}, {line.cachedTokens.toLocaleString("en-GB")}, {line.outputTokens.toLocaleString("en-GB")}
+        </td>
+        <td>{formatCost(line.costUsd)}</td>
+      </tr>
     </>
   );
 }

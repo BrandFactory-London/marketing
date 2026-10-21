@@ -8,6 +8,7 @@ import {
   postGenerations,
   posts,
   postSpecs,
+  postVersions,
   projectPillars,
   type CriticIssue,
 } from "@/db/schema";
@@ -15,6 +16,7 @@ import type { GenerationStep, PostStatus } from "@/config/post-status";
 import { AiClient, ModelOutputError, ModelRefusal, type Effort, type Transport } from "@/lib/ai/client";
 import { loadPack, type LoadedPack } from "@/lib/ai/pack";
 import { parseAllowedLinks, parseBannedPhrases, runChecks, type CheckResult } from "@/lib/checks";
+import { composeMarkdown } from "@/lib/review-rules";
 import { listSitePages } from "@/lib/sitemap";
 import { MAX_ROUNDS } from "./generation-limits";
 
@@ -217,6 +219,7 @@ export async function runGeneration(generationId: string, deps: GenerationDeps):
   };
   const ai = new AiClient(db, deps.transport);
   const call = { batchId: batch.id, postId: post.id, pack: pack.text };
+  const regenerate = await regenerateFrom(db, generation);
 
   for (;;) {
     const drafts = await db.select().from(postDrafts).where(eq(postDrafts.generationId, generationId)).orderBy(asc(postDrafts.round));
@@ -279,10 +282,24 @@ export async function runGeneration(generationId: string, deps: GenerationDeps):
       effort: EFFORT.writer,
       maxTokens: MAX_TOKENS.writer,
       instructions: writerPrompt.INSTRUCTIONS,
-      user: writerPrompt.writerUserMessage(forPrompt, fix),
+      user: writerPrompt.writerUserMessage(forPrompt, fix, regenerate),
     });
     await saveDraft(db, generationId, round, text, forPrompt, pack, record.id);
   }
+}
+
+// Regenerate with a note (γ5 orientation Q4): the first writer round starts from the version Amir regenerated.
+async function regenerateFrom(db: Database, generation: typeof postGenerations.$inferSelect): Promise<writerPrompt.WriterRegenerate | null> {
+  if (!generation.note || !generation.baseVersionId) return null;
+  const [version] = await db.select().from(postVersions).where(eq(postVersions.id, generation.baseVersionId));
+  if (!version) throw new ModelOutputError("The version to regenerate from no longer exists.");
+  return { note: generation.note, current: composeMarkdown({ title: version.title, excerpt: version.excerpt ?? "", body: version.bodyMd }) };
+}
+
+// A batch run that cannot finish puts the post back to Spec ready for a retry. A regenerate leaves Amir's
+// version in place, so the post goes back to Needs review.
+export function statusAfterFailedRun(generation: { note: string | null }): "spec_confirmed" | "in_review" {
+  return generation.note ? "in_review" : "spec_confirmed";
 }
 
 async function verdictFor(db: Database, draftId: string): Promise<Verdict | null> {
@@ -358,8 +375,8 @@ export async function failGeneration(generationId: string, error: unknown, db: D
       .update(postGenerations)
       .set({ status: "failed", error: failureMessage(error), finishedAt: sql`now()`, updatedAt: sql`now()` })
       .where(and(eq(postGenerations.id, generationId), inArray(postGenerations.status, ["queued", "running"])))
-      .returning({ postId: postGenerations.postId });
-    if (row) await setPost(tx, row.postId, "spec_confirmed", null);
+      .returning({ postId: postGenerations.postId, note: postGenerations.note });
+    if (row) await setPost(tx, row.postId, statusAfterFailedRun(row), null);
   });
 }
 

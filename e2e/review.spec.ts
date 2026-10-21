@@ -6,6 +6,9 @@ import { expect, query, resetDomain, test } from "./fixtures";
 
 test.describe.configure({ mode: "serial" });
 
+const STANDIN = "http://localhost:3199";
+const triggered = async () => (await (await fetch(`${STANDIN}/__triggered`)).json()) as { task: string; payload: Record<string, string> }[];
+
 const shot = (name: string) => ({ path: `e2e/screenshots/${name}.png`, fullPage: true, animations: "disabled" as const });
 
 const BODY = [
@@ -191,6 +194,46 @@ test("Reject needs a note and keeps it with the post", async ({ page, signedIn }
   await form.getByRole("button", { name: "Reject post" }).click();
   await expect(page.getByText("Rejected: Wrong angle for this month.")).toBeVisible();
   expect((await query<{ status: string }>("select status from posts where id = $1", [postIds[1]]))[0].status).toBe("rejected");
+});
+
+test("Regenerate with a note saves the text, starts a run, follows it, and costs it as its own run", async ({ page, signedIn }) => {
+  void signedIn;
+  await fetch(`${STANDIN}/__reset?fail=0`, { method: "POST" });
+  await page.goto(`/posts/${postIds[0]}`);
+  await page.getByRole("button", { name: "Regenerate with a note" }).click();
+  await page.getByLabel("What should the writer change?").fill("Say how often to clear the drain.");
+  await page.getByRole("button", { name: "Regenerate post" }).click();
+  await expect(page.getByText('the writer is working on a new version for your note "Say how often to clear the drain".', { exact: false })).toBeVisible();
+  const runs = await triggered();
+  expect(runs.at(-1)?.task).toBe("generate-post");
+  const [generation] = await query<{ id: string; note: string; base_version_id: string }>(
+    "select id, note, base_version_id from post_generations where post_id = $1 and note is not null order by created_at desc limit 1",
+    [postIds[0]],
+  );
+  expect(generation.note).toBe("Say how often to clear the drain.");
+  expect(generation.base_version_id).toBeTruthy();
+  await page.screenshot(shot("g5-regenerating"));
+
+  // The generate-post task's part: one writer round and a critic pass.
+  const [{ id: writerCall }] = await query<{ id: string }>(
+    `insert into ai_calls (post_id, purpose, requested_model, served_model, prompt_version, effort, input_tokens, output_tokens, cache_read_tokens, cost_usd)
+     values ($1, 'writer', 'claude-opus-5-5', 'claude-opus-5-5', 'writer-2', 'high', 4600, 6500, 2277, 0.149575) returning id`,
+    [postIds[0]],
+  );
+  const body = DRAFT.replace(/\[CONFIRM[^\]]*\] ?/g, "").replace("Keep the drain clear of hair and soap.", "Clear the drain of hair and soap every week.");
+  const checks = { passed: true, issues: [], title: "x", excerpt: "x", wordCount: 110, info: { links: ["/contact"], placeholders: [], moneyFigures: [], yearsClaims: [], percentages: [], h2: 2 } };
+  const [{ id: draftId }] = await query<{ id: string }>(
+    `insert into post_drafts (generation_id, round, title, excerpt, body_md, word_count, checks, checks_passed, ai_call_id)
+     values ($1, 1, 'Wet room maintenance week by week', 'How to keep a wet room watertight, week by week.', $2, 110, $3, true, $4) returning id`,
+    [generation.id, body, JSON.stringify(checks), writerCall],
+  );
+  await query(`insert into critic_verdicts (draft_id, verdict, summary, issues, placeholders, scores) values ($1, 'pass', 'Clearer.', '[]', '[]', '{"voice":8}')`, [draftId]);
+  await query("update post_generations set status = 'in_review', round = 1, finished_at = now() where id = $1", [generation.id]);
+  await query("update posts set status = 'in_review', generation_step = null where id = $1", [postIds[0]]);
+
+  await expect(page.locator(".cm-content")).toContainText("Clear the drain of hair and soap every week.", { timeout: 10_000 });
+  await expect(page.getByRole("row", { name: "Regenerate 1: Say how often to clear the drain. $0.15" })).toBeVisible();
+  await expect(page.getByText("No placeholders, dashes or banned phrases left.")).toBeVisible();
 });
 
 test("phone width: the editor switches to Edit and Preview tabs and the actions fit", async ({ page, signedIn }) => {

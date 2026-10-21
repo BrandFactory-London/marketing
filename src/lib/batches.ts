@@ -4,6 +4,7 @@ import { getDb, type Database, type Executor } from "@/db/client";
 import { aiCalls, batches, postGenerations, posts, postSpecs, projectPillars } from "@/db/schema";
 import { isModelId, type ModelId } from "@/config/models";
 import type { FaqMode } from "@/prompts/spec";
+import { statusAfterFailedRun } from "./generation";
 import { STALL_MS } from "./progress";
 import { getModelSettings } from "./settings";
 import { isUuid, optionalText, type FieldErrors, type FormInput, type Parsed } from "./validation";
@@ -289,7 +290,7 @@ export function parseSpecEdit(input: FormInput): Parsed<SpecEdit, SpecField> {
   };
 }
 
-async function setPostStatus(db: Executor, postId: string, status: "topic_set" | "spec_confirmed" | "generating") {
+async function setPostStatus(db: Executor, postId: string, status: "topic_set" | "spec_confirmed" | "generating" | "in_review") {
   await db
     .update(posts)
     .set({
@@ -409,8 +410,8 @@ export async function markNotStarted(generationId: string, message: string, db: 
       .update(postGenerations)
       .set({ status: "failed", error: message, finishedAt: sql`now()`, updatedAt: sql`now()` })
       .where(and(eq(postGenerations.id, generationId), eq(postGenerations.status, "queued")))
-      .returning({ postId: postGenerations.postId });
-    if (row) await setPostStatus(tx, row.postId, "spec_confirmed");
+      .returning({ postId: postGenerations.postId, note: postGenerations.note });
+    if (row) await setPostStatus(tx, row.postId, statusAfterFailedRun(row));
   });
 }
 
@@ -434,7 +435,7 @@ export async function closeStalledGeneration(postId: string, db: Database = getD
           sql`${postGenerations.updatedAt} < now() - make_interval(secs => ${STALL_MS / 1000})`,
         ),
       )
-      .returning({ postId: postGenerations.postId });
-    if (row) await setPostStatus(tx, row.postId, "spec_confirmed");
+      .returning({ postId: postGenerations.postId, note: postGenerations.note });
+    if (row) await setPostStatus(tx, row.postId, statusAfterFailedRun(row));
   });
 }
