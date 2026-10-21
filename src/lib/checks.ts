@@ -271,7 +271,7 @@ export function runChecks(input: CheckInput): CheckResult {
   for (const copy of findExampleCopies(text, input.examples ?? [])) {
     issues.push({
       check: "examples",
-      message: `Reuses the client's example "${copy.example}". Examples guide voice only; write a new sentence.`,
+      message: `Reuses the client's example "${copy.example.replace(/[.!?]+$/, "")}". Examples guide voice only; write a new sentence.`,
       quote: copy.quote,
     });
   }

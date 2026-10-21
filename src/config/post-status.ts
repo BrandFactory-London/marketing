@@ -60,6 +60,12 @@ export const SPEC_LINES = {
   failed: { label: "Spec not drafted", tone: "danger" },
 } as const;
 
+// Review's own display lines (γ5 orientation Q2). A draft with placeholders, dashes or banned phrases left needs
+// Amir before it can be approved; it is still in_review, not a status of its own.
+export const REVIEW_LINES = {
+  needsInput: { label: "Needs your input", tone: "warning" },
+} as const;
+
 // Statuses at which a post has a draft to open (γ4 draft view).
 export const DRAFTED_STATUSES: readonly PostStatus[] = ["in_review", "flagged", "approved", "published", "rejected"];
 

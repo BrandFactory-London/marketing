@@ -2,7 +2,9 @@ import "server-only";
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import { getDb, type Database } from "@/db/client";
 import { aiCalls, criticVerdicts, knowledgeVersions, postDrafts, postGenerations, posts, postSpecs, projectPillars, type CriticIssue } from "@/db/schema";
-import type { CheckResult } from "./checks";
+import { findPlaceholders, type CheckResult } from "./checks";
+import { currentText } from "./review";
+import { composeMarkdown } from "./review-rules";
 import { getProject } from "./projects";
 import { isUuid } from "./validation";
 
@@ -112,6 +114,8 @@ export type ReviewItem = {
   round: number;
   criticSummary: string | null;
   costUsd: number;
+  // Placeholders left in the current text (γ5 orientation Q2): Approve is blocked until they are filled.
+  placeholders: number;
 };
 
 // Posts waiting for Amir: passed the critic (Needs review) or flagged after two fix rounds (Failed), by date.
@@ -123,18 +127,19 @@ export async function listReviewQueue(db: Database = getDb()): Promise<ReviewIte
     .orderBy(asc(posts.slotDate));
   const items: ReviewItem[] = [];
   for (const row of rows) {
-    const view = await getDraftView(row.id, db);
-    if (!view) continue;
+    const [view, current] = await Promise.all([getDraftView(row.id, db), currentText(row.id, db)]);
+    if (!view || !current) continue;
     items.push({
       postId: row.id,
       status: row.status as ReviewItem["status"],
-      title: view.latest.title,
+      title: current.text.title || view.latest.title,
       projectName: view.project.name,
       slotDate: row.slotDate,
       wordCount: view.latest.wordCount,
       round: view.latest.round,
       criticSummary: view.latest.verdict?.summary ?? null,
       costUsd: view.totalCost,
+      placeholders: findPlaceholders(composeMarkdown(current.text)).length,
     });
   }
   return items;

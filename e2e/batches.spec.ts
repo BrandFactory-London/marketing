@@ -256,20 +256,20 @@ test("Generate starts one run per post and the Generating screen follows them by
   expect(await query("select status from post_generations where post_id = $1 order by created_at", [postIds[1]])).toEqual([{ status: "failed" }, { status: "queued" }]);
 });
 
-test("the review queue lists the drafted post and the draft view shows it read only", async ({ page, signedIn }) => {
+test("the review queue lists the drafted post and it opens in the review editor", async ({ page, signedIn }) => {
   void signedIn;
   await page.goto("/review");
   await expect(page.locator(".bfm-step-current")).toHaveText("4Review");
   await page.getByRole("link", { name: /Wet room or shower tray\?/ }).click();
   await page.waitForURL(`**/posts/${postIds[0]}`);
   await expect(page.getByRole("heading", { name: "Wet room or shower tray?", level: 1 })).toBeVisible();
-  await expect(page.getByText("Which one suits a small bathroom.")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Book a free design consultation", level: 2 })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Contact us" })).toHaveAttribute("href", "https://www.migssinteriors.com/contact");
+  await expect(page.getByLabel("Excerpt")).toHaveValue("Which one suits a small bathroom.");
+  const preview = page.getByLabel("Preview");
+  await expect(preview.getByRole("heading", { name: "Book a free design consultation", level: 2 })).toBeVisible();
+  await expect(preview.getByRole("link", { name: "Contact us" })).toHaveAttribute("href", "https://www.migssinteriors.com/contact");
   // Raw HTML in a draft is never rendered.
   await expect(page.locator(".app-draft-body b")).toHaveCount(0);
-  await expect(page.getByText("Critic passed it")).toBeVisible();
-  await expect(page.getByText("Claude Opus 5.5: Clear and specific.")).toBeVisible();
+  await expect(page.getByText("Could name a room size.", { exact: false })).toBeVisible();
   await expect(page.getByRole("cell", { name: "Writer call 1" })).toBeVisible();
   await expect(page.getByRole("link", { name: "version 1" })).toHaveAttribute("href", `/projects/${projectId}/knowledge?version=1`);
   await page.screenshot(shot("g4-draft"));

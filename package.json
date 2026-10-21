@@ -17,7 +17,13 @@
   "dependencies": {
     "@anthropic-ai/sdk": "0.134.0",
     "@auth/drizzle-adapter": "1.11.3",
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/language": "6.13.1",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.14",
     "@trigger.dev/sdk": "4.7.4",
+    "diff": "9.0.0",
     "drizzle-orm": "0.45.4",
     "next": "16.4.2",
     "next-auth": "5.0.0-beta.32",

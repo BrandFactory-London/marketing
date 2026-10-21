@@ -264,3 +264,43 @@ a:hover { color: var(--brand-hover); }
 @media (max-width: 899px) {
   .app-draft-layout { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* γ5 Review: editor beside a live preview, marks for placeholders and critic quotes. */
+/* Decision 17: the editor sits beside its preview, so the text card takes the full width and the notes follow as cards. */
+.app-review-layout { grid-template-columns: minmax(0, 1fr); }
+.app-review-notes { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-4); align-items: start; }
+.app-review { gap: var(--space-4); container-type: inline-size; }
+.app-title-input .bfm-input { font-size: 20px; font-weight: 600; }
+.app-review-body { display: flex; flex-direction: column; gap: var(--space-2); border-top: 1px solid var(--line); padding-top: var(--space-4); }
+.app-pane-tabs { display: flex; gap: var(--space-1); }
+.app-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+.app-split[data-pane="edit"] .app-split-preview, .app-split[data-pane="preview"] .app-split-edit { display: none; }
+@container (min-width: 820px) {
+  .app-pane-tabs { display: none; }
+  .app-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .app-split[data-pane] .app-split-edit, .app-split[data-pane] .app-split-preview { display: block; }
+  .app-split-preview { border-left: 1px solid var(--line); padding-left: var(--space-4); max-height: 70vh; overflow: auto; }
+}
+.app-editor { border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface-0); min-height: 320px; }
+.app-editor .cm-editor { min-height: 320px; max-height: 70vh; border-radius: var(--radius-md); }
+.app-editor .cm-editor.cm-focused { outline: none; box-shadow: var(--shadow-focus); }
+.app-editor .cm-scroller { font-family: var(--font-sans); font-size: 15px; line-height: 24px; }
+.app-editor .cm-content { padding: var(--space-3); }
+.app-mark-placeholder, .app-placeholder { background: var(--warning-tint); color: var(--ink); border-radius: var(--radius-sm); padding: 0 2px; }
+.app-mark-issue { text-decoration: underline wavy var(--warning); text-underline-offset: 3px; }
+.app-mark-blocking { background: var(--danger-tint); outline: 1px solid var(--danger); }
+.app-review-actions { display: flex; flex-direction: column; gap: var(--space-2); border-top: 1px solid var(--line); padding-top: var(--space-4); }
+.app-review-buttons { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+.app-review-buttons > :last-child { margin-left: auto; }
+.app-inline-form { padding: var(--space-3); border-radius: var(--radius-md); background: var(--surface-50); }
+.app-callout { padding: var(--space-3); border-radius: var(--radius-md); }
+.app-callout-warning { background: var(--warning-tint); }
+.app-link-button { background: none; border: 0; padding: 0; font: inherit; color: var(--brand); cursor: pointer; text-align: left; }
+.app-link-button:hover { color: var(--brand-hover); text-decoration: underline; }
+.app-link-button.app-quote { color: var(--ink-muted); }
+.app-text-warning { color: var(--warning); }
+.app-text-success { color: var(--success); }
+@media (max-width: 599px) {
+  .app-review-buttons > * { flex: 1 1 auto; }
+  .app-review-buttons > :last-child { margin-left: 0; }
+}
