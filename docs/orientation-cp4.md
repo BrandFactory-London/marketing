@@ -364,3 +364,12 @@ Vercel Preview deployments do not generate. Their batch actions say generation r
 - `TRIGGER_ACCESS_TOKEN`: set.
 - `TRIGGER_SECRET_KEY`: set, a Development key (`tr_dev_` prefix).
 - `ANTHROPIC_API_KEY`: **not set** under any name. Needed for γ4.2 onward.
+
+## Approval (Amir, 21 Oct 2026)
+
+Approved, with these answers:
+- Q1 to Q8 as written, with one change to Q5: **no safety-refusal fallback.** A decline (`stop_reason: "refusal"`) fails the post with a clear message, so Amir can retry or change model.
+- Both `CLAUDE.md` rules approved: migrations safe for the live version; still ask before deleting data or changing production settings.
+- Backups: **keep only the newest three** Neon backup branches. The production build deletes older backup branches after a successful backup (the free plan allows 10 branches per project). Only branches whose name starts with `backup/` are ever deleted.
+- Trigger.dev: Development and Production only (see the section above).
+- `ANTHROPIC_API_KEY` is added as an environment variable before γ4.2.
