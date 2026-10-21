@@ -6,6 +6,7 @@ import { postGenerations } from "@/db/schema";
 import type { checkAnthropic, CheckAnthropicResult } from "@/trigger/check-anthropic";
 import type { draftSpec } from "@/trigger/draft-spec";
 import type { generatePost } from "@/trigger/generate-post";
+import type { proposeRules } from "@/trigger/propose-rules";
 
 // The app's only way into Trigger.dev (γ4 orientation Q1). It reads TRIGGER_SECRET_KEY, and TRIGGER_API_URL
 // when set (Playwright points it at a local stand-in). The Anthropic key never reaches the app.
@@ -23,6 +24,12 @@ export async function startGeneration(generationId: string, db: Database = getDb
     { idempotencyKey: `generation-${generationId}`, tags: [`generation_${generationId}`] },
   );
   await db.update(postGenerations).set({ triggerRunId: handle.id, updatedAt: sql`now()` }).where(eq(postGenerations.id, generationId));
+  return handle.id;
+}
+
+// Rule candidates from an approval's edits (decision 17). One run per approval.
+export async function startRuleCandidates(reviewEventId: string): Promise<string> {
+  const handle = await tasks.trigger<typeof proposeRules>("propose-rules", { reviewEventId }, { idempotencyKey: `rules-${reviewEventId}`, tags: [`review_${reviewEventId}`] });
   return handle.id;
 }
 

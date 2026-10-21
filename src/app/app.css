@@ -305,3 +305,8 @@ a:hover { color: var(--brand-hover); }
   .app-review-buttons > :last-child { margin-left: 0; }
 }
 .app-cost .app-cost-run th, .app-cost .app-cost-run td { padding-top: var(--space-3); font-weight: 600; text-align: left; }
+.app-candidates { padding: var(--space-6); border-radius: var(--radius-lg); }
+.app-candidate { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); border-radius: var(--radius-md); background: var(--surface-0); border: 1px solid var(--line); }
+.app-candidate .app-review-buttons { align-items: end; }
+.app-candidate .app-review-buttons .bfm-field { flex: 1 1 260px; }
+.app-candidate-edit { grid-template-columns: auto 1fr; }

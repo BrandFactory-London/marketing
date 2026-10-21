@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import type { CheckResult } from "@/lib/checks";
 import { closeStalledGeneration, markNotStarted } from "@/lib/batches";
-import { startGeneration } from "@/lib/jobs";
+import { startGeneration, startRuleCandidates } from "@/lib/jobs";
 import { approvePost, parsePostText, queueRegeneration, rejectPost, reopenPost, ReviewError, savePublishingDetails, saveVersion } from "@/lib/review";
 import { requireUser } from "@/lib/session";
 import { isUuid, optionalText } from "@/lib/validation";
@@ -29,13 +29,25 @@ export async function saveDraftAction(postId: string, input: TextInput): Promise
 
 export async function approveAction(postId: string, input: TextInput): Promise<ReviewActionResult> {
   await requireUser();
+  let approved: Awaited<ReturnType<typeof approvePost>>;
   try {
-    await approvePost(postId, parsePostText(input));
+    approved = await approvePost(postId, parsePostText(input));
   } catch (error) {
     return failure(error);
   }
+  // Rule candidates are a bonus: if Trigger.dev cannot be reached the approval still stands.
+  let message = "Post approved.";
+  if (approved.hasEdits) {
+    try {
+      await startRuleCandidates(approved.reviewEventId);
+      message = "Post approved. Rule candidates from your edits will appear in Settings, BrandFactory rules.";
+    } catch (error) {
+      console.error("Could not start propose-rules:", error);
+      message = "Post approved. Rule candidates could not be started, because Trigger.dev could not be reached.";
+    }
+  }
   refresh();
-  return { ok: true, message: "Post approved." };
+  return { ok: true, message };
 }
 
 export async function rejectAction(postId: string, note: string): Promise<ReviewActionResult> {

@@ -88,6 +88,7 @@ test.beforeAll(async () => {
   ]);
   await query("insert into project_pillars (project_id, label, slug, position) values ($1, 'Bathroom Renovation', 'bathroom-renovation', 0)", [projectId]);
   postIds = [await seedDraftedPost("Wet room maintenance week by week", 7), await seedDraftedPost("Second post to reject", 9)];
+  await fetch(`${STANDIN}/__reset?fail=0`, { method: "POST" });
 });
 
 // Replaces the editor's current selection (set by clicking a placeholder in the panel) with text.
@@ -177,6 +178,9 @@ test("publishing details save a slug and pillar, and Approve locks the text unti
   const [event] = await query<{ action: string; warnings: { check: string }[] }>("select action, warnings from review_events where post_id = $1", [postIds[0]]);
   expect(event.action).toBe("approve");
   expect(event.warnings.map((item) => item.check)).toEqual(["examples"]);
+  // Amir filled the placeholders, so the approval has edits and starts the rule candidates task.
+  expect((await triggered()).at(-1)).toMatchObject({ task: "propose-rules" });
+  await expect(page.getByRole("link", { name: "Settings, BrandFactory rules" })).toBeVisible();
   await page.screenshot(shot("g5-approved"));
 
   await page.getByRole("button", { name: "Reopen for editing" }).click();
@@ -234,6 +238,38 @@ test("Regenerate with a note saves the text, starts a run, follows it, and costs
   await expect(page.locator(".cm-content")).toContainText("Clear the drain of hair and soap every week.", { timeout: 10_000 });
   await expect(page.getByRole("row", { name: "Regenerate 1: Say how often to clear the drain. $0.15" })).toBeVisible();
   await expect(page.getByText("No placeholders, dashes or banned phrases left.")).toBeVisible();
+});
+
+test("rule candidates are triaged in Settings: edit, move, accept into a new version, or dismiss", async ({ page, signedIn }) => {
+  void signedIn;
+  const [{ id: eventId }] = await query<{ id: string }>("select id from review_events where post_id = $1 and action = 'approve' order by created_at limit 1", [postIds[0]]);
+  // The propose-rules task's part.
+  await query(
+    `insert into rule_candidates (review_event_id, post_id, tier, section, text, before, after, reason) values
+       ($1, $2, 'client', 'business_facts', 'Wet rooms are a Migss speciality.', '[CONFIRM: Migss wet room specialism wording]', 'Wet rooms are our speciality.', 'Amir supplied this fact.'),
+       ($1, $2, 'agency', 'writing_rules', 'Say how often to do each maintenance task.', 'Keep the drain clear.', 'Clear the drain every week.', 'Readers need a frequency.')`,
+    [eventId, postIds[0]],
+  );
+  await page.goto("/settings/rules");
+  const section = page.getByRole("region", { name: "Rule candidates from your edits" });
+  await expect(section.getByText('From your edit to "Wet room maintenance week by week"')).toHaveCount(2);
+  await page.screenshot(shot("g5-rule-candidates"));
+
+  const fact = section.locator("form", { has: page.getByText("Amir supplied this fact.") });
+  await fact.getByLabel("Proposed rule").fill("Migss specialises in wet rooms.");
+  await fact.getByRole("button", { name: "Accept rule" }).click();
+  await expect(section.getByText("Added to Client knowledge: Business facts")).toBeVisible();
+  const [client] = await query<{ version: number; sections: { business_facts?: string; examples?: string } }>(
+    "select version, sections from knowledge_versions where tier = 'client' order by version desc limit 1",
+  );
+  expect(client.version).toBe(2);
+  expect(client.sections.business_facts).toBe("- Migss specialises in wet rooms.");
+  expect(client.sections.examples).toBe("Rushing or skipping a stage hides problems behind finished tiles.");
+
+  const rule = section.locator("form", { has: page.getByText("Readers need a frequency.") });
+  await rule.getByRole("button", { name: "Dismiss" }).click();
+  await expect(section.getByText("Dismissed")).toBeVisible();
+  expect((await query("select 1 from knowledge_versions where tier = 'agency'")).length).toBe(1);
 });
 
 test("phone width: the editor switches to Edit and Preview tabs and the actions fit", async ({ page, signedIn }) => {

@@ -14,6 +14,7 @@ import { getDraftView, type DraftRound, type DraftView } from "@/lib/drafts";
 import { formatCost } from "@/lib/format";
 import { listPillars } from "@/lib/pillars";
 import { checkInputFor, currentText, DETAILS_STATUSES, EDITABLE_STATUSES, listReviewEvents, placeholderAsks, suggestedSlug } from "@/lib/review";
+import { candidatesForPost } from "@/lib/rules";
 import { requireUser } from "@/lib/session";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { GENERATION_STEPS, GENERATION_LINES } from "@/config/post-status";
@@ -47,7 +48,9 @@ async function Post({ params }: Pick<PageProps<"/posts/[postId]">, "params">) {
   const { post, project, latest } = view;
   const status = getPostStatus(post.status);
   const editable = EDITABLE_STATUSES.includes(post.status);
-  const [pillars, events] = await Promise.all([listPillars(project.id), listReviewEvents(post.id)]);
+  const [pillars, events, candidates] = await Promise.all([listPillars(project.id), listReviewEvents(post.id), candidatesForPost(post.id)]);
+  const lastApproval = events.findLast((event) => event.action === "approve");
+  const proposed = candidates.filter((candidate) => candidate.status === "proposed").length;
   const slug = post.slug ?? (DETAILS_STATUSES.includes(post.status) ? await suggestedSlug(post.id, project.id, current.text.title) : "");
   const lastEvent = events.at(-1);
   // A regenerate that is running, or that could not finish (γ5 orientation Q4).
@@ -97,9 +100,18 @@ async function Post({ params }: Pick<PageProps<"/posts/[postId]">, "params">) {
 
       {post.status === "approved" ? (
         <div className="bfm-card app-card-head" role="status">
-          <p className="body" style={{ margin: 0 }}>
-            Approved{post.approvedAt ? ` on ${longDate(post.approvedAt.toISOString().slice(0, 10))}` : ""}. The text is locked; publishing details can still change until it is published.
-          </p>
+          <div className="app-stack">
+            <p className="body" style={{ margin: 0 }}>
+              Approved{post.approvedAt ? ` on ${longDate(post.approvedAt.toISOString().slice(0, 10))}` : ""}. The text is locked; publishing details can still change until it is published.
+            </p>
+            {lastApproval?.diff && lastApproval.diff.length > 0 ? (
+              <p className="small app-muted" style={{ margin: 0 }}>
+                {proposed > 0 ? `${proposed} rule ${proposed === 1 ? "candidate" : "candidates"} from your edits ${proposed === 1 ? "is" : "are"} waiting in ` : candidates.length > 0 ? "The rule candidates from your edits are decided in " : "Rule candidates from your edits appear in "}
+                <Link href="/settings/rules#candidates-heading">Settings, BrandFactory rules</Link>
+                {candidates.length === 0 ? " within a minute or two." : "."}
+              </p>
+            ) : null}
+          </div>
           <ReopenButton action={reopenAction.bind(null, post.id)} />
         </div>
       ) : null}
