@@ -2,6 +2,10 @@
 
 body { margin: 0; min-height: 100vh; }
 
+/* Links follow the prototype: brand at rest, brand-hover on hover. */
+a { color: var(--brand); }
+a:hover { color: var(--brand-hover); }
+
 .app-shell { display: flex; min-height: 100vh; }
 
 .app-sidebar { flex: none; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
@@ -51,3 +55,73 @@ body { margin: 0; min-height: 100vh; }
 .app-signin-brand { font-weight: 700; font-size: 15px; }
 .app-signin-error { margin: 0; padding: var(--space-3); border-radius: var(--radius-md); background: var(--danger-tint); color: var(--danger); }
 .app-signin-button { width: 100%; }
+
+/* Shared page pieces (γ2) */
+.app-page-meta { margin: var(--space-1) 0 0; color: var(--ink-muted); }
+.app-muted { color: var(--ink-muted); }
+.app-section { display: flex; flex-direction: column; gap: var(--space-4); }
+.app-section-header { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.app-section-title { margin: 0; }
+.app-section-text { margin: var(--space-1) 0 0; color: var(--ink-muted); }
+.app-group-label { margin: 0; color: var(--ink-muted); text-transform: uppercase; }
+.app-stack { display: flex; flex-direction: column; gap: var(--space-4); }
+.app-row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+
+/* Forms */
+.app-form { display: flex; flex-direction: column; gap: var(--space-4); }
+.app-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-4) var(--space-6); }
+.app-form-actions { display: flex; gap: var(--space-3); justify-content: flex-end; flex-wrap: wrap; align-items: center; }
+.app-form-error { margin: 0; padding: var(--space-3); border-radius: var(--radius-md); background: var(--danger-tint); color: var(--danger); }
+.app-form-note { margin: 0; color: var(--ink-muted); }
+.app-textarea { height: auto; min-height: 320px; padding-top: var(--space-3); padding-bottom: var(--space-3); resize: vertical; line-height: 1.6; }
+
+/* Card grids */
+.app-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-6); }
+.app-card-link { text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: var(--space-3); }
+.app-card-head { display: flex; justify-content: space-between; align-items: start; gap: var(--space-3); }
+.app-card-head .bfm-card-title, .app-card-head .bfm-card-meta { margin: 0; }
+.app-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.app-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2) var(--space-4); margin: 0; }
+.app-facts dt { color: var(--ink-muted); }
+.app-facts dd { margin: 0; }
+.app-package-count { margin: 0; }
+.app-package-card { display: flex; flex-direction: column; gap: var(--space-3); }
+.app-package-card p { margin: 0; }
+
+/* Home project card with a plain cover (live screenshots are Phase 2) */
+.app-project-tile { padding: 0; overflow: hidden; text-decoration: none; color: inherit; display: flex; flex-direction: column; }
+.app-cover { aspect-ratio: 16 / 10; background: var(--surface-100); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; }
+.app-cover-bar { display: flex; gap: 6px; align-items: center; padding: var(--space-2) var(--space-3); background: var(--surface-0); border-bottom: 1px solid var(--line); }
+.app-cover-dot { width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--line); }
+.app-cover-host { margin-left: var(--space-2); color: var(--ink-muted); }
+.app-cover-body { flex: 1; display: grid; place-items: center; color: var(--ink-muted); }
+.app-project-tile-body { padding: var(--space-4) var(--space-6) var(--space-6); display: flex; flex-direction: column; gap: var(--space-3); }
+.app-add-tile { min-height: 240px; border: 1px dashed var(--line-strong); border-radius: var(--radius-lg); display: grid; place-items: center; color: var(--ink-muted); font: 600 14px/20px var(--font-sans); text-decoration: none; transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
+.app-add-tile:hover { color: var(--brand-ink); border-color: var(--brand); }
+.app-stat { margin: var(--space-4) 0 0; }
+
+/* Tables */
+.app-table-wrap { overflow-x: auto; }
+.app-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+.app-table th { text-align: left; color: var(--ink-muted); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--line); }
+.app-table td { padding: 14px var(--space-3); border-bottom: 1px solid var(--line); vertical-align: top; }
+.app-table tr:last-child td { border-bottom: 0; }
+.app-table-name { font-weight: 600; }
+
+/* Knowledge editor: section nav on the left, the chosen section on the right */
+.app-knowledge { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: start; }
+.app-knowledge-nav { flex: 1 1 260px; max-width: 300px; padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); }
+.app-knowledge-nav .bfm-nav-item { white-space: nowrap; border: 0; background: transparent; text-align: left; cursor: pointer; width: 100%; font: inherit; }
+.app-knowledge-nav .bfm-nav-item[aria-current="true"] { background: var(--brand-tint); color: var(--brand-ink); }
+.app-knowledge-panel { flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.app-knowledge-panel h3 { margin: 0; }
+.app-knowledge-panel [hidden] { display: none; }
+.app-knowledge-panel .app-section-text { margin: 0; }
+.app-knowledge-status { margin: 0; color: var(--ink-muted); }
+.app-knowledge-actions { display: flex; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; align-items: center; }
+.app-knowledge-readonly { margin: 0; padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-100); white-space: pre-wrap; font: inherit; min-height: 120px; }
+.app-banner { margin: 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--brand-tint); color: var(--brand-ink); display: flex; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; align-items: center; }
+.app-versions { display: flex; flex-direction: column; gap: var(--space-2); }
+.app-versions summary { cursor: pointer; color: var(--brand-ink); font-weight: 600; }
+.app-versions ol { margin: 0; padding-left: var(--space-6); display: flex; flex-direction: column; gap: var(--space-1); }
+.app-saved { color: var(--success); }

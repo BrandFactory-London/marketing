@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, Suspense, useState, type ReactNode } from "react";
 import { BrandMark, Icon } from "./Icon";
 import { isCurrent, type NavItem } from "@/lib/nav";
 
@@ -12,21 +12,31 @@ type SidebarProps = {
   footer?: ReactNode;
 };
 
-export function Sidebar({ items, sections = [], footer }: SidebarProps) {
-  const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+type ItemProps = { item: NavItem; onNavigate: () => void };
 
-  const renderItem = (item: NavItem) => (
-    <Link
-      key={item.href}
-      href={item.href}
-      className="bfm-nav-item"
-      aria-current={isCurrent(item.href, pathname) ? "page" : undefined}
-      onClick={() => setOpen(false)}
-    >
+function NavLink({ item, onNavigate, current }: ItemProps & { current: boolean }) {
+  return (
+    <Link href={item.href} className="bfm-nav-item" aria-current={current ? "page" : undefined} onClick={onNavigate}>
       <Icon name={item.icon} />
       {item.label}
     </Link>
+  );
+}
+
+function CurrentAwareNavLink(props: ItemProps) {
+  return <NavLink {...props} current={isCurrent(props.item.href, usePathname())} />;
+}
+
+export function Sidebar({ items, sections = [], footer }: SidebarProps) {
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
+
+  // On routes with a dynamic segment (/crm/[clientId]) the path is unknown at prerender, so only the
+  // current-item mark waits for it; the link itself is prerendered as the fallback.
+  const renderItem = (item: NavItem) => (
+    <Suspense key={item.href} fallback={<NavLink item={item} onNavigate={close} current={false} />}>
+      <CurrentAwareNavLink item={item} onNavigate={close} />
+    </Suspense>
   );
 
   return (
