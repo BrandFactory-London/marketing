@@ -17,4 +17,4 @@ Items raised during implementation. Disagreements with locked design decisions g
 | 11 | γ2 smoke | For γ5: cover picker must browse subfolders. Each project's Drive folder is a parent (e.g. Migss Interiors) with photos in subfolders such as Bathrooms and Kitchens. The γ2 check counts subfolders as files. | Raised by Amir at the γ2 smoke. |
 | 12 | γ3 orientation | Add and remove slots on the Run plan tab, if wanted. | The prototype has "Add to plan" and "Remove". γ3 left both out (Q9): not in the handoff, and removing is hard to reverse. |
 | 13 | γ3 orientation | Search box on the Posts page. | In the prototype; not in the γ3 handoff (Q10). A small add once there are enough posts to need it. |
-| 14 | γ3.2 | Confirm the date field shows UK format (dd/mm/yyyy) on Amir's browsers. | The headless test browser shows US format even with an en-GB locale, because its native date control ignores the setting. Check at the γ3 smoke. |
+| 14 | γ3.2 | Confirm the date field shows UK format (dd/mm/yyyy) on Amir's browsers. | **Closed at the γ3 smoke:** iPhone Safari shows "29 Oct 2026". The headless test browser's US format was its own date control, not the app. |

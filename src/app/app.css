@@ -217,3 +217,10 @@ a:hover { color: var(--brand-hover); }
 .app-plan-edit summary { cursor: pointer; color: var(--brand); font-weight: 600; }
 .app-plan-edit[open] summary { margin-bottom: var(--space-3); }
 .app-plan-edit .app-stack { max-width: 480px; }
+
+/* iOS Safari gives date fields the native control's own minimum width, so they ignore width: 100% and run
+   past their container. Dropping the native appearance and allowing the field to shrink keeps it the same
+   width as the other fields; the value stays left-aligned like text inputs. */
+.bfm-input[type="date"] { -webkit-appearance: none; appearance: none; min-width: 0; max-width: 100%; display: block; }
+.bfm-input[type="date"]::-webkit-date-and-time-value { text-align: left; }
+.bfm-field { min-width: 0; }

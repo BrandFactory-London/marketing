@@ -158,8 +158,17 @@ test("phones get a list of days instead of the grid, with no sideways scroll", a
   expect(await overflow()).toBeLessThanOrEqual(0);
   await page.screenshot(shot("calendar-mobile"));
   await page.getByRole("link", { name: /^Wet room or shower tray, / }).click();
-  await expect(page.getByRole("complementary", { name: "Selected slot" }).getByRole("heading")).toHaveText("Wet room or shower tray");
+  const panel = page.getByRole("complementary", { name: "Selected slot" });
+  await expect(panel.getByRole("heading")).toHaveText("Wet room or shower tray");
   expect(await overflow()).toBeLessThanOrEqual(0);
+  // The Date field stays inside the panel and no wider than the Topic field (found on iPhone Safari at the γ3 smoke).
+  const [panelBox, topicBox, dateBox] = await Promise.all([
+    panel.boundingBox(),
+    panel.getByRole("textbox", { name: "Topic" }).boundingBox(),
+    panel.getByLabel("Date").boundingBox(),
+  ]);
+  expect(dateBox!.x + dateBox!.width).toBeLessThanOrEqual(panelBox!.x + panelBox!.width);
+  expect(dateBox!.width).toBeLessThanOrEqual(topicBox!.width + 0.5);
   await page.screenshot(shot("calendar-mobile-selected"));
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Next two weeks" })).toBeVisible();

@@ -247,7 +247,7 @@ The dev database's existing project (Migss Interiors Website, Premium, Active) g
 `docs/backlog.md`:
 - item 12: Run plan add and remove;
 - item 13: Posts search box;
-- item 14: check the date field's UK format at smoke.
+- item 14: check the date field's UK format at smoke (closed at the smoke: iPhone Safari shows "29 Oct 2026").
 
 Handoff item 9 is done in the README itself (see Design system README). No earlier backlog item closes in γ3.
 
@@ -283,6 +283,38 @@ Use `https://marketing-git-claude-loving-cannon-ksyp3b-brandfactorylondon.vercel
 9. **Posts and the card.** Posts lists the topic with "Topic set"; the status chips and the client select filter it. Projects shows "Next in run plan: <date> · <topic or No topic yet>", and Home's tile shows "Next post <date>".
 10. **Phone.** Open Calendar, select a slot, then Run plan and Posts. Expected: a list of days instead of the grid, the panel below, and no sideways scrolling.
 11. **Leave Migss as you want it.** Topics and moves made during the smoke stay on the dev branch. Production is unaffected.
+
+## Smoke results (Amir, branch preview, 21 Oct 2026)
+
+Steps 2 to 10 all passed:
+- step 2: Amir's SQL check;
+- step 3: 24 slots on Mon, Wed and Fri;
+- step 4: topic set;
+- step 5: move with no duplicate;
+- step 7: pause;
+- step 8: resume, Mid and back;
+- step 9: Posts and the badges;
+- step 10: phone.
+
+Step 6: iPhone Safari shows the date as "29 Oct 2026", so backlog item 14 is closed.
+
+**Finding.** On iPhone Safari, the slot panel's Date field ran past the panel's right edge, wider than the Topic field.
+- **Cause:** iOS Safari gives date fields the native control's own minimum width, so they ignore `width: 100%`.
+- **Fix:** `src/app/app.css`, no colour, size or spacing values, so nothing outside the tokens:
+  ```
+  .bfm-input[type="date"] { -webkit-appearance: none; appearance: none; min-width: 0; max-width: 100%; display: block; }
+  .bfm-input[type="date"]::-webkit-date-and-time-value { text-align: left; }
+  .bfm-field { min-width: 0; }
+  ```
+  The rules apply to every date field and every field wrapper. The only date fields are the slot editor's, used by the calendar panel and the Run plan. `.bfm-field { min-width: 0 }` stops any field from forcing its column wider.
+- **Verified:** `e2e/calendar.spec.ts` now checks, at 390px, that the Date field ends inside the panel and is no wider than the Topic field. It passes, and the Chromium screenshot is unchanged (picker button still shown).
+- **Not verified here:** Chromium never showed the overflow, and no WebKit browser is installed in this environment. So this test guards against a regression but does not prove the Safari fix. That needs Amir's recheck on the iPhone (see Smoke recheck).
+- Test counts after the fix: Vitest `Tests  148 passed (148)`, Playwright `57 passed (1.3m)` (same counts; the check was added to an existing test). Typecheck and lint exit 0.
+
+**Smoke recheck (iPhone Safari, branch preview, once the fix's preview is Ready):**
+1. Calendar: select a slot. The Date field lines up with the Topic field, and its right edge stays inside the panel.
+2. Tap the Date field. The date picker opens; pick a date and Move slot. Expected: "Slot moved".
+3. Project, Run plan: open "Set topic or date" on any row. The Date field sits inside the row, the same width as Topic.
 
 ## Production checklist (after the smoke, before merge, on your go-ahead)
 
