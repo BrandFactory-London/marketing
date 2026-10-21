@@ -122,6 +122,19 @@ Applied migrations: 1
 ```
 This proves transactional DDL on Neon itself: the four tables exist inside the transaction and are gone after it.
 
+**Step 1 result (run 21 Oct 2026 on Amir's go-ahead).** Branch `claude/loving-cannon-ksyp3b` at `c1e7c18`, clean tree, target host confirmed as `ep-square-mode-zatw6e39` (dev). Output verbatim, exit code 0:
+```
+Target: ep-square-mode-zatw6e39-pooler.c-2.eu-west-2.aws.neon.tech/neondb
+Driver: neon-serverless (WebSocket, port 443, one transaction)
+Rehearsal: 9 statements from drizzle/0001_crm_projects_knowledge.sql, inside BEGIN ... ROLLBACK
+Inside the transaction: accounts, app_settings, clients, google_tokens, knowledge_versions, projects, sessions, site_pages, users
+Rolled back.
+Public tables: accounts, app_settings, google_tokens, sessions, users
+Applied migrations: 1
+  1 bc9dce5f5136 1792531354466
+```
+Independent check afterwards, on a fresh read-only connection: `to_regclass` is null for `clients`, `projects`, `knowledge_versions` and `site_pages`, and `pg_constraint` holds 0 constraints named `knowledge_versions%`, `projects%` or `site_pages%`. The rehearsal left nothing behind.
+
 Step 2 (**the migration, needs a separate go-ahead**):
 ```
 pnpm db:migrate --remote
