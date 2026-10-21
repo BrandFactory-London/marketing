@@ -348,3 +348,19 @@ A `vercel-build` script in `package.json` (Vercel runs it instead of `build` whe
   - the check mismatch fails the build.
 - A local end-to-end run uses the real script, the local Postgres and a stand-in for the Neon API. It proves the order: backup, migrate, check, build.
 - **The first real run is γ4's own merge** (`0003_generation`). The production smoke list will include reading those lines in the Vercel build log and seeing the backup branch in the Neon console.
+
+### Trigger.dev environments, settled (Amir, 21 Oct 2026)
+
+The plan has no Preview environment. Preview is skipped:
+
+| Trigger.dev environment | Runs | `DATABASE_URL` | Anthropic key |
+|---|---|---|---|
+| Development | `trigger.dev dev` from this cloud session | Neon dev | low-limit key |
+| Production | deployed with `main` | Neon **main** | production key |
+
+Vercel Preview deployments do not generate. Their batch actions say generation runs in production only. The Vercel integration is set up for Production only. This replaces Q1's three-row table and its preview-plan risk.
+
+**Keys in this session (checked by name only):**
+- `TRIGGER_ACCESS_TOKEN`: set.
+- `TRIGGER_SECRET_KEY`: set, a Development key (`tr_dev_` prefix).
+- `ANTHROPIC_API_KEY`: **not set** under any name. Needed for γ4.2 onward.
