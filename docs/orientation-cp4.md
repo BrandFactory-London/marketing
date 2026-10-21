@@ -300,3 +300,51 @@ Nothing will run against Neon or the Anthropic API until you say so.
 ---
 
 **Stopping here. No code until you approve.**
+
+## Process change (Amir, 21 Oct 2026), applies from γ4
+
+`CLAUDE.md` is updated to match. These replace the parts of this orientation that said otherwise.
+- **Neon dev.** The build session migrates it without a go-ahead: host check, rehearsal, migration, independent check, all pasted in the gate. Q4's step list for dev becomes one step in γ4.4.
+- **Production.** Migrations run automatically in the Vercel production build (proposal below). There is no production migration session.
+- **No preview smoke and no check-ins.** The check-in after γ4.3 and the stop before the real run are dropped. I build, test, write the gate, open the PR and merge once every check passes, then give Amir a short production smoke list.
+- **The real end-to-end run** (Q2) still happens before merge, from this session, against Neon dev, within the $25 key limit. It needs the keys in Q1 and Q2.
+- **Orientation approval stays:** this report still waits for it.
+
+### Proposal: production migrations in the Vercel build
+
+A `vercel-build` script in `package.json` (Vercel runs it instead of `build` when present) calls `scripts/deploy-migrate.ts`, then `next build`. The steps:
+
+1. **Only on production.** If `VERCEL_ENV` is not `production`, print "Not a production build: no migration" and go straight to `next build`. Preview builds never touch a database, since this session keeps Neon dev migrated.
+2. **Guard the target.** Read `MIGRATION_DATABASE_URL`, a direct connection to Neon main, not the pooled one, because the lock in step 5 needs one session. Refuse, failing the build, if the host is the dev endpoint `ep-square-mode-zatw6e39` or is not a Neon host.
+3. **Anything to do?** Compare `drizzle/meta/_journal.json` with `drizzle.__drizzle_migrations` on main. If nothing is pending, print that and build, with no backup and no migration. Most deploys stop here.
+4. **Backup.** Create a Neon branch of production through the Neon API:
+   - call: `POST /projects/{project_id}/branches`, parent = the production branch;
+   - name: `backup/pre-0003_generation-<commit>-<UTC time>`;
+   - no compute endpoint, so it costs storage only.
+
+   Wait until Neon reports it ready. If creation fails or times out, fail the build: nothing is migrated and the live version stays.
+5. **Migrate.** Take a Postgres advisory lock, so two production builds can never migrate at once. Then run the existing migrator, which applies every pending migration in one transaction. A failure rolls the whole run back and fails the build.
+6. **Independent check.** Read the migrations table back and require the applied hashes to equal the journal's, then print the table list and the hashes. Any mismatch fails the build.
+7. **Build.** Run `next build`.
+
+**What Amir adds in Vercel, Production only, as sensitive variables:**
+- `MIGRATION_DATABASE_URL`: the direct (non-pooler) connection string for the Neon main branch;
+- `NEON_API_KEY`: a project-scoped key if Neon offers one for this project, otherwise an organisation key;
+- `NEON_PROJECT_ID`;
+- `NEON_PRODUCTION_BRANCH_ID`.
+
+**Limits to know:**
+- If step 7 fails after step 5 succeeded, the database is migrated but the old version stays live. That is exactly why `CLAUDE.md` now requires every migration to work with the version still live. γ4's `0003` only adds tables and nullable columns, so it qualifies.
+- Backup branches pile up. Neon's branch expiry (`expires_at`) is early access, so I won't rely on it. Deleting backups is deleting data, so I propose to **keep them all** and list them in each gate. Amir prunes them, or approves a later step that deletes backups older than 30 days while always keeping the newest three.
+- Restoring: Neon's branch restore can put production back to the backup's state. The γ4 gate will include the exact steps as a short runbook.
+
+**How it is tested before it ever runs on production:**
+- Vitest covers the decision logic:
+  - skip on preview;
+  - the dev-host guard;
+  - nothing pending means no backup;
+  - the backup fails, so nothing is migrated;
+  - the migration fails, so it is rolled back and the exit code is non-zero;
+  - the check mismatch fails the build.
+- A local end-to-end run uses the real script, the local Postgres and a stand-in for the Neon API. It proves the order: backup, migrate, check, build.
+- **The first real run is γ4's own merge** (`0003_generation`). The production smoke list will include reading those lines in the Vercel build log and seeing the backup branch in the Neon console.
