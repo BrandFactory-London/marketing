@@ -7,7 +7,7 @@ Status: **complete.** The real end-to-end run is recorded below. Every check pas
 ```
 Branch: claude/gamma4-cost-cache-validation-jpq1pb (pushed). It continues claude/loving-cannon-ksyp3b from 26953ac.
 Commits since main (267a6c3):
-<this gate commit>
+78cfb5b γ4 gate: real run on Neon dev, Vercel and Trigger.dev deploy notes, smoke list
 6f0e7cf Real run driver: dev-only Neon WebSocket client for trigger.dev dev workers
 26953ac γ4 gate draft and backlog items 15 to 17
 fa5317c Run production migrations in the Vercel build, after a Neon backup branch
