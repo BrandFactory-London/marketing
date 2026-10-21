@@ -45,7 +45,7 @@ describe("post statuses", () => {
 
   // D.3.1: no other file may spell a status word as a string or JSX text, so the words cannot drift.
   it("is the only place in src/ that spells a status word", () => {
-    const words = ["Planned", "Topic set", "Spec ready", "Writing", "Checking", "Needs review", "Approved", "Published", "Failed", "Rejected", "Missed", "Needs another pass", "Could not finish"];
+    const words = ["Planned", "Topic set", "Spec ready", "Writing", "Checking", "Needs review", "Approved", "Published", "Failed", "Rejected", "Missed", "Needs another pass", "Could not finish", "Needs your input"];
     const offenders: string[] = [];
     const walk = (dir: string) => {
       for (const name of readdirSync(dir)) {
