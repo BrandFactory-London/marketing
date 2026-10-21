@@ -1,6 +1,6 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { expect, query, test } from "./fixtures";
+import { expect, query, test, resetDomain } from "./fixtures";
 
 // γ2.3: the project page. The sitemap import reads a small site served by this test on localhost, so the
 // real import code runs end to end without reaching the internet.
@@ -38,11 +38,7 @@ test.beforeAll(async () => {
   await new Promise<void>((resolve) => site.listen(0, "127.0.0.1", resolve));
   siteUrl = `http://localhost:${(site.address() as AddressInfo).port}`;
 
-  await query("delete from site_pages");
-  await query("delete from knowledge_versions");
-  await query("delete from posts");
-  await query("delete from projects");
-  await query("delete from clients");
+  await resetDomain();
   const [client] = await query<{ id: string }>("insert into clients (name) values ('Migss Interiors') returning id");
   await query("insert into clients (name) values ('BrandFactory London')");
   const [project] = await query<{ id: string }>(

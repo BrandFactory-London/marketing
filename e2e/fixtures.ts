@@ -19,6 +19,26 @@ export async function query<T extends object = Record<string, unknown>>(text: st
   }
 }
 
+// Empties the domain tables, children first.
+export async function resetDomain() {
+  for (const table of [
+    "critic_verdicts",
+    "post_drafts",
+    "post_generations",
+    "post_specs",
+    "ai_calls",
+    "posts",
+    "batches",
+    "project_pillars",
+    "site_pages",
+    "knowledge_versions",
+    "projects",
+    "clients",
+  ]) {
+    await query(`delete from ${table}`);
+  }
+}
+
 export async function createSession(expires = new Date(Date.now() + 24 * 3600_000)) {
   const userId = randomUUID();
   const sessionToken = randomBytes(32).toString("hex");

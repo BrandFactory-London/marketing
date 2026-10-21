@@ -19,6 +19,7 @@ export type SlotView = {
   slotDate: string;
   cadenceDate: string | null;
   topic: string | null;
+  batchId: string | null;
 };
 
 const view = {
@@ -31,6 +32,7 @@ const view = {
   slotDate: posts.slotDate,
   cadenceDate: posts.cadenceDate,
   topic: posts.topic,
+  batchId: posts.batchId,
 };
 
 function select(db: Database, where: SQL | undefined) {

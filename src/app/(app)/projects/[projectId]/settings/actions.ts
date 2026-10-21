@@ -5,6 +5,7 @@ import { DriveError } from "@/lib/drive";
 import { checkDriveFolder, parseDriveFolderId } from "@/lib/drive-folder";
 import { GoogleReconnectRequired } from "@/lib/google-tokens";
 import { getProject, parseProjectInput, setDriveFolder, UnknownClient, updateProjectSettings, type ProjectField } from "@/lib/projects";
+import { addPillar, DuplicatePillar, parsePillarInput, removePillar, type PillarField } from "@/lib/pillars";
 import { requireUser } from "@/lib/session";
 import { formInput, type FieldErrors } from "@/lib/validation";
 
@@ -58,5 +59,28 @@ export async function saveDriveFolderAction(projectId: string, _previous: DriveF
 export async function removeDriveFolderAction(projectId: string): Promise<void> {
   await requireUser();
   await setDriveFolder(projectId, null);
+  refresh();
+}
+
+export type PillarState = { errors?: FieldErrors<PillarField>; values?: Record<string, string>; added?: string };
+
+export async function addPillarAction(projectId: string, _previous: PillarState, formData: FormData): Promise<PillarState> {
+  await requireUser();
+  const parsed = parsePillarInput(formInput(formData));
+  if (!parsed.ok) return { errors: parsed.errors, values: echo(formData) };
+  if (!(await getProject(projectId))) return { errors: { label: "This project no longer exists." }, values: echo(formData) };
+  try {
+    await addPillar(projectId, parsed.value);
+  } catch (error) {
+    if (error instanceof DuplicatePillar) return { errors: { slug: error.message }, values: echo(formData) };
+    throw error;
+  }
+  refresh();
+  return { added: parsed.value.label };
+}
+
+export async function removePillarAction(projectId: string, pillarId: string): Promise<void> {
+  await requireUser();
+  await removePillar(projectId, pillarId);
   refresh();
 }

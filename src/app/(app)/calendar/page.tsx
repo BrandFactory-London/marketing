@@ -67,6 +67,7 @@ async function CalendarContent({ searchParams }: Pick<PageProps<"/calendar">, "s
         title="BrandFactory calendar"
         actions={
           <div className="app-row app-cal-controls">
+            <ButtonLink href={project ? `/batches/new?project=${project}` : "/batches/new"}>Generate from planned slots</ButtonLink>
             <ProjectFilter month={month} project={project} projects={projects.map(({ id, name }) => ({ id, name }))} />
             <div className="app-cal-nav">
               <ButtonLink variant="secondary" href={calendarHref({ month: shiftMonth(month, -1), project })}>
@@ -147,7 +148,18 @@ function SlotPanel({ slot, today, closeHref, project }: { slot: SlotView | null;
         <dt>Client</dt>
         <dd>{slot.clientName}</dd>
       </dl>
-      <SlotEditor key={slot.id} slot={slot} today={today} canChangeTopic={PRE_WRITING_STATUSES.includes(slot.status)} calendar={{ project }} />
+      {slot.batchId ? (
+        <ButtonLink href={`/batches/${slot.batchId}`}>Open batch</ButtonLink>
+      ) : slot.status === "topic_set" ? (
+        <ButtonLink href={`/batches/new?project=${slot.projectId}&post=${slot.id}`}>Generate post</ButtonLink>
+      ) : null}
+      <SlotEditor
+        key={slot.id}
+        slot={slot}
+        today={today}
+        canChangeTopic={PRE_WRITING_STATUSES.includes(slot.status) && !slot.batchId}
+        calendar={{ project }}
+      />
     </aside>
   );
 }

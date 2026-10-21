@@ -49,6 +49,15 @@ export const GENERATION_LINES = {
   couldNotFinish: { label: "Could not finish", tone: "danger" },
 } as const;
 
+// A spec's own state on the batch page (γ4 orientation Q4). Specs are not posts, so these are not post statuses.
+export const SPEC_LINES = {
+  drafting: { label: "Drafting spec", tone: "brand" },
+  proposed: { label: "To confirm", tone: "warning" },
+  confirmed: { label: "Confirmed", tone: "success" },
+  superseded: { label: "Replaced", tone: "neutral" },
+  failed: { label: "Spec not drafted", tone: "danger" },
+} as const;
+
 // "Missed" is derived, never stored: a slot whose date has passed before writing started (γ3 orientation Q4).
 export const MISSED = { label: "Missed", tone: "warning" } as const;
 
