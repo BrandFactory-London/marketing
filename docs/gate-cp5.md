@@ -7,7 +7,7 @@ Status: **complete.** Every check passes and the real runs are recorded below. P
 ```
 Branch: claude/gamma4-cost-cache-validation-jpq1pb (pushed). Started from main 33874e1 (γ4 and its gate updates).
 Commits since main:
-<this gate commit>
+96eddf4 γ5 gate: real runs on Neon dev, consumer audit, smoke list
 cf463ef Critic hears Amir's regenerate note (critic-3)
 808ce4e Real-run commands for γ5, and the drift test covers Needs your input
 059ad59 γ5.5: Drive cover picker
