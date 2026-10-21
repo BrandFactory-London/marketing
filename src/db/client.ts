@@ -15,3 +15,6 @@ export function getDb(): Database {
   }
   return globalForDb.bfmDb;
 }
+
+// A database or an open transaction: functions that may run inside a caller's transaction take this.
+export type Executor = Database | Parameters<Parameters<Database["transaction"]>[0]>[0];

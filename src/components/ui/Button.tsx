@@ -19,9 +19,9 @@ export function Button({
   return <button type={type} className={[buttonClass(variant, size), className].filter(Boolean).join(" ")} {...rest} />;
 }
 
-export function ButtonLink({ variant, size, href, children }: CommonProps & { href: string }) {
+export function ButtonLink({ variant, size, href, current, children }: CommonProps & { href: string; current?: boolean }) {
   return (
-    <Link href={href} className={buttonClass(variant, size)} style={{ textDecoration: "none" }}>
+    <Link href={href} className={buttonClass(variant, size)} style={{ textDecoration: "none" }} aria-current={current ? "page" : undefined}>
       {children}
     </Link>
   );

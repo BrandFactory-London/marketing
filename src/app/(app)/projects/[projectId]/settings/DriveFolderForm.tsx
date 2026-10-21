@@ -57,7 +57,7 @@ export function DriveFolderForm({ current, action, removeAction }: Props) {
             </span>
           ) : null}
           <Button type="submit" disabled={pending}>
-            {pending ? "Checking" : "Check and save folder"}
+            {pending ? "Checking folder" : "Check and save folder"}
           </Button>
         </div>
       </form>

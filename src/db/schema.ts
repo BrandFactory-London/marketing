@@ -1,9 +1,10 @@
-import { check, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { check, date, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import type { AdapterAccountType } from "next-auth/adapters";
 import type { KnowledgeSections, KnowledgeTier } from "@/config/knowledge";
 import { DEFAULT_MODEL } from "@/config/models";
 import type { PackageKey, ProjectStatus, PublishingTarget } from "@/config/packages";
+import type { PostStatus } from "@/config/post-status";
 
 // Auth.js tables. Property names are what @auth/drizzle-adapter expects.
 export const users = pgTable("users", {
@@ -157,4 +158,36 @@ export const sitePages = pgTable(
     importedAt: timestamp("imported_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [unique("site_pages_project_url_unique").on(table.projectId, table.url)],
+);
+
+// One row per calendar slot. A slot is a post that has not started: γ4 to γ6 add the spec, draft, review
+// and publishing to the same record. cadence_date is the package weekday the slot was generated for and
+// never changes, so moving slot_date never makes the generator add another slot for that day
+// (γ3 orientation Q2). Statuses are the keys in src/config/post-status.ts.
+export const posts = pgTable(
+  "posts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "restrict" }),
+    status: text("status").$type<PostStatus>().notNull().default("planned"),
+    statusChangedAt: timestamp("status_changed_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+    cadenceDate: date("cadence_date", { mode: "string" }),
+    slotDate: date("slot_date", { mode: "string" }).notNull(),
+    topic: text("topic"),
+    topicSetAt: timestamp("topic_set_at", { mode: "date", withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    unique("posts_project_cadence_unique").on(table.projectId, table.cadenceDate),
+    index("posts_slot_date_idx").on(table.slotDate),
+    index("posts_project_slot_date_idx").on(table.projectId, table.slotDate),
+    check(
+      "posts_status_check",
+      sql`${table.status} in ('planned', 'topic_set', 'spec_confirmed', 'generating', 'in_review', 'approved', 'published', 'flagged', 'rejected')`,
+    ),
+    check("posts_topic_check", sql`(${table.status} = 'planned') = (${table.topic} is null)`),
+  ],
 );

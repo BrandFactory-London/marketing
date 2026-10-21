@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { KnowledgeTier } from "@/components/KnowledgeTier";
-import { Card } from "@/components/ui/Card";
+import { LoadingCard } from "@/components/ui/LoadingCard";
 import { requireUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "BrandFactory rules" };
@@ -13,7 +13,7 @@ export default function RulesPage({ searchParams }: PageProps<"/settings/rules">
         The writer and critic apply these to every post for every client. Client knowledge (in the CRM) and project knowledge (on each
         project) add to them; they never override them.
       </p>
-      <Suspense fallback={<Card aria-busy="true" className="bfm-skeleton" style={{ minHeight: 320 }} />}>
+      <Suspense fallback={<LoadingCard minHeight={320} />}>
         <Rules searchParams={searchParams} />
       </Suspense>
     </section>

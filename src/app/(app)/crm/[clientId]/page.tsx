@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { ClientProjectCard } from "@/components/ProjectCards";
 import { KnowledgeTier } from "@/components/KnowledgeTier";
 import { Card } from "@/components/ui/Card";
+import { LoadingCard } from "@/components/ui/LoadingCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getClient } from "@/lib/clients";
 import { listClientProjects } from "@/lib/projects";
@@ -15,7 +16,7 @@ export const metadata: Metadata = { title: "Client" };
 
 export default function ClientPage({ params, searchParams }: PageProps<"/crm/[clientId]">) {
   return (
-    <Suspense fallback={<Card aria-busy="true" className="bfm-skeleton" style={{ minHeight: 320 }} />}>
+    <Suspense fallback={<LoadingCard minHeight={320} />}>
       <ClientContent params={params} searchParams={searchParams} />
     </Suspense>
   );

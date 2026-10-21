@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { Card } from "@/components/ui/Card";
+import { LoadingCard } from "@/components/ui/LoadingCard";
 import { listClients } from "@/lib/clients";
 import { formatDateTime } from "@/lib/format";
 import { getProject } from "@/lib/projects";
@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Project settings" };
 
 export default function ProjectSettingsPage({ params }: PageProps<"/projects/[projectId]/settings">) {
   return (
-    <Suspense fallback={<Card aria-busy="true" className="bfm-skeleton" style={{ minHeight: 320 }} />}>
+    <Suspense fallback={<LoadingCard minHeight={320} />}>
       <SettingsContent params={params} />
     </Suspense>
   );

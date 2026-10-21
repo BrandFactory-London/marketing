@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ProjectSummaryCard } from "@/components/ProjectCards";
-import { Card } from "@/components/ui/Card";
+import { LoadingCard } from "@/components/ui/LoadingCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { listClients } from "@/lib/clients";
+import { nextSlots } from "@/lib/posts";
 import { listProjects, type ProjectWithClient } from "@/lib/projects";
 import { requireUser } from "@/lib/session";
 import { ProjectsHeader } from "./ProjectsHeader";
@@ -17,7 +18,7 @@ export default function ProjectsPage({ searchParams }: PageProps<"/projects">) {
       fallback={
         <>
           <PageHeader eyebrow="Each project is one site that gets marketing content, grouped by client." title="Projects" />
-          <Card aria-busy="true" className="bfm-skeleton" style={{ minHeight: 240 }} />
+          <LoadingCard minHeight={240} />
         </>
       }
     >
@@ -29,7 +30,7 @@ export default function ProjectsPage({ searchParams }: PageProps<"/projects">) {
 async function ProjectsContent({ searchParams }: Pick<PageProps<"/projects">, "searchParams">) {
   await requireUser();
   const query = await searchParams;
-  const [clients, projects] = await Promise.all([listClients(), listProjects()]);
+  const [clients, projects, next] = await Promise.all([listClients(), listProjects(), nextSlots()]);
   const openWith = query.add ? { clientId: typeof query.client === "string" ? query.client : undefined } : undefined;
 
   const groups = new Map<string, { name: string; projects: ProjectWithClient[] }>();
@@ -50,7 +51,7 @@ async function ProjectsContent({ searchParams }: Pick<PageProps<"/projects">, "s
             <h2 className="label app-group-label">{group.name}</h2>
             <div className="app-card-grid">
               {group.projects.map((project, index) => (
-                <ProjectSummaryCard key={project.id} project={project} index={index} />
+                <ProjectSummaryCard key={project.id} project={project} next={next.get(project.id)} index={index} />
               ))}
             </div>
           </section>

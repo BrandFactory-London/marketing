@@ -3,6 +3,7 @@ import { asc, eq, sql } from "drizzle-orm";
 import { getDb, type Database } from "@/db/client";
 import { clients, projects } from "@/db/schema";
 import { isPackageKey, isProjectStatus, isPublishingTarget, type PackageKey, type ProjectStatus, type PublishingTarget } from "@/config/packages";
+import { reconcileSlots } from "./slots";
 import { isUuid, normaliseSiteUrl, optionalText, type FormInput, type Parsed } from "./validation";
 
 export type Project = typeof projects.$inferSelect;
@@ -90,28 +91,37 @@ export class UnknownClient extends Error {
   }
 }
 
+// An active project gets its planned slots straight away (design decision 15).
 export async function createProject(value: ProjectInput, db: Database = getDb()): Promise<Project> {
   const [client] = await db.select({ id: clients.id }).from(clients).where(eq(clients.id, value.clientId));
   if (!client) throw new UnknownClient();
-  const [row] = await db.insert(projects).values(value).returning();
-  return row;
+  return db.transaction(async (tx) => {
+    const [row] = await tx.insert(projects).values(value).returning();
+    await reconcileSlots(row.id, {}, tx);
+    return row;
+  });
 }
 
-// Saves the Settings tab. status_changed_at moves only when the status actually changes; γ3 uses it.
+// Saves the Settings tab. status_changed_at moves only when the status actually changes. In the same
+// transaction the project's slots follow its status and package (γ3 orientation Q8).
 export async function updateProjectSettings(id: string, value: ProjectInput, db: Database = getDb()): Promise<Project | null> {
   if (!isUuid(id)) return null;
   const [client] = await db.select({ id: clients.id }).from(clients).where(eq(clients.id, value.clientId));
   if (!client) throw new UnknownClient();
-  const [row] = await db
-    .update(projects)
-    .set({
-      ...value,
-      statusChangedAt: sql`case when ${projects.status} = ${value.status} then ${projects.statusChangedAt} else now() end`,
-      updatedAt: sql`now()`,
-    })
-    .where(eq(projects.id, id))
-    .returning();
-  return row ?? null;
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(projects)
+      .set({
+        ...value,
+        statusChangedAt: sql`case when ${projects.status} = ${value.status} then ${projects.statusChangedAt} else now() end`,
+        updatedAt: sql`now()`,
+      })
+      .where(eq(projects.id, id))
+      .returning();
+    if (!row) return null;
+    await reconcileSlots(row.id, {}, tx);
+    return row;
+  });
 }
 
 export async function setDriveFolder(
