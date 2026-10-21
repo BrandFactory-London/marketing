@@ -19,7 +19,8 @@ import { requireUser } from "@/lib/session";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { GENERATION_STEPS, GENERATION_LINES } from "@/config/post-status";
 import { hasStalled } from "@/lib/progress";
-import { approveAction, detailsAction, regenerateAction, rejectAction, reopenAction, saveDraftAction, stopWaitingAction } from "./actions";
+import { approveAction, browseCoversAction, chooseCoverAction, detailsAction, regenerateAction, rejectAction, reopenAction, saveDraftAction, stopWaitingAction } from "./actions";
+import { CoverPicker } from "./CoverPicker";
 import { DetailsForm, RegenerateForm, ReopenButton, StopWaitingButton } from "./PostControls";
 import { ReviewEditor } from "./ReviewEditor";
 
@@ -74,8 +75,27 @@ async function Post({ params }: Pick<PageProps<"/posts/[postId]">, "params">) {
       />
     </section>
   );
+  const coverCard = (
+    <section className="bfm-card app-stack" aria-labelledby="cover-heading">
+      <div className="app-card-head">
+        <h2 id="cover-heading" className="subheading" style={{ margin: 0 }}>
+          Cover image
+        </h2>
+        <span className="small app-muted">From Google Drive</span>
+      </div>
+      <CoverPicker
+        projectId={project.id}
+        cover={post.coverDriveFileId ? { fileId: post.coverDriveFileId, name: post.coverName ?? "Photo", path: post.coverPath } : null}
+        hasFolder={Boolean(project.driveFolderId)}
+        locked={!DETAILS_STATUSES.includes(post.status)}
+        browseAction={browseCoversAction.bind(null, post.id)}
+        chooseAction={chooseCoverAction.bind(null, post.id)}
+      />
+    </section>
+  );
   const aside = (
     <>
+      {coverCard}
       {details}
       <PostFacts view={view} />
     </>

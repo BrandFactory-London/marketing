@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
-import { expect, query, resetDomain, test } from "./fixtures";
+import { encrypt } from "../src/lib/crypto";
+import { expect, query, resetDomain, test, TEST_EMAIL } from "./fixtures";
 
 // γ5.2: the review editor, on the production smoke post's placeholders (γ5 orientation approval). The test seeds a
 // drafted post as the generate-post task would leave it.
@@ -87,6 +88,8 @@ test.beforeAll(async () => {
     JSON.stringify({ cta: "Book a free design consultation at /contact.", allowed_links: "/contact" }),
   ]);
   await query("insert into project_pillars (project_id, label, slug, position) values ($1, 'Bathroom Renovation', 'bathroom-renovation', 0)", [projectId]);
+  // The project's Drive folder is the Google stand-in's Migss tree.
+  await query("update projects set drive_folder_id = 'playwright-migss', drive_folder_name = 'Migss Interiors' where id = $1", [projectId]);
   postIds = [await seedDraftedPost("Wet room maintenance week by week", 7), await seedDraftedPost("Second post to reject", 9)];
   await fetch(`${STANDIN}/__reset?fail=0`, { method: "POST" });
 });
@@ -270,6 +273,38 @@ test("rule candidates are triaged in Settings: edit, move, accept into a new ver
   await rule.getByRole("button", { name: "Dismiss" }).click();
   await expect(section.getByText("Dismissed")).toBeVisible();
   expect((await query("select 1 from knowledge_versions where tier = 'agency'")).length).toBe(1);
+});
+
+test("the cover picker browses into a subfolder, pages through photos and records the choice", async ({ page, signedIn }) => {
+  void signedIn;
+  // A stored Google connection for the signed-in account; the app refreshes it against the stand-in.
+  process.env.APP_ENCRYPTION_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+  const [user] = await query<{ id: string }>("select id from users where email = $1", [TEST_EMAIL]);
+  await query("delete from google_tokens where user_id = $1", [user.id]);
+  await query("insert into google_tokens (user_id, refresh_token_enc, scope) values ($1, $2, 'drive.readonly')", [user.id, encrypt("playwright-refresh", `google-refresh-token:${user.id}`)]);
+
+  await page.goto(`/posts/${postIds[0]}`);
+  const card = page.getByRole("region", { name: "Cover image" });
+  await expect(card.getByText("No cover yet.", { exact: false })).toBeVisible();
+  await card.getByRole("button", { name: "Choose cover" }).click();
+  await expect(card.getByRole("navigation", { name: "Folder" })).toHaveText("Migss Interiors");
+  await card.getByRole("button", { name: "Bathrooms" }).click();
+  await expect(card.getByRole("navigation", { name: "Folder" })).toHaveText("Migss Interiors/Bathrooms");
+  const tiles = card.locator(".app-cover-tile");
+  await expect(tiles).toHaveCount(60);
+  await card.getByRole("button", { name: "Show more photos" }).click();
+  await expect(tiles).toHaveCount(64);
+  await expect(card.getByRole("button", { name: "Show more photos" })).toHaveCount(0);
+  await expect(tiles.first().locator("img")).toHaveJSProperty("complete", true);
+  await page.screenshot(shot("g5-cover-picker"));
+
+  await card.getByRole("button", { name: "Wet room 3.jpg" }).click();
+  await expect(card.getByRole("img", { name: "Cover: Wet room 3.jpg" })).toBeVisible();
+  await expect(card.getByText("Wet room 3.jpg · Migss Interiors / Bathrooms")).toBeVisible();
+  const [post] = await query<{ cover_drive_file_id: string; cover_path: string }>("select cover_drive_file_id, cover_path from posts where id = $1", [postIds[0]]);
+  expect(post).toEqual({ cover_drive_file_id: "pw-bath-3", cover_path: "Migss Interiors / Bathrooms" });
+  // A file outside the project's folder is never served.
+  expect((await page.request.get(`/api/drive/thumbnail/elsewhere?project=${projectId}&size=320`)).status()).toBe(404);
 });
 
 test("phone width: the editor switches to Edit and Preview tabs and the actions fit", async ({ page, signedIn }) => {

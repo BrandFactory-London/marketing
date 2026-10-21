@@ -5,6 +5,10 @@ import type { CheckResult } from "@/lib/checks";
 import { closeStalledGeneration, markNotStarted } from "@/lib/batches";
 import { startGeneration, startRuleCandidates } from "@/lib/jobs";
 import { approvePost, parsePostText, queueRegeneration, rejectPost, reopenPost, ReviewError, savePublishingDetails, saveVersion } from "@/lib/review";
+import { browseCovers, chooseCover, CoverError, type CoverFolderView } from "@/lib/covers";
+import { getDb } from "@/db/client";
+import { posts } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { requireUser } from "@/lib/session";
 import { isUuid, optionalText } from "@/lib/validation";
 
@@ -117,4 +121,32 @@ export async function detailsAction(postId: string, _previous: DetailsState, for
   }
   refresh();
   return { saved: true, message: "Publishing details saved." };
+}
+
+export type BrowseResult = { ok: true; view: CoverFolderView } | { ok: false; message: string };
+
+// The cover picker (γ5 orientation Q6): one folder page at a time, inside the project's Drive folder.
+export async function browseCoversAction(postId: string, folderId: string | null, pageToken: string | null): Promise<BrowseResult> {
+  const user = await requireUser();
+  if (!isUuid(postId)) return { ok: false, message: "This post no longer exists." };
+  const [post] = await getDb().select({ projectId: posts.projectId }).from(posts).where(eq(posts.id, postId));
+  if (!post) return { ok: false, message: "This post no longer exists." };
+  try {
+    return { ok: true, view: await browseCovers(user.id, post.projectId, folderId, pageToken) };
+  } catch (error) {
+    if (error instanceof CoverError) return { ok: false, message: error.message };
+    throw error;
+  }
+}
+
+export async function chooseCoverAction(postId: string, fileId: string): Promise<ReviewActionResult> {
+  const user = await requireUser();
+  try {
+    await chooseCover(user.id, postId, fileId);
+  } catch (error) {
+    if (error instanceof CoverError) return { ok: false, message: error.message };
+    return failure(error);
+  }
+  refresh();
+  return { ok: true, message: "Cover chosen." };
 }
