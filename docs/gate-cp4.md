@@ -265,11 +265,15 @@ Check passed: applied hashes match the journal.
 
 **Not checked from this session:**
 - the backup branch in the Neon console (smoke step 3);
-- the Trigger.dev Production deployment of `81bbf19` (smoke step 1).
+- the Trigger.dev Production deployment of `81bbf19`. Amir checked it in smoke step 1, and it passed.
 
 ## Production smoke list
 
-1. **Trigger.dev, Production, Deployments:** a deployment for `81bbf19`. This session cannot read it. In Environment variables, `DATABASE_URL` and `ANTHROPIC_API_KEY` are present.
+1. **Trigger.dev, Production, Deployments:** a deployment for `81bbf19`, with `DATABASE_URL` and `ANTHROPIC_API_KEY` in Environment variables. **Passed** (Amir, 21 Oct 2026). Two deploys of `81bbf19` are listed, both Deployed with 3 tasks:
+   - `v3ukojo2`, linked to Vercel;
+   - `7q7bovds`, from the GitHub connection, marked Current.
+
+   Both connections build the tasks on every push to `main` (backlog 20).
 2. **Vercel build log:** done, in "Production deploy" above.
 3. **Neon console, Branches:** `backup/pre-0003_generation-81bbf19-20261021T151255Z` exists.
 4. **Settings, Connections:** Check connection on the Anthropic row shows Connected. The Trigger.dev row shows Production.
