@@ -282,3 +282,26 @@ Nothing runs against Neon dev or the Anthropic API until this is approved.
 ---
 
 **Stopping here. No code until you approve.**
+
+## Approval (Amir, 21 Oct 2026)
+
+Approved, with these answers:
+- Copied-Examples check at 8 and 6 words, the 5% length tolerance, and Opus 5.5 for rule candidates: approved.
+- **Approve is blocked by placeholders and by em dashes or banned phrases**, because Amir's own edits could reintroduce them. Every other check failure is a warning.
+- A cover is not required to approve.
+- Approved posts lock their text, and the post gains **"Reopen for editing"**, available only before publishing. It moves the post back to Needs review, so Amir can fix things without regenerating.
+- Backlog 18: closed. Backlog 20: Amir changes the Trigger.dev setting himself.
+
+**Test cases from the production smoke post** ("Wet room maintenance week by week", critic passed in round 2):
+- Placeholders that passed:
+  - "[CONFIRM: Migss wet room specialism wording] We use our own tradespeople [CONFIRM], and specialist oversight is included in every Migss quote."
+  - "Every installation carries a 10-year labour guarantee [CONFIRM]."
+- Sentences copied from the client Examples:
+  - "This is why who builds a wet room matters more than which drain or tile you choose."
+  - "Rushing or skipping a stage hides problems behind finished tiles."
+  - "In a shower enclosure, a failed silicone joint is the most common cause of small leaks around the tray, and it is cheap to fix if caught early." This closely paraphrases the Example "A failed silicone joint is the most common cause of small leaks around trays, and it is cheap to fix if caught early."
+- Round 1 failed on length: 1,756 words against a 1,200 to 1,600 spec.
+- Critic issues it rated minor:
+  - the title promised a "week by week" structure the post did not follow;
+  - a sales paragraph inside the technical tanking section;
+  - an FAQ answer that left out plumbing leaks.
