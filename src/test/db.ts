@@ -12,9 +12,16 @@ export function createTestDb(): { db: Database; close: () => Promise<void> } {
   return { db: drizzle(pool, { schema }), close: () => pool.end() };
 }
 
-// Empties the γ2 domain tables, children first.
+// Empties the domain tables, children first.
 export async function resetDomainTables(db: Database): Promise<void> {
+  await db.execute(sql`delete from critic_verdicts`);
+  await db.execute(sql`delete from post_drafts`);
+  await db.execute(sql`delete from post_generations`);
+  await db.execute(sql`delete from post_specs`);
+  await db.execute(sql`delete from ai_calls`);
   await db.execute(sql`delete from posts`);
+  await db.execute(sql`delete from batches`);
+  await db.execute(sql`delete from project_pillars`);
   await db.execute(sql`delete from site_pages`);
   await db.execute(sql`delete from knowledge_versions`);
   await db.execute(sql`delete from projects`);

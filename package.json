@@ -14,6 +14,7 @@
     "db:migrate": "tsx scripts/migrate.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.134.0",
     "@auth/drizzle-adapter": "1.11.3",
     "drizzle-orm": "0.45.4",
     "next": "16.4.2",
@@ -21,7 +22,8 @@
     "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@neondatabase/serverless": "1.2.0",

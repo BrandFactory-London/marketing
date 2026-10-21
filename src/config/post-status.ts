@@ -41,6 +41,14 @@ export const PRE_WRITING_STATUSES: readonly PostStatus[] = ["planned", "topic_se
 // The Posts page lists posts that have started: a topic or later (γ3 orientation Q10).
 export const LISTED_STATUSES: readonly PostStatus[] = POST_STATUS_KEYS.filter((key) => key !== "planned");
 
+// Display lines for a generation, not statuses (γ4 orientation Q6). A post the critic failed after a round
+// that still has fix rounds left needs another pass; a run that hit an API error, a refusal or a timeout
+// could not finish, and the post goes back to Spec ready so it can be retried.
+export const GENERATION_LINES = {
+  anotherPass: { label: "Needs another pass", tone: "warning" },
+  couldNotFinish: { label: "Could not finish", tone: "danger" },
+} as const;
+
 // "Missed" is derived, never stored: a slot whose date has passed before writing started (γ3 orientation Q4).
 export const MISSED = { label: "Missed", tone: "warning" } as const;
 
