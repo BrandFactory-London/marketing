@@ -1,7 +1,18 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { countWords, parseAllowedLinks, parseBannedPhrases, phrasePattern, runChecks } from "./checks";
+import {
+  APPROVAL_BLOCKING_CHECKS,
+  countWords,
+  findExampleCopies,
+  findPlaceholders,
+  lengthBounds,
+  parseAllowedLinks,
+  parseBannedPhrases,
+  phrasePattern,
+  runChecks,
+  targetLength,
+} from "./checks";
 
 const drafts = path.join(process.cwd(), "docs/model-test/drafts");
 const read = (name: string) => readFileSync(path.join(drafts, name), "utf8");
@@ -136,5 +147,118 @@ describe("rules from the BrandFactory knowledge", () => {
       "/contact",
       "/our-projects",
     ]);
+  });
+});
+
+// γ5: the production smoke post ("Wet room maintenance week by week") and the client Examples it copied.
+const SMOKE_EXAMPLES = [
+  "This is why who builds a wet room matters more than which drain or tile you choose.",
+  "Rushing or skipping a stage hides problems behind finished tiles.",
+  "A failed silicone joint is the most common cause of small leaks around trays, and it is cheap to fix if caught early.",
+].join("\n\n");
+
+describe("Examples copied into a draft (γ5 Q3)", () => {
+  const body = (sentences: string[]) => `# Wet room maintenance\n\nExcerpt: How to look after a wet room.\n\n${sentences.join(" ")}\n`;
+  const copies = (markdown: string) =>
+    runChecks({ markdown, lengthMin: 1, lengthMax: 500, faq: false, allowedLinks: [], bannedPhrases: [], examples: [SMOKE_EXAMPLES] }).issues.filter(
+      (issue) => issue.check === "examples",
+    );
+
+  it("catches the three sentences the smoke post copied, including the close paraphrase", () => {
+    const found = copies(
+      body([
+        "This is why who builds a wet room matters more than which drain or tile you choose.",
+        "Rushing or skipping a stage hides problems behind finished tiles.",
+        "In a shower enclosure, a failed silicone joint is the most common cause of small leaks around the tray, and it is cheap to fix if caught early.",
+      ]),
+    );
+    expect(found.map((issue) => issue.quote)).toEqual([
+      "This is why who builds a wet room matters more than which drain or tile you choose.",
+      "Rushing or skipping a stage hides problems behind finished tiles.",
+      "In a shower enclosure, a failed silicone joint is the most common cause of small leaks around the tray, and it is cheap to fix if caught early.",
+    ]);
+    expect(found[2].message).toContain("A failed silicone joint is the most common cause");
+  });
+
+  it("ignores case, curly apostrophes, punctuation and Markdown emphasis", () => {
+    expect(copies(body(["**rushing or skipping a stage** hides problems behind finished tiles!"]))).toHaveLength(1);
+  });
+
+  it("lets shorter shared phrases through", () => {
+    expect(copies(body(["Who builds a wet room matters, and so does the tray.", "Skipping a stage is never worth it."]))).toEqual([]);
+  });
+
+  it("finds the Examples in the model-test drafts they were taken from, and nothing else", () => {
+    // The Migss Examples were written from the model-test drafts, so three drafts hold one sentence each.
+    const found = ["A-haiku.md", "A-opus.md", "A-sonnet.md", "B-haiku.md", "B-opus.md", "B-sonnet.md"].map((name) =>
+      findExampleCopies(read(name), [SMOKE_EXAMPLES]).map((copy) => copy.quote),
+    );
+    expect(found).toEqual([
+      [],
+      [
+        "A failed silicone joint is the most common cause of small leaks around trays, and it is cheap to fix if caught early.",
+        "This is why who builds a wet room matters more than which drain or tile you choose.",
+      ],
+      [],
+      [],
+      [],
+      ["Rushing or skipping a stage hides problems behind finished tiles."],
+    ]);
+  });
+
+  it("checks only the Examples sections: restating business facts is the writer's job", () => {
+    const result = runChecks({ markdown: read("B-opus.md"), ...SPEC.B, allowedLinks: ALLOWED, bannedPhrases: [] });
+    expect(result.issues.filter((issue) => issue.check === "examples")).toEqual([]);
+  });
+});
+
+describe("length tolerance (γ5 fix 3)", () => {
+  const words = (count: number) => Array.from({ length: count }, () => "word").join(" ");
+  const result = (count: number) =>
+    runChecks({ markdown: `# T\n\nExcerpt: short.\n\n${words(count)}`, lengthMin: 100, lengthMax: 200, faq: false, allowedLinks: [], bannedPhrases: [] });
+
+  it("passes 5% over or under the range with a note", () => {
+    expect(lengthBounds(1200, 1600)).toEqual({ min: 1140, max: 1680 });
+    const over = result(205);
+    expect(over.issues.filter((issue) => issue.check === "length")).toEqual([]);
+    expect(over.info.lengthNote).toMatch(/over the range but within the tolerance/);
+    expect(result(150).info.lengthNote).toBeNull();
+  });
+
+  it("fails beyond the tolerance, as the smoke post's 1,756-word first draft would", () => {
+    expect(result(215).issues.map((issue) => issue.check)).toContain("length");
+    expect(lengthBounds(1200, 1600).max).toBeLessThan(1756);
+  });
+
+  it("aims the writer at the middle of the range", () => {
+    expect(targetLength(1200, 1600)).toBe(1400);
+    expect(targetLength(700, 900)).toBe(800);
+  });
+});
+
+describe("placeholders (γ5 Q2)", () => {
+  it("finds every bracketed placeholder from the smoke post, but not links", () => {
+    const text =
+      "[CONFIRM: Migss wet room specialism wording] We use our own tradespeople [CONFIRM], and specialist oversight is included. " +
+      "Every installation carries a 10-year labour guarantee [CONFIRM]. See [our projects](/our-projects).";
+    expect(findPlaceholders(text).map((item) => item.text)).toEqual(["[CONFIRM: Migss wet room specialism wording]", "[CONFIRM]", "[CONFIRM]"]);
+    expect(findPlaceholders(text)[1].index).toBe(text.indexOf("[CONFIRM]"));
+  });
+
+  it("does not fail the scripted checks, so the writer is never pushed to invent the fact", () => {
+    const result = runChecks({
+      markdown: "# Title [CONFIRM: name]\n\nExcerpt: A guarantee of [CONFIRM].\n\nBody with [Migss price range].",
+      lengthMin: 1,
+      lengthMax: 100,
+      faq: false,
+      allowedLinks: [],
+      bannedPhrases: [],
+    });
+    expect(result.passed).toBe(true);
+    expect(result.info.placeholders).toEqual(["[CONFIRM: name]", "[CONFIRM]", "[Migss price range]"]);
+  });
+
+  it("names the checks that block Approve", () => {
+    expect(APPROVAL_BLOCKING_CHECKS).toEqual(["em_dash", "en_dash", "banned"]);
   });
 });

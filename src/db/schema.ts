@@ -1,4 +1,4 @@
-import { boolean, check, date, index, integer, jsonb, numeric, pgTable, primaryKey, text, timestamp, unique, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { boolean, check, date, index, integer, jsonb, numeric, pgTable, primaryKey, text, timestamp, unique, uniqueIndex, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import type { AdapterAccountType } from "next-auth/adapters";
 import type { KnowledgeSections, KnowledgeTier } from "@/config/knowledge";
@@ -181,11 +181,20 @@ export const posts = pgTable(
     batchId: uuid("batch_id").references((): AnyPgColumn => batches.id, { onDelete: "restrict" }),
     pillarId: uuid("pillar_id").references((): AnyPgColumn => projectPillars.id, { onDelete: "set null" }),
     generationStep: text("generation_step").$type<GenerationStep>(),
+    // γ5: publishing details for γ6 (the Wix slug and the Drive cover), and when Amir approved the post.
+    slug: text("slug"),
+    coverDriveFileId: text("cover_drive_file_id"),
+    coverName: text("cover_name"),
+    coverPath: text("cover_path"),
+    coverChosenAt: timestamp("cover_chosen_at", { mode: "date", withTimezone: true }),
+    approvedAt: timestamp("approved_at", { mode: "date", withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (table) => [
     unique("posts_project_cadence_unique").on(table.projectId, table.cadenceDate),
+    uniqueIndex("posts_project_slug_unique").on(table.projectId, table.slug).where(sql`${table.slug} is not null`),
+    check("posts_slug_check", sql`${table.slug} is null or (${table.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$' and length(${table.slug}) <= 80)`),
     index("posts_batch_id_idx").on(table.batchId),
     check("posts_generation_step_check", sql`${table.generationStep} is null or ${table.generationStep} in ('writer', 'critic')`),
     index("posts_slot_date_idx").on(table.slotDate),
@@ -315,6 +324,9 @@ export const postGenerations = pgTable(
     agencyVersionId: uuid("agency_version_id").references(() => knowledgeVersions.id, { onDelete: "restrict" }),
     clientVersionId: uuid("client_version_id").references(() => knowledgeVersions.id, { onDelete: "restrict" }),
     projectVersionId: uuid("project_version_id").references(() => knowledgeVersions.id, { onDelete: "restrict" }),
+    // γ5 regenerate with a note: Amir's note and the version the writer starts from. Both null for a batch run.
+    note: text("note"),
+    baseVersionId: uuid("base_version_id").references((): AnyPgColumn => postVersions.id, { onDelete: "restrict" }),
     startedAt: timestamp("started_at", { mode: "date", withTimezone: true }),
     finishedAt: timestamp("finished_at", { mode: "date", withTimezone: true }),
     createdAt: createdAt(),
@@ -353,6 +365,7 @@ export const postDrafts = pgTable(
 );
 
 export type CriticIssue = { quote: string; category: string; note: string; severity: "blocking" | "minor" };
+export type CriticPlaceholder = { quote: string; ask: string };
 
 // The critic's structured verdict on one draft (decisions 11, 12).
 export const criticVerdicts = pgTable(
@@ -366,6 +379,8 @@ export const criticVerdicts = pgTable(
     verdict: text("verdict").$type<"pass" | "fail">().notNull(),
     summary: text("summary"),
     issues: jsonb("issues").$type<CriticIssue[]>().notNull(),
+    // γ5: what Amir must supply for each placeholder. Null on γ4 verdicts.
+    placeholders: jsonb("placeholders").$type<CriticPlaceholder[]>(),
     scores: jsonb("scores").$type<Record<string, number>>().notNull(),
     aiCallId: uuid("ai_call_id").references((): AnyPgColumn => aiCalls.id, { onDelete: "restrict" }),
     createdAt: createdAt(),
@@ -373,7 +388,7 @@ export const criticVerdicts = pgTable(
   (table) => [check("critic_verdicts_verdict_check", sql`${table.verdict} in ('pass', 'fail')`)],
 );
 
-export type AiCallPurpose = "spec" | "writer" | "critic" | "check";
+export type AiCallPurpose = "spec" | "writer" | "critic" | "check" | "rules";
 
 // Every Anthropic API call: who asked, which model answered, tokens and cost (Q7). Failed calls are
 // recorded too, with their error.
@@ -402,6 +417,90 @@ export const aiCalls = pgTable(
   (table) => [
     index("ai_calls_post_id_idx").on(table.postId),
     index("ai_calls_batch_id_idx").on(table.batchId),
-    check("ai_calls_purpose_check", sql`${table.purpose} in ('spec', 'writer', 'critic', 'check')`),
+    check("ai_calls_purpose_check", sql`${table.purpose} in ('spec', 'writer', 'critic', 'check', 'rules')`),
+  ],
+);
+
+// ---- γ5: review, approval and rule candidates (design decisions 17, 18) ----
+
+// Amir's saved edits of a post. The writer's drafts stay untouched in post_drafts; the post's current text is
+// the newest of its latest draft and its latest saved version.
+export const postVersions = pgTable(
+  "post_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "restrict" }),
+    generationId: uuid("generation_id")
+      .notNull()
+      .references((): AnyPgColumn => postGenerations.id, { onDelete: "restrict" }),
+    version: integer("version").notNull(),
+    title: text("title").notNull(),
+    excerpt: text("excerpt"),
+    bodyMd: text("body_md").notNull(),
+    wordCount: integer("word_count").notNull(),
+    checks: jsonb("checks").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [unique("post_versions_post_version_unique").on(table.postId, table.version), check("post_versions_version_check", sql`${table.version} >= 1`)],
+);
+
+export type ReviewAction = "approve" | "reject" | "regenerate" | "reopen";
+
+// What Amir did with a post in Review. An approve keeps the diff from the writer's last draft to his text.
+export const reviewEvents = pgTable(
+  "review_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "restrict" }),
+    action: text("action").$type<ReviewAction>().notNull(),
+    note: text("note"),
+    versionId: uuid("version_id").references(() => postVersions.id, { onDelete: "restrict" }),
+    draftId: uuid("draft_id").references(() => postDrafts.id, { onDelete: "restrict" }),
+    diff: jsonb("diff").$type<EditHunk[]>(),
+    // Check failures Amir approved with, as warnings.
+    warnings: jsonb("warnings").$type<{ check: string; message: string }[]>(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("review_events_post_id_idx").on(table.postId),
+    check("review_events_action_check", sql`${table.action} in ('approve', 'reject', 'regenerate', 'reopen')`),
+  ],
+);
+
+export type EditHunk = { before: string; after: string };
+
+export type CandidateStatus = "proposed" | "accepted" | "dismissed";
+
+// A rule Claude proposes from Amir's edits, for him to accept into a knowledge tier or dismiss (decision 17).
+export const ruleCandidates = pgTable(
+  "rule_candidates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reviewEventId: uuid("review_event_id")
+      .notNull()
+      .references(() => reviewEvents.id, { onDelete: "restrict" }),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "restrict" }),
+    tier: text("tier").$type<KnowledgeTier>().notNull(),
+    section: text("section").notNull(),
+    text: text("text").notNull(),
+    before: text("before"),
+    after: text("after"),
+    reason: text("reason"),
+    status: text("status").$type<CandidateStatus>().notNull().default("proposed"),
+    knowledgeVersionId: uuid("knowledge_version_id").references(() => knowledgeVersions.id, { onDelete: "restrict" }),
+    aiCallId: uuid("ai_call_id").references(() => aiCalls.id, { onDelete: "restrict" }),
+    createdAt: createdAt(),
+    decidedAt: timestamp("decided_at", { mode: "date", withTimezone: true }),
+  },
+  (table) => [
+    index("rule_candidates_status_idx").on(table.status),
+    check("rule_candidates_tier_check", sql`${table.tier} in ('agency', 'client', 'project')`),
+    check("rule_candidates_status_check", sql`${table.status} in ('proposed', 'accepted', 'dismissed')`),
   ],
 );

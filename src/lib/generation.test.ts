@@ -43,10 +43,11 @@ function fakeApi(script: { spec?: Answer[]; writer?: Answer[]; critic?: Answer[]
 
 const GOOD = "# Wet room or shower tray?\n\nExcerpt: A short guide.\n\nA wet room suits small rooms well. " + "Plain words here. ".repeat(10) + "\n\n## Book a consultation\n\n[Contact us](/contact).";
 const DASHED = GOOD.replace("suits small rooms", "suits small rooms \u2014 often");
-const PASS = JSON.stringify({ summary: "Good.", issues: [], scores: { voice: 8, usefulness: 8, specificity: 8 } });
+const PASS = JSON.stringify({ summary: "Good.", issues: [], placeholders: [], scores: { voice: 8, usefulness: 8, specificity: 8 } });
 const FAIL = JSON.stringify({
   summary: "Invented process.",
   issues: [{ quote: "suits small rooms", category: "facts", note: "Not in the pack.", severity: "blocking" }],
+  placeholders: [],
   scores: { voice: 6, usefulness: 7, specificity: 6 },
 });
 const SPEC = JSON.stringify({

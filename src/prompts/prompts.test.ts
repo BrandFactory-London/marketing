@@ -26,7 +26,7 @@ const confirmed: SpecForPrompt = {
 
 describe("prompts", () => {
   it("each has a version recorded on its calls", () => {
-    expect([spec.PROMPT_VERSION, writer.PROMPT_VERSION, critic.PROMPT_VERSION]).toEqual(["spec-1", "writer-1", "critic-1"]);
+    expect([spec.PROMPT_VERSION, writer.PROMPT_VERSION, critic.PROMPT_VERSION]).toEqual(["spec-1", "writer-2", "critic-2"]);
   });
 
   it("bake in decision 12's three fixes", () => {
@@ -99,7 +99,7 @@ describe("prompts", () => {
   });
 
   it("derive the critic's verdict from its issues", () => {
-    const reply = { summary: "s", scores: { voice: 7, usefulness: 8, specificity: 7 } };
+    const reply = { summary: "s", placeholders: [], scores: { voice: 7, usefulness: 8, specificity: 7 } };
     expect(critic.verdictOf({ ...reply, issues: [] })).toBe("pass");
     expect(critic.verdictOf({ ...reply, issues: [{ quote: "q", category: "voice", note: "n", severity: "minor" }] })).toBe("pass");
     expect(critic.verdictOf({ ...reply, issues: [{ quote: "q", category: "facts", note: "n", severity: "blocking" }] })).toBe("fail");
@@ -111,6 +111,35 @@ describe("prompts", () => {
     const message = critic.criticUserMessage(confirmed, draft, checks);
     expect(message).toContain("links /contact");
     expect(message).toContain(draft);
+  });
+
+  it("carry γ5's smoke fixes: placeholders for Amir, Examples as voice only, the target length, title honesty", () => {
+    expect(writer.INSTRUCTIONS).toContain("[CONFIRM: what is needed]");
+    expect(critic.INSTRUCTIONS).not.toContain("placeholders in square brackets are correct, not an issue");
+    expect(critic.INSTRUCTIONS).toContain('list every placeholder in "placeholders"');
+    for (const text of [writer.INSTRUCTIONS, critic.INSTRUCTIONS]) {
+      expect(text).toContain("Examples and Counter-examples show voice only");
+    }
+    expect(critic.INSTRUCTIONS).toContain("has a title that promises a structure or content the body does not deliver");
+    expect(writer.writerUserMessage({ ...confirmed, lengthMin: 1200, lengthMax: 1600 })).toContain("Target length: about 1400 words.");
+  });
+
+  it("let a placeholder pass the critic but keep it listed for Amir", () => {
+    const reply = critic.CriticReply.parse({
+      summary: "s",
+      issues: [],
+      placeholders: [{ quote: "[CONFIRM]", ask: "How long the labour guarantee runs." }],
+      scores: { voice: 8, usefulness: 8, specificity: 7 },
+    });
+    expect(critic.verdictOf(reply)).toBe("pass");
+    expect(reply.placeholders).toHaveLength(1);
+  });
+
+  it("tell the critic about a length inside the tolerance", () => {
+    const words = Array.from({ length: 100 }, () => "word").join(" ");
+    const draft = `# T\n\nExcerpt: e\n\n${words}`;
+    const checks = runChecks({ markdown: draft, lengthMin: 50, lengthMax: 100, faq: false, allowedLinks: [], bannedPhrases: [] });
+    expect(critic.criticUserMessage(confirmed, draft, checks)).toContain("over the range but within the tolerance");
   });
 
   it("parse the replies the API returns", () => {

@@ -53,6 +53,8 @@ export type LoadedPack = {
   // The project's sections, for the allowed links and the call to action.
   project: KnowledgeSections | null;
   agency: KnowledgeSections | null;
+  // The client's sections, for the Examples check (γ5).
+  client: KnowledgeSections | null;
   siteUrl: string;
 };
 
@@ -78,6 +80,7 @@ export async function loadPack(projectId: string, db: Database = getDb()): Promi
     projectVersionId: own?.id ?? null,
     project: own?.sections ?? null,
     agency: agency?.sections ?? null,
+    client: client?.sections ?? null,
     siteUrl: project.siteUrl,
   };
 }

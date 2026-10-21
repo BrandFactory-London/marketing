@@ -251,6 +251,7 @@ export async function runGeneration(generationId: string, deps: GenerationDeps):
           verdict: criticPrompt.verdictOf(value),
           summary: value.summary,
           issues: value.issues,
+          placeholders: value.placeholders,
           scores: value.scores,
           aiCallId: record.id,
         })
@@ -289,8 +290,9 @@ async function verdictFor(db: Database, draftId: string): Promise<Verdict | null
   return row ?? null;
 }
 
-export function checkDraft(markdown: string, spec: SpecForPrompt, pack: Pick<LoadedPack, "agency" | "project" | "siteUrl">): CheckResult {
+export function checkDraft(markdown: string, spec: SpecForPrompt, pack: Pick<LoadedPack, "agency" | "client" | "project" | "siteUrl">): CheckResult {
   return runChecks({
+    examples: [pack.client?.examples ?? "", pack.client?.counter_examples ?? ""],
     markdown,
     lengthMin: spec.lengthMin,
     lengthMax: spec.lengthMax,

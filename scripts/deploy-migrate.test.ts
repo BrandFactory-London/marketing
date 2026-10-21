@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -171,14 +171,17 @@ describe.skipIf(!localUrl)("the whole step against a scratch database (local Pos
 
   it("backs up, prunes to three, migrates, checks, then has nothing pending next time", async () => {
     const result = await deployMigrate(deps());
-    expect(result).toMatchObject({ status: "migrated", backup: "backup/pre-0003_generation-abcdef1-20261021T153000Z" });
-    expect(result.applied).toEqual(["0000_init", "0001_crm_projects_knowledge", "0002_posts", "0003_generation"]);
-    expect(neonCalls).toEqual(["create backup/pre-0003_generation-abcdef1-20261021T153000Z", "get b-new", "delete b1"]);
+    // Named after the newest migration in the journal, so the test follows each checkpoint's migration.
+    const tags = (JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8")) as { entries: { tag: string }[] }).entries.map((entry) => entry.tag);
+    const backup = `backup/pre-${tags.at(-1)}-abcdef1-20261021T153000Z`;
+    expect(result).toMatchObject({ status: "migrated", backup });
+    expect(result.applied).toEqual(tags);
+    expect(neonCalls).toEqual([`create ${backup}`, "get b-new", "delete b1"]);
     const order = ["Backup branch ready", "Deleted old backup branch", "Migrator finished.", "Check passed"].map((start) =>
       lines.findIndex((line) => line.startsWith(start)),
     );
     expect(order.every((index, i) => index >= 0 && (i === 0 || index > order[i - 1]))).toBe(true);
-    expect(await appliedCount()).toBe(4);
+    expect(await appliedCount()).toBe(tags.length);
 
     neonCalls = [];
     expect(await deployMigrate(deps())).toEqual({ status: "nothing-pending" });

@@ -2,7 +2,11 @@
 // docs/model-test/check.py, which counts words the same way, plus decision 12's patterns by name. They cost
 // nothing, so a draft that fails one goes back to the writer without paying for the critic (γ4 orientation Q6).
 
-export type CheckName = "title" | "length" | "em_dash" | "en_dash" | "banned" | "links" | "excerpt" | "faq";
+export type CheckName = "title" | "length" | "em_dash" | "en_dash" | "banned" | "links" | "excerpt" | "faq" | "examples";
+
+// Checks that block Approve even on Amir's own edits (γ5 orientation approval): dashes and banned phrases. Every
+// other failed check is a warning once a draft reaches Review. Placeholders block too; they are not a check.
+export const APPROVAL_BLOCKING_CHECKS: readonly CheckName[] = ["em_dash", "en_dash", "banned"];
 
 export type CheckIssue = { check: CheckName; message: string; quote?: string };
 
@@ -17,6 +21,9 @@ export type CheckInput = {
   bannedPhrases: readonly string[];
   // The project's site host, so absolute links to the site itself are judged by their path.
   siteHost?: string;
+  // The client's Examples and Counter-examples sections, as Markdown. Their sentences guide voice only and
+  // must not reappear in a draft (γ5 orientation Q3).
+  examples?: readonly string[];
 };
 
 export type CheckResult = {
@@ -26,10 +33,96 @@ export type CheckResult = {
   excerpt: string | null;
   wordCount: number;
   // Reported for the critic and for Amir; none of these fail a draft.
-  info: { links: string[]; placeholders: string[]; moneyFigures: string[]; yearsClaims: string[]; percentages: string[]; h2: number };
+  info: {
+    links: string[];
+    placeholders: string[];
+    moneyFigures: string[];
+    yearsClaims: string[];
+    percentages: string[];
+    h2: number;
+    // Set when the word count is outside the spec's range but inside the tolerance.
+    lengthNote?: string | null;
+  };
 };
 
 export const EXCERPT_MAX = 160;
+
+// A draft may run this far outside the spec's range without going back to the writer (γ5 orientation, fix 3).
+export const LENGTH_TOLERANCE = 0.05;
+
+export function lengthBounds(min: number, max: number): { min: number; max: number } {
+  return { min: Math.round(min * (1 - LENGTH_TOLERANCE)), max: Math.round(max * (1 + LENGTH_TOLERANCE)) };
+}
+
+// The writer aims for the middle of the range, rounded to the nearest 50 words.
+export function targetLength(min: number, max: number): number {
+  return Math.round((min + max) / 2 / 50) * 50;
+}
+
+// Square-bracketed text that is not a Markdown link: a fact the writer could not give (γ5 orientation Q2).
+const PLACEHOLDER = /\[[^\]\n]+\](?!\()/g;
+
+export type Placeholder = { text: string; index: number };
+
+export function findPlaceholders(text: string): Placeholder[] {
+  return [...text.matchAll(PLACEHOLDER)].map((match) => ({ text: match[0], index: match.index ?? 0 }));
+}
+
+// ---- Examples copied into a draft (γ5 orientation Q3) ----
+
+// A sentence of this many words or more that matches an Examples sentence fails, and so does any run of
+// RUN_WORDS consecutive words shared with one. Common phrases are shorter than both.
+export const EXAMPLE_SENTENCE_WORDS = 6;
+export const EXAMPLE_RUN_WORDS = 8;
+
+function plainText(markdown: string): string {
+  return markdown
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/^\s{0,3}(?:#+|[-*+]|\d+[.)]|>)\s+/gm, "")
+    .replace(/[*_`]+/g, "");
+}
+
+// Sentences of a Markdown text: split at full stops, question and exclamation marks, and line breaks.
+export function sentencesOf(markdown: string): string[] {
+  return plainText(markdown)
+    .split(/\n+|(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+}
+
+export function normalisedWords(sentence: string): string[] {
+  return sentence
+    .toLowerCase()
+    .replace(/[‘’]/g, "'")
+    .replace(/[^a-z0-9£'\s]+/g, " ")
+    .split(/\s+/)
+    .map((word) => word.replace(/^'+|'+$/g, ""))
+    .filter(Boolean);
+}
+
+export type ExampleCopy = { quote: string; example: string };
+
+export function findExampleCopies(markdown: string, examples: readonly string[]): ExampleCopy[] {
+  const sentences = new Map<string, string>();
+  const runs = new Map<string, string>();
+  for (const sentence of examples.flatMap(sentencesOf)) {
+    const words = normalisedWords(sentence);
+    if (words.length >= EXAMPLE_SENTENCE_WORDS) sentences.set(words.join(" "), sentence);
+    for (let start = 0; start + EXAMPLE_RUN_WORDS <= words.length; start++) {
+      runs.set(words.slice(start, start + EXAMPLE_RUN_WORDS).join(" "), sentence);
+    }
+  }
+  const copies: ExampleCopy[] = [];
+  for (const sentence of sentencesOf(markdown)) {
+    const words = normalisedWords(sentence);
+    let example = words.length >= EXAMPLE_SENTENCE_WORDS ? sentences.get(words.join(" ")) : undefined;
+    for (let start = 0; !example && start + EXAMPLE_RUN_WORDS <= words.length; start++) {
+      example = runs.get(words.slice(start, start + EXAMPLE_RUN_WORDS).join(" "));
+    }
+    if (example) copies.push({ quote: sentence, example });
+  }
+  return copies;
+}
 
 // check.py's word count: link text only, heading markers removed, words of letters, digits, £, apostrophes and hyphens.
 export function countWords(markdown: string): number {
@@ -124,8 +217,14 @@ export function runChecks(input: CheckInput): CheckResult {
   if (titles.length > 1) issues.push({ check: "title", message: `The draft has ${titles.length} H1 titles; it needs exactly one.` });
 
   const wordCount = countWords(text);
-  if (wordCount < input.lengthMin || wordCount > input.lengthMax) {
+  const bounds = lengthBounds(input.lengthMin, input.lengthMax);
+  let lengthNote: string | null = null;
+  if (wordCount < bounds.min || wordCount > bounds.max) {
     issues.push({ check: "length", message: `${wordCount} words, outside the spec's ${input.lengthMin} to ${input.lengthMax}.` });
+  } else if (wordCount > input.lengthMax) {
+    lengthNote = `${wordCount} words, ${wordCount - input.lengthMax} over the range but within the tolerance.`;
+  } else if (wordCount < input.lengthMin) {
+    lengthNote = `${wordCount} words, ${input.lengthMin - wordCount} under the range but within the tolerance.`;
   }
 
   for (const [check, dash, name] of [
@@ -169,6 +268,14 @@ export function runChecks(input: CheckInput): CheckResult {
     issues.push({ check: "excerpt", message: `The excerpt is ${excerpt.length} characters; the limit is ${EXCERPT_MAX}.`, quote: excerpt });
   }
 
+  for (const copy of findExampleCopies(text, input.examples ?? [])) {
+    issues.push({
+      check: "examples",
+      message: `Reuses the client's example "${copy.example}". Examples guide voice only; write a new sentence.`,
+      quote: copy.quote,
+    });
+  }
+
   const hasFaq = /^##\s+Frequently asked questions/im.test(text);
   if (input.faq && !hasFaq) issues.push({ check: "faq", message: 'The spec asks for an FAQ, but there is no "## Frequently asked questions" section.' });
   if (!input.faq && hasFaq) issues.push({ check: "faq", message: "The spec says no FAQ, but the draft has one." });
@@ -181,11 +288,12 @@ export function runChecks(input: CheckInput): CheckResult {
     wordCount,
     info: {
       links,
-      placeholders: [...text.matchAll(/\[[^\]]+\](?!\()/g)].map((match) => match[0]),
+      placeholders: findPlaceholders(text).map((placeholder) => placeholder.text),
       moneyFigures: [...text.matchAll(/£\s?\d[\d,.]*(?:k|\s?000)?/g)].map((match) => match[0]),
       yearsClaims: [...text.matchAll(/\b(?:over|more than)\s+\d+\s+years\b/gi)].map((match) => match[0]),
       percentages: [...text.matchAll(/\b\d+(?:\.\d+)?%/g)].map((match) => match[0]),
       h2: (text.match(/^## /gm) ?? []).length,
+      lengthNote,
     },
   };
 }
