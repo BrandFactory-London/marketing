@@ -8,7 +8,7 @@ export default defineConfig({
   reporter: "list",
   // Specs share the local test database and some reset its tables, so they run one file at a time.
   workers: 1,
-  use: { baseURL: `http://localhost:${port}`, ...devices["Desktop Chrome"], viewport: { width: 1440, height: 1000 } },
+  use: { baseURL: `http://localhost:${port}`, ...devices["Desktop Chrome"], viewport: { width: 1440, height: 1000 }, locale: "en-GB", timezoneId: "Europe/London" },
   webServer: {
     command: `pnpm build && pnpm start --port ${port}`,
     url: `http://localhost:${port}`,

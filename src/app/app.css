@@ -145,3 +145,65 @@ a:hover { color: var(--brand-hover); }
   .app-table td[data-label]::before { content: attr(data-label); display: block; color: var(--ink-muted); font-size: 12px; font-weight: 600; }
   .app-knowledge-nav { max-width: none; }
 }
+
+/* Calendar (γ3). Slot colours follow the status pairs in design/system/README.md. */
+.app-cal-filter { height: 40px; width: auto; }
+.app-cal-month { min-width: 140px; text-align: center; }
+.app-cal-nav { display: flex; align-items: center; gap: var(--space-2); flex-wrap: nowrap; }
+.app-cal-layout { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: start; }
+.app-cal-card { flex: 999 1 640px; min-width: 0; padding: 0; overflow: hidden; }
+.app-cal-panel { flex: 1 1 300px; max-width: 360px; display: flex; flex-direction: column; gap: var(--space-3); }
+.app-cal-panel .app-facts { grid-template-columns: auto 1fr; }
+.app-cal-narrow { display: none; }
+.app-cal { display: flex; flex-direction: column; }
+.app-cal-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+.app-cal-row:last-child { border-bottom: 0; }
+.app-cal-weekday { padding: var(--space-3); color: var(--ink-muted); }
+.app-cal-day { min-height: 120px; padding: var(--space-2); border-right: 1px solid var(--line); background: var(--surface-0); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.app-cal-day:last-child { border-right: 0; }
+.app-cal-outside { background: var(--surface-50); }
+.app-cal-outside .app-cal-num { color: var(--ink-muted); }
+.app-cal-num { align-self: start; padding: 0 6px; border-radius: var(--radius-pill); font-weight: 500; }
+.app-cal-today .app-cal-num { background: var(--brand); color: var(--on-brand); font-weight: 700; }
+.app-cal-home .app-cal-day { min-height: 96px; }
+.app-cal-home .app-cal-today { box-shadow: inset 0 0 0 1px var(--brand); }
+.app-cal-home .app-cal-today .app-cal-num { background: transparent; color: var(--brand-ink); }
+
+.app-slot { display: flex; flex-direction: column; border-radius: var(--radius-sm); padding: 6px var(--space-2); font: 600 12px/16px var(--font-sans); text-decoration: none; border: 1px solid transparent; overflow-wrap: anywhere; transition: box-shadow var(--duration-fast) var(--ease-out); }
+.app-slot:hover { box-shadow: var(--shadow-raised); }
+.app-slot:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.app-slot[aria-current="true"] { box-shadow: 0 0 0 2px var(--brand); }
+.app-slot-project { font-weight: 500; opacity: 0.85; }
+.app-slot-planned { background: var(--surface-0); color: var(--ink-muted); border: 1px dashed var(--line-strong); }
+.app-slot-neutral { background: var(--surface-100); color: var(--ink); border-color: var(--line-strong); }
+.app-slot-brand { background: var(--brand-tint); color: var(--brand-ink); border-color: var(--brand-tint); }
+.app-slot-warning { background: var(--warning-tint); color: var(--warning); border-color: var(--warning-tint); }
+.app-slot-success { background: var(--success-tint); color: var(--success); border-color: var(--success-tint); }
+.app-slot-danger { background: var(--danger-tint); color: var(--danger); border-color: var(--danger-tint); }
+.app-slot-rejected { background: var(--surface-100); color: var(--ink-muted); border-color: var(--line); text-decoration: line-through; }
+.app-slot-missed { border: 1px dashed var(--warning); }
+
+.app-cal-legend { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--space-4); flex-wrap: wrap; }
+.app-cal-legend li { display: flex; align-items: center; gap: 6px; }
+.app-cal-swatch { width: 14px; height: 14px; border-radius: 4px; padding: 0; }
+
+.app-cal-agenda { list-style: none; margin: 0; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4); }
+.app-cal-agenda-day { display: flex; flex-direction: column; gap: 6px; }
+.app-cal-agenda-date { color: var(--ink-muted); font-weight: 600; }
+.app-cal-agenda-today { color: var(--brand-ink); }
+
+/* Phones: the seven-column grid becomes a list of days with slots. */
+@media (max-width: 599px) {
+  .app-cal-wide { display: none; }
+  .app-cal-narrow { display: block; }
+  .app-cal-panel { max-width: none; }
+  .app-cal-controls { width: 100%; }
+  .app-cal-controls .app-cal-filter { flex: 1 1 100%; }
+  .app-cal-nav { width: 100%; justify-content: space-between; }
+  .app-cal-month { min-width: 0; }
+}
+.app-cal-bordered { border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; }
+@media (max-width: 599px) {
+  .app-cal-home + .app-cal-narrow .app-cal-agenda { padding: 0; }
+}
+.app-loading { display: flex; align-items: flex-start; }

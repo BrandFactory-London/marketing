@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Card } from "@/components/ui/Card";
+import { LoadingCard } from "@/components/ui/LoadingCard";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { getProject } from "@/lib/projects";
 import { requireUser } from "@/lib/session";
@@ -17,7 +18,7 @@ export const maxDuration = 60;
 
 export default function SitemapPage({ params }: PageProps<"/projects/[projectId]/sitemap">) {
   return (
-    <Suspense fallback={<Card aria-busy="true" className="bfm-skeleton" style={{ minHeight: 240 }} />}>
+    <Suspense fallback={<LoadingCard minHeight={240} />}>
       <SitemapContent params={params} />
     </Suspense>
   );

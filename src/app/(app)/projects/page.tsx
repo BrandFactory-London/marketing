@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ProjectSummaryCard } from "@/components/ProjectCards";
-import { Card } from "@/components/ui/Card";
+import { LoadingCard } from "@/components/ui/LoadingCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { listClients } from "@/lib/clients";
@@ -17,7 +17,7 @@ export default function ProjectsPage({ searchParams }: PageProps<"/projects">) {
       fallback={
         <>
           <PageHeader eyebrow="Each project is one site that gets marketing content, grouped by client." title="Projects" />
-          <Card aria-busy="true" className="bfm-skeleton" style={{ minHeight: 240 }} />
+          <LoadingCard minHeight={240} />
         </>
       }
     >

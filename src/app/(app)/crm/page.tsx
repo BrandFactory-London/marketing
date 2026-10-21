@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense, type CSSProperties } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { LoadingCard } from "@/components/ui/LoadingCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CLIENT_STATUSES, PACKAGES, getPackage } from "@/config/packages";
 import { listClients, type ClientListItem } from "@/lib/clients";
@@ -15,7 +16,7 @@ export default function CrmPage() {
   return (
     <>
       <CrmHeader />
-      <Suspense fallback={<Card aria-busy="true" className="bfm-skeleton" style={{ minHeight: 240 }} />}>
+      <Suspense fallback={<LoadingCard minHeight={240} />}>
         <CrmContent />
       </Suspense>
     </>

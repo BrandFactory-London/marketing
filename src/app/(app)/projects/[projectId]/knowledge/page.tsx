@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { KnowledgeTier } from "@/components/KnowledgeTier";
 import { ButtonLink } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { LoadingCard } from "@/components/ui/LoadingCard";
 import { getProject } from "@/lib/projects";
 import { requireUser } from "@/lib/session";
 import { listSitePages } from "@/lib/sitemap";
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Project knowledge" };
 
 export default function KnowledgePage({ params, searchParams }: PageProps<"/projects/[projectId]/knowledge">) {
   return (
-    <Suspense fallback={<Card aria-busy="true" className="bfm-skeleton" style={{ minHeight: 320 }} />}>
+    <Suspense fallback={<LoadingCard minHeight={320} />}>
       <KnowledgeContent params={params} searchParams={searchParams} />
     </Suspense>
   );
