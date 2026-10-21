@@ -9,3 +9,8 @@ export async function signInWithGoogle() {
 export async function signOutAction() {
   await signOut({ redirectTo: "/signin" });
 }
+
+// Runs the same Google sign-in again, which asks for consent and stores a fresh refresh token.
+export async function reconnectGoogleAction() {
+  await signIn("google", { redirectTo: "/settings/connections" });
+}

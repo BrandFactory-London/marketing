@@ -92,20 +92,20 @@ function ClientsTable({ clients }: { clients: ClientListItem[] }) {
               const status = CLIENT_STATUSES[client.status];
               return (
                 <tr key={client.id}>
-                  <td>
+                  <td data-label="Client">
                     <Link href={`/crm/${client.id}`} className="app-table-name">
                       {client.name}
                     </Link>
                   </td>
-                  <td>
+                  <td data-label="Projects and packages">
                     {client.projects.length === 0
                       ? "No projects yet"
                       : client.projects.map((project) => `${project.name}: ${getPackage(project.package).label}`).join(", ")}
                   </td>
-                  <td>
+                  <td data-label="This month">
                     <span className="small app-muted">No posts scheduled</span>
                   </td>
-                  <td>
+                  <td data-label="Status">
                     <Badge tone={status.tone}>{status.label}</Badge>
                   </td>
                 </tr>

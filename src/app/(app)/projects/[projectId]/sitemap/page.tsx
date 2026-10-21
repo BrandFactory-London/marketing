@@ -58,13 +58,15 @@ async function SitemapContent({ params }: Pick<PageProps<"/projects/[projectId]/
             <tbody>
               {pages.map((page) => (
                 <tr key={page.id}>
-                  <td className="app-table-name">{page.title}</td>
-                  <td>
+                  <td className="app-table-name" data-label="Page">
+                    {page.title}
+                  </td>
+                  <td data-label="Path">
                     <a href={page.url} target="_blank" rel="noreferrer">
                       {page.path}
                     </a>
                   </td>
-                  <td className="app-muted">{page.lastmod ? formatDate(page.lastmod) : "Not given"}</td>
+                  <td className="app-muted" data-label="Last changed">{page.lastmod ? formatDate(page.lastmod) : "Not given"}</td>
                 </tr>
               ))}
             </tbody>
