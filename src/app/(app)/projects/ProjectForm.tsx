@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/Button";
+import { keepValuesOnSubmit } from "@/components/ui/keepValues";
 import { Field, SelectField } from "@/components/ui/Field";
 import { PACKAGES, PROJECT_STATUSES, PUBLISHING_TARGETS, packageOption } from "@/config/packages";
 import type { ProjectFormState } from "./actions";
@@ -33,7 +34,7 @@ export function ProjectForm({ clients, clientId, action, onCancel }: Props) {
 
   return (
     <section className="bfm-card bfm-reveal">
-      <form action={formAction} className="app-form" noValidate>
+      <form action={formAction} onSubmit={keepValuesOnSubmit(formAction)} className="app-form" noValidate>
         <h2 className="heading app-section-title">Add a project</h2>
         <div className="app-form-grid">
           <SelectField

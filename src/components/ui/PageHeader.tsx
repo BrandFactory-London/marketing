@@ -24,14 +24,14 @@ export function PageHeader({
   );
 }
 
-// "CRM / Migss Interiors": the parent links back, the current page is muted.
+// "CRM / Migss Interiors": every item but the current page links back; separators and the current page are muted.
 export function Breadcrumb({ items }: { items: { label: string; href?: string }[] }) {
   return (
     <>
       {items.map((item, index) => (
         <span key={`${item.label}-${index}`}>
-          {index > 0 ? " " : null}
-          {item.href ? <Link href={item.href}>{item.label}</Link> : <span className="app-muted">/ {item.label}</span>}
+          {index > 0 ? <span className="app-muted"> / </span> : null}
+          {item.href ? <Link href={item.href}>{item.label}</Link> : <span className="app-muted">{item.label}</span>}
         </span>
       ))}
     </>

@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
+import { keepValuesOnSubmit } from "@/components/ui/keepValues";
 import { Field } from "@/components/ui/Field";
 import type { ClientFormState } from "./actions";
 
@@ -24,7 +25,7 @@ export function ClientForm({ title, submitLabel, action, initial = {}, onDone }:
 
   return (
     <section className="bfm-card bfm-reveal">
-      <form action={formAction} className="app-form" noValidate>
+      <form action={formAction} onSubmit={keepValuesOnSubmit(formAction)} className="app-form" noValidate>
         <h2 className="heading app-section-title">{title}</h2>
         {state.message ? (
           <p className="small app-form-error" role="alert">

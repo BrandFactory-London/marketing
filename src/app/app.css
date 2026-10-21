@@ -125,3 +125,5 @@ a:hover { color: var(--brand-hover); }
 .app-versions summary { cursor: pointer; color: var(--brand-ink); font-weight: 600; }
 .app-versions ol { margin: 0; padding-left: var(--space-6); display: flex; flex-direction: column; gap: var(--space-1); }
 .app-saved { color: var(--success); }
+.app-tier-note { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); flex-wrap: wrap; background: var(--brand-tint); border-color: var(--brand-tint); color: var(--brand-ink); }
+.app-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

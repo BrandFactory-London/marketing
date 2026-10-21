@@ -117,8 +117,12 @@ test.describe("CRM, client and projects", () => {
     await page.getByRole("link", { name: "Add project" }).click();
     await expect(page).toHaveURL(/\/projects\?add=1&client=/);
     await expect(page.getByRole("combobox", { name: "Client" })).toHaveText("Migss Interiors");
+    // A choice made before a validation error must survive it (React resets forms after an action).
+    await page.getByRole("combobox", { name: "Status" }).selectOption("paused");
     await page.getByRole("button", { name: "Save project" }).click();
     await expect(page.getByText("Enter a project name.")).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Status" })).toHaveValue("paused");
+    await page.getByRole("combobox", { name: "Status" }).selectOption("active");
     await expect(page.getByText("Enter the website address.")).toBeVisible();
     await page.getByRole("textbox", { name: "Project name" }).fill("Migss Interiors website");
     await page.getByRole("textbox", { name: "Website URL" }).fill("www.migssinteriors.com");
