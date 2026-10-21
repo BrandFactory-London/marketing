@@ -234,3 +234,11 @@ Nothing will run against Neon beyond the read-only check in section 0 until you 
 ---
 
 **Stopping here. No code until you approve.**
+
+## Approval (Amir, 21 Oct 2026)
+
+Approved with these answers:
+- Section 6, item 1: option A. `docs/handoff-cp3.md` is this branch's first commit (`c902f06`, identical to `353fb52`); Amir deletes the `docs/handoff-cp3` branch.
+- Q3: approved, except `topic_set` displays as **Topic set** (not Draft). The design system README's status line is updated to match.
+- Q1, Q2, Q4 to Q11: confirmed as written.
+- Check-in after γ3.2 with calendar screenshots, desktop and phone.

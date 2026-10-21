@@ -14,6 +14,7 @@ export function createTestDb(): { db: Database; close: () => Promise<void> } {
 
 // Empties the γ2 domain tables, children first.
 export async function resetDomainTables(db: Database): Promise<void> {
+  await db.execute(sql`delete from posts`);
   await db.execute(sql`delete from site_pages`);
   await db.execute(sql`delete from knowledge_versions`);
   await db.execute(sql`delete from projects`);

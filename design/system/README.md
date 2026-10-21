@@ -7,7 +7,7 @@ BrandFactory Marketing is an internal tool for turning client knowledge into app
 - Sentence case everywhere: buttons, headings, nav items, badges. "Generate batch", not "Generate Batch".
 - Address the operator as "you". Refer to the AI by what it does ("Writing", "Checking"), not as a character.
 - Buttons are verbs plus an object: "Approve post", "Confirm spec", "Publish to Wix". Avoid "Submit" and "OK".
-- Status words are fixed and used only for these states: Draft, Spec ready, Writing, Checking, Needs review, Approved, Published, Failed.
+- Status words are fixed and used only for these states: Planned, Topic set, Spec ready, Writing, Checking, Needs review, Approved, Published, Failed, Rejected. Writing and Checking are the two steps of generating. The app defines them once, in `src/config/post-status.ts`.
 - No emoji in the interface.
 
 ## Colour

@@ -40,6 +40,7 @@ test.beforeAll(async () => {
 
   await query("delete from site_pages");
   await query("delete from knowledge_versions");
+  await query("delete from posts");
   await query("delete from projects");
   await query("delete from clients");
   const [client] = await query<{ id: string }>("insert into clients (name) values ('Migss Interiors') returning id");
