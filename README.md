@@ -24,4 +24,6 @@ pnpm db:migrate --check-only           # prints the check only
 pnpm db:migrate --rehearse <tag>       # runs one migration's SQL inside BEGIN ... ROLLBACK, changes nothing
 ```
 
+Background tasks run with `npx trigger.dev dev` (needs `TRIGGER_ACCESS_TOKEN`, a Development `TRIGGER_SECRET_KEY` and an Anthropic key). From Claude's cloud environment, where port 5432 is blocked, add `DEV_DB_DRIVER=neon-serverless` so the dev workers reach Neon over WebSocket. `scripts/real-run.ts` drives a real batch on Neon dev without the signed-in UI (see `docs/gate-cp4.md`).
+
 Database tests and Playwright expect a local Postgres with migrations applied, at `postgres://postgres@localhost:5433/bfm_test` unless `TEST_DATABASE_URL` says otherwise.

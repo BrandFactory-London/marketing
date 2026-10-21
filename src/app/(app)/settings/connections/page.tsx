@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { describeScope, getGoogleConnection } from "@/lib/connections";
 import { formatDateTime } from "@/lib/format";
 import { requireUser } from "@/lib/session";
+import { AnthropicCheck } from "./AnthropicCheck";
 
 export const metadata: Metadata = { title: "Connections" };
 
@@ -27,12 +28,15 @@ export default function ConnectionsPage() {
           <GoogleRow />
         </Suspense>
         <li className="app-connection">
+          <AnthropicCheck />
+        </li>
+        <li className="app-connection">
           <span>
-            <span className="subheading">Anthropic API</span>
+            <span className="subheading">Trigger.dev</span>
             <br />
-            <span className="small app-muted">The API key is added before post writing is switched on. It will be stored encrypted and never shown again.</span>
+            <span className="small app-muted">{triggerLine()}</span>
           </span>
-          <Badge>Not connected yet</Badge>
+          <Badge tone={triggerEnvironment() ? "success" : "warning"}>{triggerEnvironment() ? "Configured" : "Not configured"}</Badge>
         </li>
         <li className="app-connection">
           <span>
@@ -74,4 +78,20 @@ async function GoogleRow() {
       </span>
     </li>
   );
+}
+
+// Which Trigger.dev environment the app starts runs in, read from the secret key's prefix. Never the key itself.
+function triggerEnvironment(): string | null {
+  const key = process.env.TRIGGER_SECRET_KEY ?? "";
+  if (key.startsWith("tr_prod_")) return "Production";
+  if (key.startsWith("tr_dev_")) return "Development";
+  if (key.startsWith("tr_")) return "a Trigger.dev environment";
+  return null;
+}
+
+function triggerLine(): string {
+  const environment = triggerEnvironment();
+  return environment
+    ? `Specs and posts are written by tasks in ${environment}. Each run's steps are listed in the Trigger.dev dashboard.`
+    : "No Trigger.dev secret key is set, so nothing can be generated. Add TRIGGER_SECRET_KEY in Vercel.";
 }

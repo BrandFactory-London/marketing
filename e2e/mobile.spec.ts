@@ -1,4 +1,4 @@
-import { expect, query, test } from "./fixtures";
+import { expect, query, test, resetDomain } from "./fixtures";
 
 // Phone width (390px) screenshots of every screen γ2 and γ3 add, with a check that none scrolls sideways.
 // Wide tables scroll inside their own wrapper, not the page.
@@ -9,11 +9,7 @@ let clientId = "";
 let projectId = "";
 
 test.beforeAll(async () => {
-  await query("delete from posts");
-  await query("delete from site_pages");
-  await query("delete from knowledge_versions");
-  await query("delete from projects");
-  await query("delete from clients");
+  await resetDomain();
   const [client] = await query<{ id: string }>(
     "insert into clients (name, main_contact, email) values ('Migss Interiors', 'Migss office', 'hello@migssinteriors.com') returning id",
   );

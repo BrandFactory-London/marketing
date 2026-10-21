@@ -69,7 +69,7 @@ async function PlanContent({ params }: Pick<PageProps<"/projects/[projectId]/pla
                   {slot.topic ? "Change topic or date" : "Set topic or date"}
                   <span className="app-visually-hidden">, {longDate(slot.slotDate)}</span>
                 </summary>
-                <SlotEditor slot={slot} today={today} canChangeTopic={PRE_WRITING_STATUSES.includes(slot.status)} />
+                <SlotEditor slot={slot} today={today} canChangeTopic={PRE_WRITING_STATUSES.includes(slot.status) && !slot.batchId} />
               </details>
             </li>
           ))}

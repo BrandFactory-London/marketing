@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getDb, type Executor } from "@/db/client";
 import { posts, projects } from "@/db/schema";
 import { getPackage, PACKAGES } from "@/config/packages";
@@ -83,6 +83,7 @@ export async function setTopic(id: string, input: unknown, db: Executor = getDb(
   if (topic.length > TOPIC_MAX) throw new SlotError(`Keep the topic under ${TOPIC_MAX} characters.`);
   const slot = await editableSlot(id, db);
   if (!PRE_WRITING_STATUSES.includes(slot.status)) throw new SlotError("The topic is fixed once writing has started.");
+  if (slot.batchId) throw new SlotError("The topic is fixed once the post is in a batch. Redraft its spec with a note instead.");
   const status: PostStatus = topic ? "topic_set" : "planned";
   const [row] = await db
     .update(posts)
@@ -93,7 +94,7 @@ export async function setTopic(id: string, input: unknown, db: Executor = getDb(
       statusChangedAt: status === slot.status ? slot.statusChangedAt : sql`now()`,
       updatedAt: sql`now()`,
     })
-    .where(and(eq(posts.id, id), inArray(posts.status, [...PRE_WRITING_STATUSES])))
+    .where(and(eq(posts.id, id), inArray(posts.status, [...PRE_WRITING_STATUSES]), isNull(posts.batchId)))
     .returning();
   if (!row) throw new SlotError("The topic is fixed once writing has started.");
   return row;

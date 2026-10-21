@@ -1,4 +1,4 @@
-import { expect, query, test } from "./fixtures";
+import { expect, query, test, resetDomain } from "./fixtures";
 
 // γ3.3: the Run plan tab, the Posts page and the project cards, plus the smoke's pause and package
 // changes made through the real Settings form.
@@ -20,11 +20,7 @@ let projectId = "";
 let otherClientId = "";
 
 test.beforeAll(async () => {
-  await query("delete from posts");
-  await query("delete from site_pages");
-  await query("delete from knowledge_versions");
-  await query("delete from projects");
-  await query("delete from clients");
+  await resetDomain();
   [{ id: migssId }] = await query<{ id: string }>("insert into clients (name) values ('Migss Interiors') returning id");
   [{ id: otherClientId }] = await query<{ id: string }>("insert into clients (name) values ('Another client') returning id");
   [{ id: projectId }] = await query<{ id: string }>(

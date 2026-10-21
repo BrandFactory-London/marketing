@@ -4,10 +4,12 @@ import { Suspense } from "react";
 import { LoadingCard } from "@/components/ui/LoadingCard";
 import { listClients } from "@/lib/clients";
 import { formatDateTime } from "@/lib/format";
+import { listPillars } from "@/lib/pillars";
 import { getProject } from "@/lib/projects";
 import { requireUser } from "@/lib/session";
-import { removeDriveFolderAction, saveDriveFolderAction, updateProjectSettingsAction } from "./actions";
+import { addPillarAction, removeDriveFolderAction, removePillarAction, saveDriveFolderAction, updateProjectSettingsAction } from "./actions";
 import { DriveFolderForm } from "./DriveFolderForm";
+import { PillarsForm } from "./PillarsForm";
 import { ProjectSettingsForm } from "./ProjectSettingsForm";
 
 export const metadata: Metadata = { title: "Project settings" };
@@ -23,7 +25,7 @@ export default function ProjectSettingsPage({ params }: PageProps<"/projects/[pr
 async function SettingsContent({ params }: Pick<PageProps<"/projects/[projectId]/settings">, "params">) {
   await requireUser();
   const { projectId } = await params;
-  const [project, clients] = await Promise.all([getProject(projectId), listClients()]);
+  const [project, clients, pillars] = await Promise.all([getProject(projectId), listClients(), listPillars(projectId)]);
   if (!project) notFound();
   return (
     <div className="app-stack">
@@ -38,6 +40,11 @@ async function SettingsContent({ params }: Pick<PageProps<"/projects/[projectId]
           publishingTarget: project.publishingTarget,
         }}
         action={updateProjectSettingsAction.bind(null, project.id)}
+      />
+      <PillarsForm
+        pillars={pillars.map(({ id, label, slug }) => ({ id, label, slug }))}
+        action={addPillarAction.bind(null, project.id)}
+        removeAction={removePillarAction.bind(null, project.id)}
       />
       <DriveFolderForm
         current={

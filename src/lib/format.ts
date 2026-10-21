@@ -15,3 +15,10 @@ export function wordCount(text: string): number {
   const words = text.trim().match(/\S+/g);
   return words ? words.length : 0;
 }
+
+// Model costs in US dollars, before VAT (γ4 orientation Q7).
+export function formatCost(usd: number): string {
+  if (usd <= 0) return "$0.00";
+  if (usd < 0.01) return "under $0.01";
+  return `$${usd.toFixed(2)}`;
+}

@@ -45,3 +45,6 @@ next-env.d.ts
 /e2e/.results/
 /e2e/screenshots/
 /playwright-report/
+
+# trigger.dev
+.trigger

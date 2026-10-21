@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingCard } from "@/components/ui/LoadingCard";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { isPostStatus, POST_STATUSES } from "@/config/post-status";
+import { DRAFTED_STATUSES, isPostStatus, POST_STATUSES } from "@/config/post-status";
 import { listClients } from "@/lib/clients";
 import { londonToday, longDate, monthOf } from "@/lib/dates";
 import { listStartedPosts } from "@/lib/posts";
@@ -100,7 +100,10 @@ async function PostsContent({ searchParams }: Pick<PageProps<"/posts">, "searchP
                 {shown.map((post) => (
                   <tr key={post.id}>
                     <td data-label="Post">
-                      <Link href={`/calendar?month=${monthOf(post.slotDate)}&slot=${post.id}`} className="app-table-name">
+                      <Link
+                        href={DRAFTED_STATUSES.includes(post.status) ? `/posts/${post.id}` : `/calendar?month=${monthOf(post.slotDate)}&slot=${post.id}`}
+                        className="app-table-name"
+                      >
                         {post.topic}
                       </Link>
                     </td>

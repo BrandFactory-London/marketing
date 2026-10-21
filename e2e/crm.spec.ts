@@ -1,4 +1,4 @@
-import { expect, query, test } from "./fixtures";
+import { expect, query, test, resetDomain } from "./fixtures";
 
 // γ2.2: CRM, the Client page with its knowledge editor, Projects and the Home gallery, as one serial story
 // against the local test database. Screenshots go to e2e/screenshots/ for the visual check.
@@ -19,11 +19,7 @@ test.describe.configure({ mode: "serial" });
 
 test.describe("CRM, client and projects", () => {
   test.beforeAll(async () => {
-    await query("delete from site_pages");
-    await query("delete from knowledge_versions");
-    await query("delete from posts");
-    await query("delete from projects");
-    await query("delete from clients");
+    await resetDomain();
   });
 
   test("an empty CRM shows the three packages and no clients", async ({ page, signedIn }) => {

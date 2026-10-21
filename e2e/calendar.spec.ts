@@ -1,4 +1,4 @@
-import { expect, query, test } from "./fixtures";
+import { expect, query, test, resetDomain } from "./fixtures";
 
 // γ3.2: the calendar page and Home's two weeks, against the local test database. "Today" is the real
 // London date, so dates are worked out here the same way the app does.
@@ -19,11 +19,7 @@ let projectId = "";
 const today = londonToday();
 
 test.beforeAll(async () => {
-  await query("delete from posts");
-  await query("delete from site_pages");
-  await query("delete from knowledge_versions");
-  await query("delete from projects");
-  await query("delete from clients");
+  await resetDomain();
   [{ id: clientId }] = await query<{ id: string }>("insert into clients (name) values ('Migss Interiors') returning id");
   [{ id: projectId }] = await query<{ id: string }>(
     "insert into projects (client_id, name, site_url, package, status) values ($1, 'Migss Interiors Website', 'https://www.migssinteriors.com', 'premium', 'active') returning id",

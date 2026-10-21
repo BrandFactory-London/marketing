@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Breadcrumb, PageHeader } from "@/components/ui/PageHeader";
 import { LinkTabs } from "@/components/ui/LinkTabs";
+import { ButtonLink } from "@/components/ui/Button";
 import { publishingTargetLabel } from "@/config/packages";
 import { projectTabs } from "@/lib/nav";
 import { getProject } from "@/lib/projects";
@@ -37,6 +38,7 @@ async function ProjectHeader({ params }: Pick<LayoutProps<"/projects/[projectId]
         }
         title={project.name}
         meta={`${siteHost(project.siteUrl)} · publishes to ${publishingTargetLabel(project.publishingTarget)}`}
+        actions={<ButtonLink href={`/batches/new?project=${project.id}`}>Create content</ButtonLink>}
       />
       <LinkTabs label="Project sections" tabs={projectTabs(project.id)} />
     </>
