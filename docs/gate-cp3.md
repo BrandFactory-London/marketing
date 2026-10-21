@@ -114,6 +114,20 @@ Applied migrations: 2
   2 58801d2dc19d 1792542524859
 ```
 
+**Step 1 result (run 21 Oct 2026 on Amir's go-ahead).** Branch `claude/loving-cannon-ksyp3b` at `5df9435`, clean tree, host confirmed as `ep-square-mode-zatw6e39` (dev). Output verbatim, exit code 0:
+```
+Target: ep-square-mode-zatw6e39-pooler.c-2.eu-west-2.aws.neon.tech/neondb
+Driver: neon-serverless (WebSocket, port 443, one transaction)
+Rehearsal: 4 statements from drizzle/0002_posts.sql, inside BEGIN ... ROLLBACK
+Inside the transaction: accounts, app_settings, clients, google_tokens, knowledge_versions, posts, projects, sessions, site_pages, users
+Rolled back.
+Public tables: accounts, app_settings, clients, google_tokens, knowledge_versions, projects, sessions, site_pages, users
+Applied migrations: 2
+  1 bc9dce5f5136 1792531354466
+  2 58801d2dc19d 1792542524859
+```
+Independent check afterwards, on a fresh read-only connection: `to_regclass('public.posts')` is null, and `pg_constraint` and `pg_indexes` hold no `posts%` entries. The rehearsal left nothing behind.
+
 Step 2 (**the migration, needs a separate go-ahead**): `pnpm db:migrate --remote`. Expected: `Migrator finished.`, ten tables including `posts`, `Applied migrations: 3` with the third hash starting `9b771848e2a2`. Then I run an independent read-only check, and you run the SQL in smoke step 2.
 
 The dev database's existing project (Migss Interiors Website, Premium, Active) gets its slots on the first page load after the migration, not from the migration itself.
