@@ -49,3 +49,33 @@ export async function listFolderFiles(
     .filter((file): file is DriveFile => Boolean(file.id && file.name && file.mimeType))
     .map(({ id, name, mimeType }) => ({ id, name, mimeType }));
 }
+
+export type DriveFolder = { id: string; name: string };
+
+const FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
+
+// Reads a folder's name and confirms the ID really is a folder the signed-in account can see.
+export async function getDriveFolder(
+  accessToken: string,
+  folderId: string,
+  options: { fetchImpl?: typeof fetch } = {},
+): Promise<DriveFolder> {
+  if (!FOLDER_ID.test(folderId)) throw new DriveError("The Drive folder ID is not valid.", 400);
+  const params = new URLSearchParams({ fields: "id,name,mimeType,trashed", supportsAllDrives: "true" });
+  const response = await (options.fetchImpl ?? fetch)(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(folderId)}?${params}`,
+    { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" },
+  );
+  if (!response.ok) {
+    const messages: Record<number, string> = {
+      401: "Google rejected the access token.",
+      403: "Google refused access to this folder. Check that it is shared with the signed-in account.",
+      404: "Google could not find this folder. Check the link and that it is shared with the signed-in account.",
+    };
+    throw new DriveError(messages[response.status] ?? `Drive returned status ${response.status}.`, response.status);
+  }
+  const body = (await response.json()) as { id?: string; name?: string; mimeType?: string; trashed?: boolean };
+  if (body.mimeType !== FOLDER_MIME_TYPE) throw new DriveError("This Drive link is a file, not a folder.", 400);
+  if (body.trashed) throw new DriveError("This Drive folder is in the bin.", 400);
+  return { id: body.id ?? folderId, name: body.name ?? "Untitled folder" };
+}
