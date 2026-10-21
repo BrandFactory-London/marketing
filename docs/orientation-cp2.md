@@ -179,3 +179,13 @@ Nothing runs against the Neon dev branch beyond the read-only checks in section 
 ---
 
 **Stopping here. No code until you approve.**
+
+## Approval (Amir, 21 Oct 2026)
+
+Approved with these answers:
+- Q4: text areas, one "Save version" per tier, decision 7's four client sections with Services and Locations as subheadings in Business facts. Project sections and the link to the Sitemap tab as proposed.
+- Q5: tables approved. Go-ahead in principle for the rollback rehearsal, to be confirmed when it is reached.
+- Q6: fetch real titles, six at a time with the path fallback. Addition: a time budget on the whole import; when it runs short, stop fetching titles and use the path for the remaining pages rather than failing.
+- Q1, Q2, Q3, Q7, Q8, Q9, Q10: confirmed as written.
+- No delete for clients or projects in γ2.
+- Check-in after γ2.2 with screenshots of CRM, the Client page with the knowledge editor, and Projects.
