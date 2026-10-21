@@ -1,6 +1,6 @@
 import { expect, query, test } from "./fixtures";
 
-// Phone width (390px) screenshots of every screen γ2 adds, with a check that none scrolls sideways.
+// Phone width (390px) screenshots of every screen γ2 and γ3 add, with a check that none scrolls sideways.
 // Wide tables scroll inside their own wrapper, not the page.
 
 test.describe.configure({ mode: "serial" });
@@ -9,9 +9,9 @@ let clientId = "";
 let projectId = "";
 
 test.beforeAll(async () => {
+  await query("delete from posts");
   await query("delete from site_pages");
   await query("delete from knowledge_versions");
-  await query("delete from posts");
   await query("delete from projects");
   await query("delete from clients");
   const [client] = await query<{ id: string }>(
@@ -47,9 +47,12 @@ const screens = () => [
   { name: "settings-rules", path: "/settings/rules" },
   { name: "settings-models", path: "/settings/models" },
   { name: "settings-connections", path: "/settings/connections" },
+  { name: "calendar", path: "/calendar" },
+  { name: "posts", path: "/posts" },
+  { name: "project-plan", path: `/projects/${projectId}/plan` },
 ];
 
-test("every γ2 screen fits a 390px phone without sideways scrolling", async ({ page, signedIn }) => {
+test("every γ2 and γ3 screen fits a 390px phone without sideways scrolling", async ({ page, signedIn }) => {
   void signedIn;
   await page.setViewportSize({ width: 390, height: 844 });
   for (const screen of screens()) {
