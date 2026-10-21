@@ -16,6 +16,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "0.134.0",
     "@auth/drizzle-adapter": "1.11.3",
+    "@trigger.dev/sdk": "4.7.4",
     "drizzle-orm": "0.45.4",
     "next": "16.4.2",
     "next-auth": "5.0.0-beta.32",
@@ -28,6 +29,7 @@
   "devDependencies": {
     "@neondatabase/serverless": "1.2.0",
     "@playwright/test": "1.56.1",
+    "@trigger.dev/build": "4.7.4",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
@@ -36,6 +38,7 @@
     "drizzle-kit": "0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
+    "trigger.dev": "4.7.4",
     "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "5.0.5",
