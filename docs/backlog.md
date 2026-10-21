@@ -14,3 +14,4 @@ Items raised during implementation. Disagreements with locked design decisions g
 | 8 | γ2 handoff | Style the 404 page with the design system. | The app shows Next.js's default "This page could not be found." page. |
 | 9 | γ2 orientation | Let the allowed internal links section pick paths from the imported sitemap. | γ2 keeps it a Markdown list typed or pasted by hand; the Knowledge tab links to the Sitemap tab. |
 | 10 | γ2.2 | Unknown client or project pages show the not-found page with HTTP status 200, not 404. | The pages stream (Cache Components), so `notFound()` runs after the status line is sent. Harmless for a signed-in internal tool; revisit with item 8 if a real 404 status matters. |
+| 11 | γ2 smoke | For γ5: cover picker must browse subfolders. Each project's Drive folder is a parent (e.g. Migss Interiors) with photos in subfolders such as Bathrooms and Kitchens. The γ2 check counts subfolders as files. | Raised by Amir at the γ2 smoke. |
