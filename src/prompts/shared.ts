@@ -11,6 +11,13 @@ export const NO_INVENTED_PRACTICE =
   "Never describe a process, policy, habit or customer pattern of the client that the knowledge pack does not state. " +
   'That includes what the client "usually" does, what its customers "often" do, and how it quotes, checks or decides.';
 
+// γ5 fix 2: the production smoke post reused sentences from the client's Examples word for word.
+export const EXAMPLES_ARE_VOICE_ONLY =
+  "The client's Examples and Counter-examples show voice only. Never reuse a sentence or clause from them, word for word or closely paraphrased: write new sentences in that voice.";
+
+// γ5 fix 1: one form for a fact the pack does not give, so Amir can find and fill it.
+export const PLACEHOLDER_FORMAT = "[CONFIRM: what is needed]";
+
 export type PostBrief = {
   topic: string;
   lengthMin: number;

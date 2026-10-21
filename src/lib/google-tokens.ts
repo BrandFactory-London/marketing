@@ -89,7 +89,9 @@ export async function getGoogleAccessToken(
     return { accessToken: decrypt(row.accessTokenEnc, accessAad(userId)), refreshedAt: null };
   }
 
-  const response = await fetchImpl("https://oauth2.googleapis.com/token", {
+  // GOOGLE_API_URL points at Playwright's local Google stand-in; it is never set in Vercel.
+  const tokenUrl = process.env.GOOGLE_API_URL ? `${process.env.GOOGLE_API_URL.replace(/\/+$/, "")}/token` : "https://oauth2.googleapis.com/token";
+  const response = await fetchImpl(tokenUrl, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({

@@ -1,0 +1,152 @@
+"use server";
+
+import { refresh } from "next/cache";
+import type { CheckResult } from "@/lib/checks";
+import { closeStalledGeneration, markNotStarted } from "@/lib/batches";
+import { startGeneration, startRuleCandidates } from "@/lib/jobs";
+import { approvePost, parsePostText, queueRegeneration, rejectPost, reopenPost, ReviewError, savePublishingDetails, saveVersion } from "@/lib/review";
+import { browseCovers, chooseCover, CoverError, type CoverFolderView } from "@/lib/covers";
+import { getDb } from "@/db/client";
+import { posts } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { requireUser } from "@/lib/session";
+import { isUuid, optionalText } from "@/lib/validation";
+
+export type TextInput = { title: string; excerpt: string; body: string };
+export type ReviewActionResult = { ok: true; message?: string; checks?: CheckResult } | { ok: false; message: string };
+
+function failure(error: unknown): ReviewActionResult {
+  if (error instanceof ReviewError) return { ok: false, message: error.message };
+  throw error;
+}
+
+export async function saveDraftAction(postId: string, input: TextInput): Promise<ReviewActionResult> {
+  await requireUser();
+  try {
+    const { saved, checks } = await saveVersion(postId, parsePostText(input));
+    refresh();
+    return { ok: true, message: saved ? "Draft saved." : "No changes to save.", checks };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function approveAction(postId: string, input: TextInput): Promise<ReviewActionResult> {
+  await requireUser();
+  let approved: Awaited<ReturnType<typeof approvePost>>;
+  try {
+    approved = await approvePost(postId, parsePostText(input));
+  } catch (error) {
+    return failure(error);
+  }
+  // Rule candidates are a bonus: if Trigger.dev cannot be reached the approval still stands.
+  let message = "Post approved.";
+  if (approved.hasEdits) {
+    try {
+      await startRuleCandidates(approved.reviewEventId);
+      message = "Post approved. Rule candidates from your edits will appear in Settings, BrandFactory rules.";
+    } catch (error) {
+      console.error("Could not start propose-rules:", error);
+      message = "Post approved. Rule candidates could not be started, because Trigger.dev could not be reached.";
+    }
+  }
+  refresh();
+  return { ok: true, message };
+}
+
+export async function rejectAction(postId: string, note: string): Promise<ReviewActionResult> {
+  await requireUser();
+  try {
+    await rejectPost(postId, note);
+  } catch (error) {
+    return failure(error);
+  }
+  refresh();
+  return { ok: true, message: "Post rejected." };
+}
+
+export async function reopenAction(postId: string): Promise<ReviewActionResult> {
+  await requireUser();
+  try {
+    await reopenPost(postId);
+  } catch (error) {
+    return failure(error);
+  }
+  refresh();
+  return { ok: true, message: "Post reopened for editing." };
+}
+
+const RUN_NOT_STARTED = "Trigger.dev could not be reached, so the regenerate did not start. Your text is saved; try again.";
+
+// Regenerate with a note: saves the text, queues a run that starts from it, and starts the run.
+export async function regenerateAction(postId: string, note: string, input: TextInput | null): Promise<ReviewActionResult> {
+  await requireUser();
+  let generationId: string;
+  try {
+    generationId = await queueRegeneration(postId, note, input ? parsePostText(input) : null);
+  } catch (error) {
+    return failure(error);
+  }
+  try {
+    await startGeneration(generationId);
+  } catch (error) {
+    console.error("Could not start generate-post:", error);
+    await markNotStarted(generationId, RUN_NOT_STARTED);
+    refresh();
+    return { ok: false, message: RUN_NOT_STARTED };
+  }
+  refresh();
+  return { ok: true, message: "The writer is working on a new version." };
+}
+
+// A regenerate that stopped reporting progress is closed, so the post goes back to Needs review.
+export async function stopWaitingAction(postId: string): Promise<ReviewActionResult> {
+  await requireUser();
+  if (!isUuid(postId)) return { ok: false, message: "This post no longer exists." };
+  await closeStalledGeneration(postId);
+  refresh();
+  return { ok: true };
+}
+
+export type DetailsState = { message?: string; error?: string; saved?: boolean };
+
+export async function detailsAction(postId: string, _previous: DetailsState, formData: FormData): Promise<DetailsState> {
+  await requireUser();
+  const pillar = optionalText(formData.get("pillarId"));
+  try {
+    await savePublishingDetails(postId, { slug: String(formData.get("slug") ?? ""), pillarId: pillar && isUuid(pillar) ? pillar : null });
+  } catch (error) {
+    if (error instanceof ReviewError) return { error: error.message };
+    throw error;
+  }
+  refresh();
+  return { saved: true, message: "Publishing details saved." };
+}
+
+export type BrowseResult = { ok: true; view: CoverFolderView } | { ok: false; message: string };
+
+// The cover picker (γ5 orientation Q6): one folder page at a time, inside the project's Drive folder.
+export async function browseCoversAction(postId: string, folderId: string | null, pageToken: string | null): Promise<BrowseResult> {
+  const user = await requireUser();
+  if (!isUuid(postId)) return { ok: false, message: "This post no longer exists." };
+  const [post] = await getDb().select({ projectId: posts.projectId }).from(posts).where(eq(posts.id, postId));
+  if (!post) return { ok: false, message: "This post no longer exists." };
+  try {
+    return { ok: true, view: await browseCovers(user.id, post.projectId, folderId, pageToken) };
+  } catch (error) {
+    if (error instanceof CoverError) return { ok: false, message: error.message };
+    throw error;
+  }
+}
+
+export async function chooseCoverAction(postId: string, fileId: string): Promise<ReviewActionResult> {
+  const user = await requireUser();
+  try {
+    await chooseCover(user.id, postId, fileId);
+  } catch (error) {
+    if (error instanceof CoverError) return { ok: false, message: error.message };
+    return failure(error);
+  }
+  refresh();
+  return { ok: true, message: "Cover chosen." };
+}

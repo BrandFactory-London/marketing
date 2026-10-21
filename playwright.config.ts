@@ -3,6 +3,8 @@ import { defineConfig, devices } from "@playwright/test";
 const port = 3100;
 // The local stand-in for the Trigger.dev API (e2e/trigger-standin.mjs).
 const triggerPort = 3199;
+// The local stand-in for Google's token and Drive APIs (e2e/google-standin.mjs).
+const googlePort = 3198;
 
 export default defineConfig({
   testDir: "e2e",
@@ -13,6 +15,7 @@ export default defineConfig({
   use: { baseURL: `http://localhost:${port}`, ...devices["Desktop Chrome"], viewport: { width: 1440, height: 1000 }, locale: "en-GB", timezoneId: "Europe/London" },
   webServer: [
     { command: "node e2e/trigger-standin.mjs", url: `http://localhost:${triggerPort}`, reuseExistingServer: false, env: { PORT: String(triggerPort) } },
+    { command: "node e2e/google-standin.mjs", url: `http://localhost:${googlePort}`, reuseExistingServer: false, env: { PORT: String(googlePort) } },
     {
       command: `pnpm build && pnpm start --port ${port}`,
       url: `http://localhost:${port}`,
@@ -31,6 +34,8 @@ export default defineConfig({
         // Never the real Trigger.dev.
         TRIGGER_API_URL: `http://localhost:${triggerPort}`,
         TRIGGER_SECRET_KEY: "tr_dev_playwright_standin",
+        // Never the real Google.
+        GOOGLE_API_URL: `http://localhost:${googlePort}`,
       },
     },
   ],

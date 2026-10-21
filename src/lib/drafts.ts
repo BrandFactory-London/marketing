@@ -1,8 +1,10 @@
 import "server-only";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { getDb, type Database } from "@/db/client";
 import { aiCalls, criticVerdicts, knowledgeVersions, postDrafts, postGenerations, posts, postSpecs, projectPillars, type CriticIssue } from "@/db/schema";
-import type { CheckResult } from "./checks";
+import { findPlaceholders, type CheckResult } from "./checks";
+import { currentText } from "./review";
+import { composeMarkdown } from "./review-rules";
 import { getProject } from "./projects";
 import { isUuid } from "./validation";
 
@@ -20,7 +22,17 @@ export type DraftRound = {
   verdict: { verdict: "pass" | "fail"; summary: string | null; issues: CriticIssue[]; scores: Record<string, number>; model: string | null } | null;
 };
 
-export type CostLine = { label: string; costUsd: number; inputTokens: number; outputTokens: number; cachedTokens: number };
+export type CostLine = { label: string; costUsd: number; inputTokens: number; outputTokens: number; cachedTokens: number; run: string };
+
+// A run's name in the cost breakdown: the first batch run, then each regenerate with its note (γ5 Q4).
+function runLabels(generations: { note: string | null }[]): string[] {
+  let regenerate = 0;
+  let retry = 0;
+  return generations.map((generation, index) => {
+    if (generation.note) return `Regenerate ${++regenerate}: ${generation.note.length > 60 ? `${generation.note.slice(0, 57)}...` : generation.note}`;
+    return index === 0 ? "First draft" : `Retry ${++retry}`;
+  });
+}
 
 export async function getDraftView(postId: string, db: Database = getDb()) {
   if (!isUuid(postId)) return null;
@@ -30,7 +42,15 @@ export async function getDraftView(postId: string, db: Database = getDb()) {
     .leftJoin(projectPillars, eq(projectPillars.id, posts.pillarId))
     .where(eq(posts.id, postId));
   if (!post) return null;
-  const [generation] = await db.select().from(postGenerations).where(eq(postGenerations.postId, postId)).orderBy(desc(postGenerations.createdAt)).limit(1);
+  const generations = await db.select().from(postGenerations).where(eq(postGenerations.postId, postId)).orderBy(asc(postGenerations.createdAt));
+  if (generations.length === 0) return null;
+  const newest = generations[generations.length - 1];
+  // The newest run with drafts. A regenerate that is still running has none yet, so the page shows the one before.
+  const drafted = await db
+    .select({ generationId: postDrafts.generationId })
+    .from(postDrafts)
+    .where(inArray(postDrafts.generationId, generations.map((item) => item.id)));
+  const generation = [...generations].reverse().find((item) => drafted.some((row) => row.generationId === item.id));
   if (!generation) return null;
   const [project, [spec], drafts, calls] = await Promise.all([
     getProject(post.post.projectId, db),
@@ -63,12 +83,24 @@ export async function getDraftView(postId: string, db: Database = getDb()) {
   });
 
   // Spec, then each writer and critic round, in the order they ran. Failed calls cost nothing but are shown.
+  // Calls carry no run id, so each is put in the newest run that started before it.
+  const labels = runLabels(generations);
   let writer = 0;
   let critic = 0;
   const costs: CostLine[] = calls.map((call) => {
     const label =
-      call.purpose === "spec" ? "Spec" : call.purpose === "writer" ? `Writer call ${++writer}` : call.purpose === "critic" ? `Critic call ${++critic}` : "Check";
+      call.purpose === "spec"
+        ? "Spec"
+        : call.purpose === "writer"
+          ? `Writer call ${++writer}`
+          : call.purpose === "critic"
+            ? `Critic call ${++critic}`
+            : call.purpose === "rules"
+              ? "Rule candidates"
+              : "Check";
+    const runIndex = generations.findLastIndex((item) => item.createdAt <= call.createdAt);
     return {
+      run: call.purpose === "spec" ? "Spec" : call.purpose === "rules" ? "After approval" : labels[Math.max(runIndex, 0)],
       label: call.error ? `${label} (stopped: ${call.error})` : label,
       costUsd: call.costUsd,
       inputTokens: call.inputTokens + call.cacheWriteTokens,
@@ -88,6 +120,8 @@ export async function getDraftView(postId: string, db: Database = getDb()) {
     post: { ...post.post, pillar: post.pillar },
     project,
     generation,
+    // The newest run, when it is not the one shown: a regenerate that is running or could not finish.
+    newest: newest.id === generation.id ? null : newest,
     spec: spec ?? null,
     rounds,
     latest: rounds[rounds.length - 1],
@@ -112,6 +146,8 @@ export type ReviewItem = {
   round: number;
   criticSummary: string | null;
   costUsd: number;
+  // Placeholders left in the current text (γ5 orientation Q2): Approve is blocked until they are filled.
+  placeholders: number;
 };
 
 // Posts waiting for Amir: passed the critic (Needs review) or flagged after two fix rounds (Failed), by date.
@@ -123,18 +159,19 @@ export async function listReviewQueue(db: Database = getDb()): Promise<ReviewIte
     .orderBy(asc(posts.slotDate));
   const items: ReviewItem[] = [];
   for (const row of rows) {
-    const view = await getDraftView(row.id, db);
-    if (!view) continue;
+    const [view, current] = await Promise.all([getDraftView(row.id, db), currentText(row.id, db)]);
+    if (!view || !current) continue;
     items.push({
       postId: row.id,
       status: row.status as ReviewItem["status"],
-      title: view.latest.title,
+      title: current.text.title || view.latest.title,
       projectName: view.project.name,
       slotDate: row.slotDate,
       wordCount: view.latest.wordCount,
       round: view.latest.round,
       criticSummary: view.latest.verdict?.summary ?? null,
       costUsd: view.totalCost,
+      placeholders: findPlaceholders(composeMarkdown(current.text)).length,
     });
   }
   return items;
