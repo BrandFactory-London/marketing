@@ -44,8 +44,12 @@ async function start(specIds: readonly string[]) {
 
 export type BatchFormState = { errors?: FieldErrors<BatchField>; message?: string; values?: Record<string, string>; chosen?: string[] };
 
+// Trigger.dev has Development and Production only, so preview deployments never start runs (γ4 orientation).
+const PREVIEW_MESSAGE = "Generation runs in production only. Preview deployments do not start Trigger.dev runs.";
+
 export async function createBatchAction(projectId: string, _previous: BatchFormState, formData: FormData): Promise<BatchFormState> {
   await requireUser();
+  if (process.env.VERCEL_ENV === "preview") return { message: PREVIEW_MESSAGE, values: echo(formData), chosen: formData.getAll("postIds").map(String) };
   const chosen = formData.getAll("postIds").map(String);
   const parsed = parseBatchInput(formInput(formData), chosen);
   if (!parsed.ok) return { errors: parsed.errors, values: echo(formData), chosen };
