@@ -243,7 +243,7 @@ export async function runGeneration(generationId: string, deps: GenerationDeps):
           effort: EFFORT.critic,
           maxTokens: MAX_TOKENS.critic,
           instructions: criticPrompt.INSTRUCTIONS,
-          user: criticPrompt.criticUserMessage(forPrompt, latest.bodyMd, checks),
+          user: criticPrompt.criticUserMessage(forPrompt, latest.bodyMd, checks, generation.note),
         },
         criticPrompt.CriticReply,
       );

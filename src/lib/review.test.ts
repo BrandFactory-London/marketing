@@ -203,6 +203,8 @@ describe.skipIf(!testDatabaseUrl)("review (local Postgres)", () => {
       expect(first).toContain("Amir's note:\nMake the guarantee line plainer.");
       expect(first).toContain("Wet rooms are our speciality.");
       expect(first).not.toContain("[CONFIRM: Migss wet room specialism wording]");
+      // The critic hears the note too, so it does not fail what Amir asked for.
+      expect(api.calls[1].messages[0].content as string).toContain("Amir's note: Make the guarantee line plainer.");
       expect((await post()).status).toBe("in_review");
       const current = await currentText(ids.post, db);
       expect(current?.source.kind).toBe("draft");

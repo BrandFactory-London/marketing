@@ -26,7 +26,7 @@ const confirmed: SpecForPrompt = {
 
 describe("prompts", () => {
   it("each has a version recorded on its calls", () => {
-    expect([spec.PROMPT_VERSION, writer.PROMPT_VERSION, critic.PROMPT_VERSION]).toEqual(["spec-1", "writer-2", "critic-2"]);
+    expect([spec.PROMPT_VERSION, writer.PROMPT_VERSION, critic.PROMPT_VERSION]).toEqual(["spec-1", "writer-2", "critic-3"]);
   });
 
   it("bake in decision 12's three fixes", () => {
@@ -133,6 +133,15 @@ describe("prompts", () => {
     });
     expect(critic.verdictOf(reply)).toBe("pass");
     expect(reply.placeholders).toHaveLength(1);
+  });
+
+  it("give the critic Amir's regenerate note as approved by him", () => {
+    const draft = "# T\n\nExcerpt: e\n\nAsk us about payment options.";
+    const checks = runChecks({ markdown: draft, lengthMin: 1, lengthMax: 100, faq: false, allowedLinks: [], bannedPhrases: [] });
+    expect(critic.criticUserMessage(confirmed, draft, checks, "Tell readers to ask about payment options.")).toContain(
+      "what the note asks for is approved by him: do not report it as an issue",
+    );
+    expect(critic.criticUserMessage(confirmed, draft, checks)).not.toContain("Amir's note");
   });
 
   it("tell the critic about a length inside the tolerance", () => {

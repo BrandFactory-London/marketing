@@ -3,7 +3,7 @@ import type { CheckResult } from "@/lib/checks";
 import { EXAMPLES_ARE_VOICE_ONLY, list, NO_INVENTED_PRACTICE, RHYTHM_PATTERNS, specText, type SpecForPrompt } from "./shared";
 
 // The critic judges a draft that passed the scripted checks and returns a structured verdict (decisions 11, 12).
-export const PROMPT_VERSION = "critic-2";
+export const PROMPT_VERSION = "critic-3";
 
 export const CRITIC_CATEGORIES = ["rules", "rule of three", "banned", "facts", "spec", "structure", "voice", "usefulness"] as const;
 
@@ -56,9 +56,16 @@ export function verdictOf(reply: CriticReply): "pass" | "fail" {
   return reply.issues.some((issue) => issue.severity === "blocking") ? "fail" : "pass";
 }
 
-export function criticUserMessage(spec: SpecForPrompt, draft: string, checks: CheckResult): string {
+// A regenerate carries Amir's note. He knows the client, so what the note asks for counts as approved by him; the
+// γ5 real run showed the critic failing the very sentence the note asked for.
+export function criticUserMessage(spec: SpecForPrompt, draft: string, checks: CheckResult, amirNote?: string | null): string {
   return [
     `The spec:\n${specText(spec)}`,
+    ...(amirNote
+      ? [
+          `Amir asked for this version with the note below. He is the client's account manager, so what the note asks for is approved by him: do not report it as an issue, and judge the rest as usual.\nAmir's note: ${amirNote}`,
+        ]
+      : []),
     `Scripted checks: passed. ${checks.wordCount} words${checks.info.lengthNote ? ` (${checks.info.lengthNote})` : ""}; links ${checks.info.links.join(", ") || "none"}; placeholders ${
       checks.info.placeholders.join(", ") || "none"
     }.`,
