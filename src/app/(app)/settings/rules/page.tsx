@@ -86,7 +86,7 @@ async function Candidates() {
       {decided.length > 0 ? (
         <ul className="app-plain-list small">
           {decided.map((candidate) => (
-            <li key={candidate.id} className="app-card-head">
+            <li key={candidate.id} className="app-card-head app-decided">
               <span>{candidate.text}</span>
               <Badge tone={candidate.status === "accepted" ? "success" : "neutral"}>
                 {candidate.status === "accepted" ? `Added to ${targetLabel(candidate.tier, candidate.section, candidate.scope)}` : "Dismissed"}

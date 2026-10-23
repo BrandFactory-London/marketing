@@ -288,7 +288,7 @@ test("Regenerate asks what was wrong; the note becomes a LinkedIn rule in Settin
   // The rule is readable under its channel in the BrandFactory rules editor.
   await page.getByRole("button", { name: /LinkedIn post rules/ }).click();
   await expect(page.getByLabel("LinkedIn post rules (Markdown)")).toHaveValue("- Open LinkedIn posts with a plain statement, never a question.");
-  await expect(page.getByText("By channel")).toBeVisible();
+  await expect(page.getByText("By channel", { exact: true })).toBeVisible();
   await page.screenshot(shot("g7-channel-rules"));
 });
 
