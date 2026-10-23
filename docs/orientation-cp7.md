@@ -218,3 +218,11 @@ Nothing runs against Neon dev or the Anthropic API until this is approved.
 ---
 
 **Stopping here. No code until you approve.**
+
+## Approval (Amir, 23 Oct 2026)
+
+Approved, with these amendments:
+- **Item 6 proof:** Neon dev's derivative model is set to Opus 5.5 for the run, so the loop is proven on the production model. The costs are recorded.
+- **Labels:** the UI shows "GBP post" (Google Business Profile) instead of "GMB post" everywhere. The code key stays `gmb`.
+
+Everything else as proposed, including the smaller decisions.
