@@ -188,6 +188,9 @@ export const posts = pgTable(
     coverPath: text("cover_path"),
     coverChosenAt: timestamp("cover_chosen_at", { mode: "date", withTimezone: true }),
     approvedAt: timestamp("approved_at", { mode: "date", withTimezone: true }),
+    // γ6: set when the live check confirms the post on the client's site (decision 19).
+    publishedAt: timestamp("published_at", { mode: "date", withTimezone: true }),
+    liveUrl: text("live_url"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -388,7 +391,7 @@ export const criticVerdicts = pgTable(
   (table) => [check("critic_verdicts_verdict_check", sql`${table.verdict} in ('pass', 'fail')`)],
 );
 
-export type AiCallPurpose = "spec" | "writer" | "critic" | "check" | "rules";
+export type AiCallPurpose = "spec" | "writer" | "critic" | "check" | "rules" | "derivative" | "facts";
 
 // Every Anthropic API call: who asked, which model answered, tokens and cost (Q7). Failed calls are
 // recorded too, with their error.
@@ -417,7 +420,7 @@ export const aiCalls = pgTable(
   (table) => [
     index("ai_calls_post_id_idx").on(table.postId),
     index("ai_calls_batch_id_idx").on(table.batchId),
-    check("ai_calls_purpose_check", sql`${table.purpose} in ('spec', 'writer', 'critic', 'check', 'rules')`),
+    check("ai_calls_purpose_check", sql`${table.purpose} in ('spec', 'writer', 'critic', 'check', 'rules', 'derivative', 'facts')`),
   ],
 );
 
@@ -474,6 +477,7 @@ export const reviewEvents = pgTable(
 export type EditHunk = { before: string; after: string };
 
 export type CandidateStatus = "proposed" | "accepted" | "dismissed";
+export type CandidateKind = "rule" | "fact";
 
 // A rule Claude proposes from Amir's edits, for him to accept into a knowledge tier or dismiss (decision 17).
 export const ruleCandidates = pgTable(
@@ -493,6 +497,8 @@ export const ruleCandidates = pgTable(
     after: text("after"),
     reason: text("reason"),
     status: text("status").$type<CandidateStatus>().notNull().default("proposed"),
+    // γ6: "fact" for a fact proposed from a regenerate note (γ6 orientation Q7).
+    kind: text("kind").$type<CandidateKind>().notNull().default("rule"),
     knowledgeVersionId: uuid("knowledge_version_id").references(() => knowledgeVersions.id, { onDelete: "restrict" }),
     aiCallId: uuid("ai_call_id").references(() => aiCalls.id, { onDelete: "restrict" }),
     createdAt: createdAt(),
@@ -502,5 +508,120 @@ export const ruleCandidates = pgTable(
     index("rule_candidates_status_idx").on(table.status),
     check("rule_candidates_tier_check", sql`${table.tier} in ('agency', 'client', 'project')`),
     check("rule_candidates_status_check", sql`${table.status} in ('proposed', 'accepted', 'dismissed')`),
+    check("rule_candidates_kind_check", sql`${table.kind} in ('rule', 'fact')`),
+  ],
+);
+
+// ---- γ6: publishing to Wix and derivatives (design decisions 6, 18, 19, 20) ----
+
+// A project's Wix credentials (decision 6). The API key, account ID and site ID are one AES-GCM ciphertext
+// (src/lib/crypto.ts) bound to the project; only the key's last four characters are ever shown again.
+export const projectWix = pgTable("project_wix", {
+  projectId: uuid("project_id")
+    .primaryKey()
+    .references(() => projects.id, { onDelete: "restrict" }),
+  credentialsEnc: text("credentials_enc").notNull(),
+  keyHint: text("key_hint").notNull(),
+  // The Wix site member every post is published as.
+  memberId: text("member_id"),
+  memberName: text("member_name"),
+  checkedAt: timestamp("checked_at", { mode: "date", withTimezone: true }),
+  checkOk: boolean("check_ok"),
+  checkMessage: text("check_message"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+export type PublicationState = "running" | "failed" | "checking" | "live" | "not_confirmed";
+export type PublishStep = "cover" | "tag" | "draft" | "publish" | "live";
+
+// One post's publication on its project's target (decisions 18, 19, γ6 orientation Q4). Every Wix ID is recorded as
+// soon as Wix returns it, so a retry resumes from the failed step and never creates a second post.
+export const postPublications = pgTable(
+  "post_publications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    postId: uuid("post_id")
+      .notNull()
+      .unique("post_publications_post_unique")
+      .references(() => posts.id, { onDelete: "restrict" }),
+    target: text("target").notNull().default("wix_blog"),
+    state: text("state").$type<PublicationState>().notNull(),
+    step: text("step").$type<PublishStep>(),
+    coverDriveFileId: text("cover_drive_file_id"),
+    wixFileId: text("wix_file_id"),
+    wixTagId: text("wix_tag_id"),
+    wixDraftId: text("wix_draft_id"),
+    wixPostId: text("wix_post_id"),
+    wixSlug: text("wix_slug"),
+    liveUrl: text("live_url"),
+    error: text("error"),
+    triggerRunId: text("trigger_run_id"),
+    heartbeatAt: timestamp("heartbeat_at", { mode: "date", withTimezone: true }),
+    checkStartedAt: timestamp("check_started_at", { mode: "date", withTimezone: true }),
+    confirmedAt: timestamp("confirmed_at", { mode: "date", withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    check("post_publications_target_check", sql`${table.target} in ('wix_blog')`),
+    check("post_publications_state_check", sql`${table.state} in ('running', 'failed', 'checking', 'live', 'not_confirmed')`),
+    check("post_publications_step_check", sql`${table.step} is null or ${table.step} in ('cover', 'tag', 'draft', 'publish', 'live')`),
+  ],
+);
+
+// The log of every publish step: what was sent, what Wix or the live page answered (the scope's publish event).
+export const publishEvents = pgTable(
+  "publish_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    publicationId: uuid("publication_id")
+      .notNull()
+      .references(() => postPublications.id, { onDelete: "restrict" }),
+    step: text("step").$type<PublishStep>().notNull(),
+    result: text("result").$type<"ok" | "failed">().notNull(),
+    httpStatus: integer("http_status"),
+    message: text("message"),
+    requestId: text("request_id"),
+    details: jsonb("details").$type<Record<string, unknown>>(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("publish_events_publication_id_idx").on(table.publicationId),
+    check("publish_events_step_check", sql`${table.step} in ('cover', 'tag', 'draft', 'publish', 'live')`),
+    check("publish_events_result_check", sql`${table.result} in ('ok', 'failed')`),
+  ],
+);
+
+export type DerivativeChannel = "gmb" | "linkedin";
+export type DerivativeStatus = "writing" | "ready" | "failed";
+
+// GMB and LinkedIn copy from an approved post (decision 20). Every generation and every saved edit is a version.
+export const derivatives = pgTable(
+  "derivatives",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "restrict" }),
+    channel: text("channel").$type<DerivativeChannel>().notNull(),
+    version: integer("version").notNull(),
+    status: text("status").$type<DerivativeStatus>().notNull(),
+    source: text("source").$type<"model" | "edit">().notNull(),
+    body: text("body"),
+    checks: jsonb("checks"),
+    note: text("note"),
+    error: text("error"),
+    triggerRunId: text("trigger_run_id"),
+    aiCallId: uuid("ai_call_id").references(() => aiCalls.id, { onDelete: "restrict" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    unique("derivatives_post_channel_version_unique").on(table.postId, table.channel, table.version),
+    check("derivatives_channel_check", sql`${table.channel} in ('gmb', 'linkedin')`),
+    check("derivatives_status_check", sql`${table.status} in ('writing', 'ready', 'failed')`),
+    check("derivatives_source_check", sql`${table.source} in ('model', 'edit')`),
+    check("derivatives_version_check", sql`${table.version} >= 1`),
   ],
 );

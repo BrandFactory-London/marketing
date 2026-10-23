@@ -14,6 +14,9 @@ export function createTestDb(): { db: Database; close: () => Promise<void> } {
 
 // Empties the domain tables, children first.
 export async function resetDomainTables(db: Database): Promise<void> {
+  await db.execute(sql`delete from publish_events`);
+  await db.execute(sql`delete from post_publications`);
+  await db.execute(sql`delete from derivatives`);
   await db.execute(sql`delete from rule_candidates`);
   await db.execute(sql`delete from review_events`);
   // post_versions and post_generations refer to each other, so the regenerate link is cleared first.
@@ -29,6 +32,7 @@ export async function resetDomainTables(db: Database): Promise<void> {
   await db.execute(sql`delete from project_pillars`);
   await db.execute(sql`delete from site_pages`);
   await db.execute(sql`delete from knowledge_versions`);
+  await db.execute(sql`delete from project_wix`);
   await db.execute(sql`delete from projects`);
   await db.execute(sql`delete from clients`);
 }

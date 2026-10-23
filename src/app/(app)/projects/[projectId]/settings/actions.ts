@@ -8,6 +8,19 @@ import { getProject, parseProjectInput, setDriveFolder, UnknownClient, updatePro
 import { addPillar, DuplicatePillar, parsePillarInput, removePillar, type PillarField } from "@/lib/pillars";
 import { requireUser } from "@/lib/session";
 import { formInput, type FieldErrors } from "@/lib/validation";
+import { WixError, type WixMember } from "@/lib/wix";
+import {
+  checkWixConnection,
+  chooseWixMember,
+  describeWixError,
+  listWixMembers,
+  parseWixCredentials,
+  removeWixCredentials,
+  saveWixCredentials,
+  WixSetupError,
+  type WixCheckResult,
+  type WixCredentialsField,
+} from "@/lib/wix-credentials";
 
 export type ProjectSettingsState = { errors?: FieldErrors<ProjectField>; message?: string; values?: Record<string, string>; saved?: boolean };
 
@@ -83,4 +96,76 @@ export async function removePillarAction(projectId: string, pillarId: string): P
   await requireUser();
   await removePillar(projectId, pillarId);
   refresh();
+}
+
+// ---- Wix credentials (design decision 6, γ6 orientation Q1) ----
+
+export type WixState = { errors?: FieldErrors<WixCredentialsField>; message?: string; saved?: boolean; check?: WixCheckResult; accountId?: string; siteId?: string };
+
+// Saves the credentials, then runs the connection check straight away so Amir sees whether Wix accepts them.
+export async function saveWixCredentialsAction(projectId: string, _previous: WixState, formData: FormData): Promise<WixState> {
+  await requireUser();
+  const input = formInput(formData);
+  const echoIds = { accountId: String(input.accountId ?? ""), siteId: String(input.siteId ?? "") };
+  const parsed = parseWixCredentials(input);
+  if (!parsed.ok) return { errors: parsed.errors, ...echoIds };
+  try {
+    await saveWixCredentials(projectId, parsed.value);
+  } catch (error) {
+    if (error instanceof WixSetupError) return { message: error.message, ...echoIds };
+    throw error;
+  }
+  const check = await runWixCheck(projectId);
+  refresh();
+  return { saved: true, check };
+}
+
+async function runWixCheck(projectId: string): Promise<WixCheckResult> {
+  try {
+    return await checkWixConnection(projectId);
+  } catch (error) {
+    if (error instanceof WixSetupError) return { ok: false, message: error.message };
+    console.error("Wix check failed:", error);
+    return { ok: false, message: "The check could not run. Try again in a moment." };
+  }
+}
+
+export async function checkWixAction(projectId: string): Promise<WixCheckResult> {
+  await requireUser();
+  const result = await runWixCheck(projectId);
+  refresh();
+  return result;
+}
+
+export async function removeWixCredentialsAction(projectId: string): Promise<void> {
+  await requireUser();
+  await removeWixCredentials(projectId);
+  refresh();
+}
+
+export type WixMembersState = { members?: WixMember[]; error?: string; chosen?: string };
+
+export async function loadWixMembersAction(projectId: string): Promise<WixMembersState> {
+  await requireUser();
+  try {
+    return { members: await listWixMembers(projectId) };
+  } catch (error) {
+    if (error instanceof WixSetupError) return { error: error.message };
+    if (error instanceof WixError) return { error: `Wix did not list the members. ${describeWixError(error)}` };
+    console.error("Wix members failed:", error);
+    return { error: "The members could not be loaded. Try again in a moment." };
+  }
+}
+
+export async function chooseWixMemberAction(projectId: string, memberId: string): Promise<WixMembersState> {
+  await requireUser();
+  try {
+    const member = await chooseWixMember(projectId, memberId);
+    refresh();
+    return { chosen: member.nickname };
+  } catch (error) {
+    if (error instanceof WixSetupError) return { error: error.message };
+    if (error instanceof WixError) return { error: `Wix did not list the members. ${describeWixError(error)}` };
+    throw error;
+  }
 }

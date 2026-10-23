@@ -21,6 +21,7 @@ export async function query<T extends object = Record<string, unknown>>(text: st
 
 // Empties the domain tables, children first.
 export async function resetDomain() {
+  for (const table of ["publish_events", "post_publications", "derivatives"]) await query(`delete from ${table}`);
   await query("delete from rule_candidates");
   await query("delete from review_events");
   // post_versions and post_generations refer to each other, so the regenerate link is cleared first.
@@ -37,6 +38,7 @@ export async function resetDomain() {
     "project_pillars",
     "site_pages",
     "knowledge_versions",
+    "project_wix",
     "projects",
     "clients",
   ]) {

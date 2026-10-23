@@ -7,7 +7,9 @@ import { Card } from "@/components/ui/Card";
 import { describeScope, getGoogleConnection } from "@/lib/connections";
 import { formatDateTime } from "@/lib/format";
 import { requireUser } from "@/lib/session";
+import { listWixConnections } from "@/lib/wix-credentials";
 import { AnthropicCheck } from "./AnthropicCheck";
+import { WixCheck } from "./WixCheck";
 
 export const metadata: Metadata = { title: "Connections" };
 
@@ -38,14 +40,15 @@ export default function ConnectionsPage() {
           </span>
           <Badge tone={triggerEnvironment() ? "success" : "warning"}>{triggerEnvironment() ? "Configured" : "Not configured"}</Badge>
         </li>
-        <li className="app-connection">
-          <span>
-            <span className="subheading">Wix</span>
-            <br />
-            <span className="small app-muted">Blog publishing credentials are added for each project before publishing is switched on.</span>
-          </span>
-          <Badge>Not connected yet</Badge>
-        </li>
+        <Suspense
+          fallback={
+            <li className="app-connection" aria-busy="true">
+              <span className="subheading">Wix</span>
+            </li>
+          }
+        >
+          <WixRows />
+        </Suspense>
       </ul>
     </Card>
   );
@@ -94,4 +97,40 @@ function triggerLine(): string {
   return environment
     ? `Specs and posts are written by tasks in ${environment}. Each run's steps are listed in the Trigger.dev dashboard.`
     : "No Trigger.dev secret key is set, so nothing can be generated. Add TRIGGER_SECRET_KEY in Vercel.";
+}
+
+// One row per project: its Wix credentials and the last connection check (γ6 orientation Q1).
+async function WixRows() {
+  const rows = await listWixConnections();
+  if (rows.length === 0) {
+    return (
+      <li className="app-connection">
+        <span>
+          <span className="subheading">Wix</span>
+          <br />
+          <span className="small app-muted">Blog publishing credentials are added on each project&apos;s Settings tab.</span>
+        </span>
+        <Badge>No projects yet</Badge>
+      </li>
+    );
+  }
+  return rows.map((row) => (
+    <li key={row.projectId} className="app-connection">
+      <WixCheck
+        projectId={row.projectId}
+        name={`Wix: ${row.projectName}`}
+        settingsHref={`/projects/${row.projectId}/settings#wix-heading`}
+        current={
+          row.settings
+            ? {
+                ok: row.settings.checkOk,
+                message: row.settings.checkMessage,
+                checkedAt: row.settings.checkedAt ? formatDateTime(row.settings.checkedAt) : null,
+                author: row.settings.memberName,
+              }
+            : null
+        }
+      />
+    </li>
+  ));
 }

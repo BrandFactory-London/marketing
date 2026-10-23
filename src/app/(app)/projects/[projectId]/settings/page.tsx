@@ -7,10 +7,23 @@ import { formatDateTime } from "@/lib/format";
 import { listPillars } from "@/lib/pillars";
 import { getProject } from "@/lib/projects";
 import { requireUser } from "@/lib/session";
-import { addPillarAction, removeDriveFolderAction, removePillarAction, saveDriveFolderAction, updateProjectSettingsAction } from "./actions";
+import { getWixSettings } from "@/lib/wix-credentials";
+import {
+  addPillarAction,
+  checkWixAction,
+  chooseWixMemberAction,
+  loadWixMembersAction,
+  removeDriveFolderAction,
+  removePillarAction,
+  removeWixCredentialsAction,
+  saveDriveFolderAction,
+  saveWixCredentialsAction,
+  updateProjectSettingsAction,
+} from "./actions";
 import { DriveFolderForm } from "./DriveFolderForm";
 import { PillarsForm } from "./PillarsForm";
 import { ProjectSettingsForm } from "./ProjectSettingsForm";
+import { WixForm } from "./WixForm";
 
 export const metadata: Metadata = { title: "Project settings" };
 
@@ -25,7 +38,7 @@ export default function ProjectSettingsPage({ params }: PageProps<"/projects/[pr
 async function SettingsContent({ params }: Pick<PageProps<"/projects/[projectId]/settings">, "params">) {
   await requireUser();
   const { projectId } = await params;
-  const [project, clients, pillars] = await Promise.all([getProject(projectId), listClients(), listPillars(projectId)]);
+  const [project, clients, pillars, wix] = await Promise.all([getProject(projectId), listClients(), listPillars(projectId), getWixSettings(projectId)]);
   if (!project) notFound();
   return (
     <div className="app-stack">
@@ -54,6 +67,14 @@ async function SettingsContent({ params }: Pick<PageProps<"/projects/[projectId]
         }
         action={saveDriveFolderAction.bind(null, project.id)}
         removeAction={removeDriveFolderAction.bind(null, project.id)}
+      />
+      <WixForm
+        current={wix ? { ...wix, checkedAt: wix.checkedAt ? formatDateTime(wix.checkedAt) : null } : null}
+        saveAction={saveWixCredentialsAction.bind(null, project.id)}
+        checkAction={checkWixAction.bind(null, project.id)}
+        removeAction={removeWixCredentialsAction.bind(null, project.id)}
+        loadMembersAction={loadWixMembersAction.bind(null, project.id)}
+        chooseMemberAction={chooseWixMemberAction.bind(null, project.id)}
       />
     </div>
   );
