@@ -74,7 +74,8 @@ test("Connections shows the Google connection, the Anthropic check, Trigger.dev 
     await expect(google).toContainText("Last refreshed 21 Oct 2026 at 10:15.");
     await expect(page.getByRole("listitem").filter({ hasText: "Anthropic API" })).toContainText("Not checked");
     await expect(page.getByRole("listitem").filter({ has: page.getByText("Trigger.dev", { exact: true }) })).toContainText("Configured");
-    await expect(page.getByRole("listitem").filter({ hasText: "Wix" })).toContainText("Not connected yet");
+    // γ6: one Wix row per project; a project without credentials shows Not set up.
+    await expect(page.getByRole("listitem").filter({ hasText: "Wix" }).first()).toContainText(/Not set up|No projects yet/);
     await page.screenshot(shot("settings-connections"));
 
     let googleUrl: URL | undefined;

@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { DERIVATIVE_LINES } from "@/config/post-status";
 import { TextAreaField } from "@/components/ui/Field";
 import { checkDerivative, CHANNELS, type DerivativeChannel } from "@/lib/derivative-checks";
 import type { DerivativeActionResult } from "./actions";
@@ -39,15 +40,15 @@ export function DerivativePanel({ channel, latest, versions, postUrl, bannedPhra
   const writing = latest?.status === "writing" && !latest.stale;
   const checks = useMemo(() => (text ? checkDerivative(text, channel, { bannedPhrases, postUrl }) : null), [text, channel, bannedPhrases, postUrl]);
   const dirty = text.trim() !== saved.trim();
-  const badge = writing
-    ? { tone: "brand" as const, label: "Writing" }
+  const badge: { tone: "brand" | "danger" | "neutral" | "warning" | "success"; label: string } = writing
+    ? DERIVATIVE_LINES.writing
     : latest?.status === "failed" || latest?.stale
-      ? { tone: "danger" as const, label: "Not written" }
+      ? DERIVATIVE_LINES.notWritten
       : !latest
-        ? { tone: "neutral" as const, label: "Not generated yet" }
+        ? DERIVATIVE_LINES.notGenerated
         : checks && !checks.passed
-          ? { tone: "warning" as const, label: `${checks.issues.length} to check` }
-          : { tone: "success" as const, label: "Ready to copy" };
+          ? { tone: "warning", label: `${checks.issues.length} to check` }
+          : DERIVATIVE_LINES.ready;
 
   const copy = async (value: string, what: string) => {
     try {

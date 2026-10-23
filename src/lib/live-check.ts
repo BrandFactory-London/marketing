@@ -84,7 +84,7 @@ export type LiveCheckDeps = {
 export type LiveCheckResult = { confirmed: boolean; attempts: number; lastStatus: number | null; finalUrl: string | null; reason: string | null };
 
 // Runs in the confirm-live task. Confirms the post (Published, with its live URL) or leaves it Approved with
-// "Not confirmed live" and the last thing the page said.
+// the not-confirmed line (PUBLISH_LINES) and the last thing the page said.
 export async function runLiveCheck(publicationId: string, deps: LiveCheckDeps = {}): Promise<LiveCheckResult> {
   const db = deps.db ?? getDb();
   const fetchImpl = deps.fetchImpl ?? fetch;

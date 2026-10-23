@@ -1,6 +1,6 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { expect, query, test, resetDomain } from "./fixtures";
+import { expect, query, test, resetDomain, TEST_EMAIL } from "./fixtures";
 
 // γ2.3: the project page. The sitemap import reads a small site served by this test on localhost, so the
 // real import code runs end to end without reaching the internet.
@@ -150,6 +150,9 @@ test("settings save the project, and the change shows on Projects", async ({ pag
 
 test("the Drive folder is checked before it is saved", async ({ page, signedIn }) => {
   void signedIn;
+  // No stored Google connection, whatever ran before (the γ1 Drive proof spec used to clear it).
+  const [user] = await query<{ id: string }>("select id from users where email = $1", [TEST_EMAIL]);
+  await query("delete from google_tokens where user_id = $1", [user.id]);
   await page.goto(`/projects/${projectId}/settings`);
   const field = page.getByRole("textbox", { name: "Folder link or ID" });
   await expect(page.getByText("No folder set yet.")).toBeVisible();

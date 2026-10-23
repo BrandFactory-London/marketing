@@ -243,13 +243,13 @@ test("GMB and LinkedIn copy: generate, live checks on edits, save as a version, 
 test("the Publish card and Wix settings fit a 390px phone", async ({ page, signedIn }) => {
   void signedIn;
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const [name, path] of [
-    ["g6-mobile-publish", `/posts/${postIds[1]}`],
-    ["g6-mobile-published", `/posts/${postIds[0]}`],
-    ["g6-mobile-wix-settings", `/projects/${projectId}/settings`],
+  for (const [name, path, heading] of [
+    ["g6-mobile-publish", `/posts/${postIds[1]}`, "Publish"],
+    ["g6-mobile-published", `/posts/${postIds[0]}`, "Derivatives"],
+    ["g6-mobile-wix-settings", `/projects/${projectId}/settings`, "Wix Blog publishing"],
   ] as const) {
     await page.goto(path);
-    await expect(page.locator("main")).toBeVisible();
+    await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
     const sideways = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(sideways, name).toBeLessThanOrEqual(0);
     await page.screenshot(shot(name));

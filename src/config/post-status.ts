@@ -75,6 +75,14 @@ export const PUBLISH_LINES = {
   failed: { label: "Publish failed", tone: "danger" },
 } as const;
 
+// A GMB or LinkedIn version's display lines (γ6 orientation Q6). Derivatives are not posts, so these are not statuses.
+export const DERIVATIVE_LINES = {
+  notGenerated: { label: "Not generated yet", tone: "neutral" },
+  writing: { label: GENERATION_STEPS.writer, tone: "brand" },
+  notWritten: { label: "Not written", tone: "danger" },
+  ready: { label: "Ready to copy", tone: "success" },
+} as const;
+
 // Statuses at which a post has a draft to open (γ4 draft view).
 export const DRAFTED_STATUSES: readonly PostStatus[] = ["in_review", "flagged", "approved", "published", "rejected"];
 

@@ -8,13 +8,16 @@
 //   ... scripts/real-run.ts regenerate <postId> "<note>"     (γ5: Regenerate with a note)
 //   ... scripts/real-run.ts approve <postId>                  (γ5: removes placeholder sentences, approves, proposes rules)
 //   ... scripts/real-run.ts post-report <postId>
+//   ... scripts/real-run.ts derivative <postId> gmb|linkedin  (γ6: GMB or LinkedIn copy)
+//   ... scripts/real-run.ts facts <postId>                    (γ6: fact suggestions from the post's regenerate notes)
 //
 // It talks to Neon over the WebSocket driver, as scripts/migrate-lib.ts does (port 5432 is blocked from
 // Claude's cloud environment), and refuses any database but Neon dev.
 import { devPool, getDb } from "./dev-db-client";
 import { confirmAllSpecs, createBatch, DEFAULT_LENGTH, defaultCta, listBatchableSlots, queueGenerations } from "@/lib/batches";
 import { findPlaceholders } from "@/lib/checks";
-import { startGeneration, startRuleCandidates, startSpec } from "@/lib/jobs";
+import { startDerivative, startFacts, startGeneration, startRuleCandidates, startSpec } from "@/lib/jobs";
+import { isChannel, queueDerivative, setDerivativeRun } from "@/lib/derivatives";
 import { approvePost, currentText, queueRegeneration } from "@/lib/review";
 import { getCurrentKnowledge } from "@/lib/knowledge";
 import { getModelSettings } from "@/lib/settings";
@@ -127,10 +130,33 @@ async function postReport(postId: string) {
     [postId],
   );
   for (const call of calls) console.log(Object.values(call).join(" | "));
-  const { rows: candidates } = await devPool().query("select tier, section, text, status from rule_candidates where post_id = $1 order by created_at", [postId]);
+  const { rows: candidates } = await devPool().query("select kind, tier, section, text, status from rule_candidates where post_id = $1 order by created_at", [postId]);
   console.table(candidates);
   const { rows: post } = await devPool().query("select status, slug from posts where id = $1", [postId]);
   console.table(post);
+}
+
+async function derivative(postId: string, channel: string) {
+  if (!isChannel(channel)) throw new Error("Channel is gmb or linkedin.");
+  const id = await queueDerivative(postId, channel, null, db);
+  const run = await startDerivative(id);
+  await setDerivativeRun(id, run, db);
+  console.log(`Derivative ${id} (${channel}): run ${run}`);
+}
+
+// The regenerate notes already on the post, each read for facts as the regenerate action does.
+async function facts(postId: string) {
+  const { rows } = await devPool().query("select id, note from review_events where post_id = $1 and action = 'regenerate' order by created_at", [postId]);
+  for (const row of rows) console.log(`Facts for "${row.note}": run ${await startFacts(row.id)}`);
+}
+
+async function derivativeReport(postId: string) {
+  const { rows } = await devPool().query(
+    `select d.channel, d.version, d.status, d.source, length(d.body) as characters, d.checks->'passed' as passed, d.checks->'issues' as issues, d.error, d.body
+       from derivatives d where d.post_id = $1 order by d.channel, d.version`,
+    [postId],
+  );
+  for (const row of rows) console.log(JSON.stringify(row, null, 2));
 }
 
 async function main() {
@@ -143,6 +169,9 @@ async function main() {
     else if (command === "regenerate" && id && note) await regenerate(id, note);
     else if (command === "approve" && id) await approve(id);
     else if (command === "post-report" && id) await postReport(id);
+    else if (command === "derivative" && id && note) await derivative(id, note);
+    else if (command === "facts" && id) await facts(id);
+    else if (command === "derivative-report" && id) await derivativeReport(id);
     else throw new Error("Usage: real-run.ts start | generate <batchId> | report <batchId> | regenerate <postId> <note> | approve <postId> | post-report <postId>");
   } finally {
     await devPool().end();
