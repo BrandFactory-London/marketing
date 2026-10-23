@@ -378,3 +378,13 @@ Nothing runs against Neon dev, the Anthropic API or Wix until this is approved.
 ---
 
 **Stopping here. No code until you approve.**
+
+## Approval (Amir, 23 Oct 2026)
+
+Approved, with these amendments:
+- **Q3:** covers over 10 MB are not refused. They are downscaled before upload to about 2,400px on the long edge, as JPEG, so they fit the single upload URL. Covers already under 10 MB upload unchanged.
+- **Q5:** the live check follows redirects (www and non-www).
+- **Q6:** the GMB check also fails on a phone number in the text. The prompt says to leave contact details to the call button.
+- **Q9:** option (a). Read-only Query Tags and List Members on the Migss site through the Wix connector. No writes to Wix from this session.
+
+Everything else as proposed, including the smaller decisions.
