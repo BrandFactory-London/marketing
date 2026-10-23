@@ -40,6 +40,8 @@ export default defineConfig({
         GOOGLE_API_URL: `http://localhost:${googlePort}`,
         // Never the real Wix.
         WIX_API_URL: `http://localhost:${wixPort}`,
+        // γ8: the app's own address in calendar event links.
+        APP_URL: `http://localhost:${port}`,
       },
     },
   ],

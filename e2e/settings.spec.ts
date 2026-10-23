@@ -67,7 +67,7 @@ test("Connections shows the Google connection, the Anthropic check, Trigger.dev 
   const [user] = await query<{ id: string }>("select id from users where email = $1", [TEST_EMAIL]);
   await query("delete from google_tokens where user_id = $1", [user.id]);
   await page.goto("/settings/connections");
-  const google = page.getByRole("listitem").filter({ hasText: "Google" });
+  const google = page.getByRole("listitem").filter({ has: page.getByText("Google", { exact: true }) });
   await expect(google).toContainText("Not connected");
   await expect(google).toContainText("No Google connection is stored.");
 
@@ -95,6 +95,8 @@ test("Connections shows the Google connection, the Anthropic check, Trigger.dev 
     await expect.poll(() => googleUrl?.pathname).toContain("/o/oauth2");
     expect(googleUrl!.searchParams.get("prompt")).toBe("consent");
     expect(googleUrl!.searchParams.get("scope")).toContain("drive.readonly");
+    // γ8: reconnecting is also how Amir grants Google Calendar.
+    expect(googleUrl!.searchParams.get("scope")).toContain("calendar.events.owned");
   } finally {
     await query("delete from google_tokens where user_id = $1", [user.id]);
   }

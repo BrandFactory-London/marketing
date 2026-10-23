@@ -21,6 +21,9 @@ export async function query<T extends object = Record<string, unknown>>(text: st
 
 // Empties the domain tables, children first.
 export async function resetDomain() {
+  // γ8: the calendar choice and any queued event deletions.
+  await query("delete from calendar_deletions");
+  await query("update app_settings set calendar_user_id = null, calendar_id = null, calendar_name = null, calendar_synced_at = null, calendar_error = null, calendar_error_at = null");
   // Candidates refer to derivatives (γ7), so they go first.
   await query("delete from rule_candidates");
   for (const table of ["publish_events", "post_publications", "derivatives"]) await query(`delete from ${table}`);

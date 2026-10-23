@@ -115,7 +115,7 @@ async function CalendarRow() {
       ? { tone: "warning" as const, label: "No calendar chosen" }
       : state.error
         ? { tone: "danger" as const, label: "Not fully synced" }
-        : { tone: "success" as const, label: "Syncing" };
+        : { tone: "success" as const, label: "In sync" };
   return (
     <li className="app-connection">
       <span className="app-stack" style={{ gap: 4 }}>

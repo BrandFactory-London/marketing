@@ -46,7 +46,7 @@ test.describe("signed out", () => {
     await expect(page).toHaveURL(/\/signin$/);
   });
 
-  test("Sign in with Google asks for Drive read access with offline access", async ({ page }) => {
+  test("Sign in with Google asks for Drive read access and the two Calendar scopes, with offline access", async ({ page }) => {
     let googleUrl: URL | undefined;
     await page.route("https://accounts.google.com/**", (route) => {
       googleUrl = new URL(route.request().url());
@@ -56,7 +56,7 @@ test.describe("signed out", () => {
     await page.getByRole("button", { name: "Sign in with Google" }).click();
     await expect.poll(() => googleUrl?.pathname).toContain("/o/oauth2");
     expect(googleUrl!.searchParams.get("scope")).toBe(
-      "openid email profile https://www.googleapis.com/auth/drive.readonly",
+      "openid email profile https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/calendar.calendarlist.readonly https://www.googleapis.com/auth/calendar.events.owned",
     );
     expect(googleUrl!.searchParams.get("access_type")).toBe("offline");
     expect(googleUrl!.searchParams.get("prompt")).toBe("consent");
