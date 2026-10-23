@@ -365,3 +365,13 @@ Nothing runs against Neon dev or the Anthropic API until this is approved.
 ---
 
 **Stopping here. No code until you approve.**
+
+## Approval (Amir, 23 Oct 2026)
+
+Approved for A1 to A4, with these amendments:
+- **Q3:** Run 1 for Migss ends on 17 Nov 2026, the last post with a topic. The migration deletes Run 1's empty future slots after that date, with their calendar events, so Run 2 can start on 18 Nov; Amir approved deleting those empty placeholders. For other projects, Run 1 ends at the last post with a topic, or at the latest slot if none has one.
+- **Q5:** categories are a per-project list, like pillars, seeded for Migss with Finance, Guarantee, Cost and Technical, plus Other for every project. The planner and session B's gap grid read the project's list.
+- **Q7:** the A4 gate confirms the daily schedule and polling fit Trigger.dev's free plan limits; if they do not, say so before building.
+- **Instagram** stays out (Phase 3). **Positioning** waits for session B. **One branch** for all four checkpoints.
+
+Everything else as proposed, including the smaller decisions.
