@@ -137,7 +137,9 @@ test("editing the run to Mid regenerates only the empty, unmoved slots", async (
   await form.getByRole("button", { name: "Save run" }).click();
   await expect(form).toHaveCount(0);
   const after = await slots();
-  expect(after).toHaveLength(before.length);
+  // The amount stays, but a month has fewer Tuesdays and Thursdays: the two kept slots plus every free one.
+  const [run] = await query<{ ends_on: string }>("select to_char(ends_on, 'YYYY-MM-DD') as ends_on from runs where project_id = $1", [projectId]);
+  expect(after).toHaveLength(Math.min(before.length, 2 + matching(today, run.ends_on, [2, 4]).length));
   expect(after.find((row) => row.topic === "Bathroom renovation cost in Essex")).toBeTruthy();
   expect(after.find((row) => row.id === moved.id)).toMatchObject({ slot_date: moved.slot_date });
   const fresh = after.filter((row) => row.topic === null && row.id !== moved.id);
