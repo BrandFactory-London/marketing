@@ -3,7 +3,9 @@
 import { refresh } from "next/cache";
 import type { CheckResult } from "@/lib/checks";
 import { closeStalledGeneration, markNotStarted } from "@/lib/batches";
-import { startGeneration, startRuleCandidates } from "@/lib/jobs";
+import { startGeneration, startLiveCheck, startRuleCandidates } from "@/lib/jobs";
+import { publishPost, PublishError, restartLiveCheck } from "@/lib/publish";
+import { PUBLISH_STEP_LABELS } from "@/lib/publish-steps";
 import { approvePost, parsePostText, queueRegeneration, rejectPost, reopenPost, ReviewError, savePublishingDetails, saveVersion } from "@/lib/review";
 import { browseCovers, chooseCover, CoverError, type CoverFolderView } from "@/lib/covers";
 import { getDb } from "@/db/client";
@@ -149,4 +151,34 @@ export async function chooseCoverAction(postId: string, fileId: string): Promise
   }
   refresh();
   return { ok: true, message: "Cover chosen." };
+}
+
+// ---- Publish (γ6 orientation Q3 to Q5) ----
+
+export type PublishActionResult = { ok: true; message: string } | { ok: false; message: string };
+
+export async function publishAction(postId: string): Promise<PublishActionResult> {
+  const user = await requireUser();
+  try {
+    const outcome = await publishPost(postId, user.id, { startLiveCheck });
+    refresh();
+    return outcome.ok
+      ? { ok: true, message: "Wix accepted the post. Checking the live page now." }
+      : { ok: false, message: `Publishing stopped at the ${PUBLISH_STEP_LABELS[outcome.step ?? "cover"].toLowerCase()} step: ${outcome.message}` };
+  } catch (error) {
+    if (error instanceof PublishError) return { ok: false, message: error.message };
+    throw error;
+  }
+}
+
+export async function checkAgainAction(postId: string): Promise<PublishActionResult> {
+  await requireUser();
+  try {
+    await restartLiveCheck(postId, { startLiveCheck });
+    refresh();
+    return { ok: true, message: "Checking the live page again." };
+  } catch (error) {
+    if (error instanceof PublishError) return { ok: false, message: error.message };
+    throw error;
+  }
 }

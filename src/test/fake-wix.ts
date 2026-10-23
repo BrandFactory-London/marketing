@@ -28,8 +28,8 @@ export function fakeWix(options: { siteBase?: string } = {}) {
     failures: new Map<FakeRoute, { status: number; message: string; times: number }>(),
     // Lose the reply to the next draft create after Wix has made it (γ6 orientation Q4).
     loseCreateReply: false,
-    // Wix adds a suffix rather than using a slug it already holds.
-    suffixSlugs: false,
+    // Wix publishes at another slug than the draft's seoSlug (the docs do not say whether it ever does).
+    publishSlug: null as string | null,
   };
   let counter = 0;
   const nextId = (prefix: string) => `${prefix}-${++counter}`;
@@ -118,8 +118,7 @@ export function fakeWix(options: { siteBase?: string } = {}) {
       const draft = state.drafts.find((item) => item.id === publish[1]);
       if (!draft) return reply(404, { message: "Draft post not found" });
       if (!draft.postId) {
-        let slug = draft.seoSlug;
-        if (state.suffixSlugs) while (state.posts.some((post) => post.slug === slug)) slug = `${slug}-1`;
+        const slug = state.publishSlug ?? draft.seoSlug;
         const post = { id: nextId("post"), title: draft.title, slug };
         state.posts.push(post);
         draft.postId = post.id;

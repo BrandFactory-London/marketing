@@ -66,6 +66,15 @@ export const REVIEW_LINES = {
   needsInput: { label: "Needs your input", tone: "warning" },
 } as const;
 
+// Publishing's display lines (γ6 orientation Q4, Q5). A post Wix has accepted stays approved until the live check
+// sees it; only then is it published.
+export const PUBLISH_LINES = {
+  publishing: { label: "Publishing", tone: "brand" },
+  checking: { label: "Checking the live page", tone: "brand" },
+  notConfirmed: { label: "Not confirmed live", tone: "warning" },
+  failed: { label: "Publish failed", tone: "danger" },
+} as const;
+
 // Statuses at which a post has a draft to open (γ4 draft view).
 export const DRAFTED_STATUSES: readonly PostStatus[] = ["in_review", "flagged", "approved", "published", "rejected"];
 

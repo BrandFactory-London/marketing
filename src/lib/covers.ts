@@ -5,7 +5,7 @@ import { posts } from "@/db/schema";
 import { getFileMeta, listCoverPage, pathUnder, thumbnailUrl, DriveError, type DriveFile } from "./drive";
 import { getGoogleAccessToken, GoogleReconnectRequired } from "./google-tokens";
 import { getProject } from "./projects";
-import { DETAILS_STATUSES, ReviewError } from "./review";
+import { DETAILS_STATUSES, ReviewError, WIX_HAS_IT, wixHasDraft } from "./review";
 import { isUuid } from "./validation";
 
 // The cover picker (decision 18, backlog 11, γ5 orientation Q6): browse the project's Drive folder and its
@@ -70,6 +70,7 @@ export async function chooseCover(userId: string, postId: string, fileId: string
   const [post] = await db.select().from(posts).where(eq(posts.id, postId));
   if (!post) throw new ReviewError("This post no longer exists.");
   if (!DETAILS_STATUSES.includes(post.status)) throw new ReviewError("The cover can be chosen in Review or once approved, before publishing.");
+  if (await wixHasDraft(db, postId)) throw new ReviewError(WIX_HAS_IT);
   const root = await projectFolder(post.projectId, db);
   let found: Awaited<ReturnType<typeof pathUnder>>;
   try {

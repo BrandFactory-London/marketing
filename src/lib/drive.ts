@@ -183,3 +183,28 @@ export function thumbnailUrl(link: string, size: number): string | null {
   if (!google && !standIn) return null;
   return url.toString().replace(/=s\d+(-[a-z]+)?$/, "") + `=s${size}`;
 }
+
+// ---- γ6 publish: the chosen cover's bytes (decision 18) ----
+
+// A photo larger than this is not downloaded at all; covers this size are downscaled before upload anyway.
+export const MAX_DOWNLOAD_BYTES = 80 * 1024 * 1024;
+
+export async function downloadFile(
+  accessToken: string,
+  fileId: string,
+  options: { fetchImpl?: typeof fetch; maxBytes?: number } = {},
+): Promise<{ bytes: Uint8Array; mimeType: string }> {
+  if (!FOLDER_ID.test(fileId)) throw new DriveError("The Drive file ID is not valid.", 400);
+  const params = new URLSearchParams({ alt: "media", supportsAllDrives: "true" });
+  const response = await (options.fetchImpl ?? fetch)(`${googleApiBase()}/drive/v3/files/${encodeURIComponent(fileId)}?${params}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!response.ok) throw new DriveError(MESSAGES[response.status] ?? `Drive returned status ${response.status}.`, response.status);
+  const max = options.maxBytes ?? MAX_DOWNLOAD_BYTES;
+  const declared = Number(response.headers.get("content-length") ?? 0);
+  if (declared > max) throw new DriveError(`This photo is ${Math.round(declared / 1_000_000)} MB, too large to download. Choose a smaller copy.`, 413);
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.byteLength > max) throw new DriveError(`This photo is ${Math.round(bytes.byteLength / 1_000_000)} MB, too large to download. Choose a smaller copy.`, 413);
+  return { bytes, mimeType: (response.headers.get("content-type") ?? "").split(";")[0].trim() };
+}

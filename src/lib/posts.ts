@@ -20,6 +20,8 @@ export type SlotView = {
   cadenceDate: string | null;
   topic: string | null;
   batchId: string | null;
+  // Set once the live check confirms the post (γ6).
+  liveUrl: string | null;
 };
 
 const view = {
@@ -33,6 +35,7 @@ const view = {
   cadenceDate: posts.cadenceDate,
   topic: posts.topic,
   batchId: posts.batchId,
+  liveUrl: posts.liveUrl,
 };
 
 function select(db: Database, where: SQL | undefined) {

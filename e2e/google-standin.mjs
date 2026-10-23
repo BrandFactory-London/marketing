@@ -38,6 +38,11 @@ const server = createServer((request, response) => {
   if (one) {
     const file = files.find((item) => item.id === decodeURIComponent(one[1]));
     if (!file) return json(404, { error: "not found" });
+    // γ6 publish downloads the chosen cover.
+    if (url.searchParams.get("alt") === "media") {
+      response.writeHead(200, { "content-type": "image/svg+xml" });
+      return response.end(tile(file.id));
+    }
     return json(200, { ...file, thumbnailLink: file.mimeType.startsWith("image/") ? `${origin}/thumb/${file.id}=s220` : undefined });
   }
   if (url.pathname === "/drive/v3/files") {

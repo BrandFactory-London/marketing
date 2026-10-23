@@ -123,14 +123,14 @@ function MemberPicker({
         Author: {current.memberName ? <strong>{current.memberName}</strong> : <span className="app-muted">not chosen yet. Posts cannot be published until it is.</span>}
       </p>
       {state.members ? (
-        <div className="app-row">
+        <div className="app-row" style={{ alignItems: "end" }}>
           <SelectField
             label="Publish posts as"
             value={memberId}
             onChange={(event) => setMemberId(event.target.value)}
             options={[{ value: "", label: "Choose a member" }, ...state.members.map((member) => ({ value: member.id, label: member.nickname }))]}
           />
-          <Button size="sm" disabled={pending || !memberId} onClick={() => startTransition(async () => setState({ ...state, ...(await chooseAction(memberId)) }))}>
+          <Button disabled={pending || !memberId} onClick={() => startTransition(async () => setState({ ...state, ...(await chooseAction(memberId)) }))}>
             Save author
           </Button>
         </div>

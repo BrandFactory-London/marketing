@@ -115,6 +115,14 @@ async function PostsContent({ searchParams }: Pick<PageProps<"/posts">, "searchP
                     <td data-label="Date">{longDate(post.slotDate)}</td>
                     <td data-label="Status">
                       <SlotStatus slot={post} today={today} />
+                      {post.liveUrl ? (
+                        <>
+                          <br />
+                          <a href={post.liveUrl} target="_blank" rel="noreferrer" className="small">
+                            View live post
+                          </a>
+                        </>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
