@@ -3,7 +3,8 @@
 import { refresh } from "next/cache";
 import type { CheckResult } from "@/lib/checks";
 import { closeStalledGeneration, markNotStarted } from "@/lib/batches";
-import { startGeneration, startLiveCheck, startRuleCandidates } from "@/lib/jobs";
+import { startDerivative, startGeneration, startLiveCheck, startRuleCandidates } from "@/lib/jobs";
+import { DerivativeError, failDerivative, isChannel, queueDerivative, saveDerivativeEdit, setDerivativeRun } from "@/lib/derivatives";
 import { publishPost, PublishError, restartLiveCheck } from "@/lib/publish";
 import { PUBLISH_STEP_LABELS } from "@/lib/publish-steps";
 import { approvePost, parsePostText, queueRegeneration, rejectPost, reopenPost, ReviewError, savePublishingDetails, saveVersion } from "@/lib/review";
@@ -181,4 +182,43 @@ export async function checkAgainAction(postId: string): Promise<PublishActionRes
     if (error instanceof PublishError) return { ok: false, message: error.message };
     throw error;
   }
+}
+
+// ---- GMB and LinkedIn copy (γ6 orientation Q6) ----
+
+export type DerivativeActionResult = { ok: true; message: string } | { ok: false; message: string };
+
+export async function generateDerivativeAction(postId: string, channel: string, note: string | null): Promise<DerivativeActionResult> {
+  await requireUser();
+  if (!isChannel(channel)) return { ok: false, message: "Unknown channel." };
+  let derivativeId: string;
+  try {
+    derivativeId = await queueDerivative(postId, channel, note);
+  } catch (error) {
+    if (error instanceof DerivativeError) return { ok: false, message: error.message };
+    throw error;
+  }
+  try {
+    await setDerivativeRun(derivativeId, await startDerivative(derivativeId));
+  } catch (error) {
+    console.error("Could not start the derivative run:", error);
+    await failDerivative(derivativeId, new Error("Trigger.dev could not be reached, so the run did not start."));
+    refresh();
+    return { ok: false, message: "Trigger.dev could not be reached, so the run did not start." };
+  }
+  refresh();
+  return { ok: true, message: "Writing." };
+}
+
+export async function saveDerivativeAction(postId: string, channel: string, body: string): Promise<DerivativeActionResult> {
+  await requireUser();
+  if (!isChannel(channel)) return { ok: false, message: "Unknown channel." };
+  try {
+    await saveDerivativeEdit(postId, channel, body);
+  } catch (error) {
+    if (error instanceof DerivativeError) return { ok: false, message: error.message };
+    throw error;
+  }
+  refresh();
+  return { ok: true, message: "Edit saved." };
 }

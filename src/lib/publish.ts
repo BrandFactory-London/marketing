@@ -3,6 +3,7 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 import { getDb, type Database, type Executor } from "@/db/client";
 import { postPublications, posts, projectPillars, projects, projectWix, publishEvents, type PublishStep } from "@/db/schema";
 import { prepareCover } from "./cover-image";
+import { plannedUrl } from "./publish-url";
 import { DriveError, downloadFile, pathUnder } from "./drive";
 import { getGoogleAccessToken, GoogleReconnectRequired } from "./google-tokens";
 import { currentText } from "./review";
@@ -112,10 +113,7 @@ export async function publishPlan(postId: string, db: Database = getDb()): Promi
   };
 }
 
-// The Migss frontend serves every Wix Blog post at /blog/<slug> (the scope's frontend reading).
-export function plannedUrl(siteUrl: string, slug: string): string {
-  return new URL(`/blog/${slug}`, siteUrl).toString();
-}
+export { plannedUrl };
 
 // ---- Publish post ----
 

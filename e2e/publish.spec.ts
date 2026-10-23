@@ -207,6 +207,39 @@ test("a failed step names itself and Try again resumes without a second post", a
   expect(wix.files).toHaveLength(2);
 });
 
+test("GMB and LinkedIn copy: generate, live checks on edits, save as a version, copy", async ({ page, context, signedIn }) => {
+  void signedIn;
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await fetch(`${TRIGGER}/__reset`, { method: "POST" });
+  await page.goto(`/posts/${postIds[0]}`);
+  const card = page.getByRole("region", { name: "Derivatives" });
+  const gmb = card.getByRole("region", { name: "GMB post" });
+  await expect(gmb.getByText("Not generated yet.")).toBeVisible();
+  await gmb.getByRole("button", { name: "Generate GMB post" }).click();
+  await expect(gmb.getByText("Writing the GMB post from the approved post")).toBeVisible();
+  const runs = (await triggered()).filter((run) => run.task === "write-derivative");
+  expect(runs).toHaveLength(1);
+  await page.screenshot(shot("g6-derivative-writing"));
+
+  // The task writes a version with a phone number in it.
+  const text = "A wet room stays watertight when the seals are looked after. Check the silicone around the tray every month. Call 020 8500 1234 to book.";
+  await query("update derivatives set status = 'ready', body = $2, checks = '{}' where id = $1", [runs[0].payload.derivativeId, text]);
+  await expect(gmb.getByLabel("GMB post text")).toHaveValue(text, { timeout: 10_000 });
+  await expect(gmb.getByText("Google rejects posts with a phone number in the text.", { exact: false })).toBeVisible();
+  await expect(gmb.getByText("1 to check")).toBeVisible();
+  await expect(gmb.getByText("Add the post's link as the \"Learn more\" button: https://www.migssinteriors.com/blog/wet-room-maintenance-week-by-week")).toBeVisible();
+  await page.screenshot(shot("g6-derivative-warning"));
+
+  await gmb.getByLabel("GMB post text").fill(text.replace(" Call 020 8500 1234 to book.", " Read the full guide for a weekly routine."));
+  await expect(gmb.getByText("Ready to copy")).toBeVisible();
+  await gmb.getByRole("button", { name: "Save edit" }).click();
+  await expect(gmb.getByText("version 2 of 2, your edit", { exact: false })).toBeVisible();
+  await gmb.getByRole("button", { name: "Copy", exact: true }).click();
+  await expect(gmb.getByRole("button", { name: "Copied" })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain("Read the full guide for a weekly routine.");
+  await page.screenshot(shot("g6-derivatives"));
+});
+
 test("the Publish card and Wix settings fit a 390px phone", async ({ page, signedIn }) => {
   void signedIn;
   await page.setViewportSize({ width: 390, height: 844 });

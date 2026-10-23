@@ -24,6 +24,7 @@ import { CoverPicker } from "./CoverPicker";
 import { DetailsForm, RegenerateForm, ReopenButton, StopWaitingButton } from "./PostControls";
 import { ReviewEditor } from "./ReviewEditor";
 import { PublishCard } from "./PublishCard";
+import { DerivativesCard } from "./DerivativesCard";
 import { getPublication } from "@/lib/publish";
 
 export const metadata: Metadata = { title: "Review a post" };
@@ -144,7 +145,10 @@ async function Post({ params }: Pick<PageProps<"/posts/[postId]">, "params">) {
         </div>
       ) : null}
       {post.status === "approved" || post.status === "published" ? (
-        <PublishCard postId={post.id} projectId={project.id} status={post.status} publication={publication} clientName={project.clientName} />
+        <>
+          <PublishCard postId={post.id} projectId={project.id} status={post.status} publication={publication} clientName={project.clientName} />
+          <DerivativesCard postId={post.id} projectId={project.id} siteUrl={project.siteUrl} post={{ liveUrl: post.liveUrl, slug: post.slug }} />
+        </>
       ) : null}
       {post.status === "rejected" ? (
         <div className="bfm-card app-stack" role="status">
