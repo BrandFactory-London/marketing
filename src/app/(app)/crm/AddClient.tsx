@@ -13,7 +13,7 @@ export function CrmHeader() {
   return (
     <>
       <PageHeader
-        eyebrow="Clients and the marketing packages their projects run on."
+        eyebrow="Clients, their projects and the runs they are on."
         title="CRM"
         actions={
           <Button onClick={() => setOpen((value) => !value)} aria-expanded={open}>

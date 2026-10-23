@@ -156,7 +156,8 @@ test.describe("CRM, client and projects", () => {
     const table = page.getByRole("table");
     await expect(table.getByRole("row", { name: /Migss Interiors/ })).toContainText("Migss Interiors website: No run set up");
     await expect(table.getByRole("row", { name: /Migss Interiors/ })).toContainText("Active");
-    await expect(page.getByText("1 project: Migss Interiors website")).toBeVisible();
+    // No run yet, so no preset counts it.
+    await expect(page.getByRole("region", { name: "Run presets" }).getByText("No current runs")).toHaveCount(3);
     await page.screenshot({ path: "e2e/screenshots/crm.png", fullPage: true, animations: "disabled" });
 
     await page.goto("/crm");

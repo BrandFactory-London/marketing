@@ -60,7 +60,7 @@ function Presets({ projects }: { projects: ProjectWithClient[] }) {
               <p className="bfm-card-title">{item.label}</p>
               <p className="display app-package-count">{item.seoWeekdays.length}</p>
               <p className="small app-muted">
-                SEO {item.seoWeekdays.length === 1 ? "post" : "posts"} a week on {item.seoWeekdays.map((day) => WEEKDAY_NAMES[day]).join(" and ")}, each with GBP,
+                SEO {item.seoWeekdays.length === 1 ? "post" : "posts"} a week on {new Intl.ListFormat("en-GB", { type: "conjunction" }).format(item.seoWeekdays.map((day) => WEEKDAY_NAMES[day]))}, each with GBP,
                 LinkedIn, Facebook and Pinterest posts the day after.
               </p>
               <p className="small">

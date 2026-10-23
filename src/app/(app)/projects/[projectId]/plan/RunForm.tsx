@@ -32,8 +32,9 @@ type Props = {
   onCancel?: () => void;
 };
 
+// "Fri 23 Oct 2026", as longDate in src/lib/dates.ts writes it.
 function longDay(iso: string): string {
-  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso}T00:00:00Z`));
+  return new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso}T00:00:00Z`)).replace(",", "");
 }
 
 // What the run will hold, worked out with the same engine the server uses (orientation Q4).
