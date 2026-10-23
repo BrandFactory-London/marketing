@@ -181,8 +181,8 @@ test("publishing details save a slug and pillar, and Approve locks the text unti
   const [event] = await query<{ action: string; warnings: { check: string }[] }>("select action, warnings from review_events where post_id = $1", [postIds[0]]);
   expect(event.action).toBe("approve");
   expect(event.warnings.map((item) => item.check)).toEqual(["examples"]);
-  // Amir filled the placeholders, so the approval has edits and starts the rule candidates task.
-  expect((await triggered()).at(-1)).toMatchObject({ task: "propose-rules" });
+  // Amir filled the placeholders, so the approval has edits and starts the candidates task.
+  expect((await triggered()).at(-1)).toMatchObject({ task: "propose-candidates" });
   await expect(page.getByRole("link", { name: "Settings, BrandFactory rules" })).toBeVisible();
   await page.screenshot(shot("g5-approved"));
 
@@ -201,6 +201,9 @@ test("Reject needs a note and keeps it with the post", async ({ page, signedIn }
   await form.getByRole("button", { name: "Reject post" }).click();
   await expect(page.getByText("Rejected: Wrong angle for this month.")).toBeVisible();
   expect((await query<{ status: string }>("select status from posts where id = $1", [postIds[1]]))[0].status).toBe("rejected");
+  // γ7: the note is read for rules and facts straight away.
+  const [reject] = await query<{ id: string }>("select id from review_events where post_id = $1 and action = 'reject'", [postIds[1]]);
+  expect((await triggered()).at(-1)).toMatchObject({ task: "propose-candidates", payload: { reviewEventId: reject.id } });
 });
 
 test("Regenerate with a note saves the text, starts a run, follows it, and costs it as its own run", async ({ page, signedIn }) => {
@@ -212,8 +215,8 @@ test("Regenerate with a note saves the text, starts a run, follows it, and costs
   await page.getByRole("button", { name: "Regenerate post" }).click();
   await expect(page.getByText('the writer is working on a new version for your note "Say how often to clear the drain".', { exact: false })).toBeVisible();
   const runs = await triggered();
-  // γ6: the note is also read for facts, beside the regenerate (γ6 orientation Q7).
-  expect(runs.slice(-2).map((run) => run.task)).toEqual(["generate-post", "propose-facts"]);
+  // γ7: the note is also read for rules and facts, beside the regenerate.
+  expect(runs.slice(-2).map((run) => run.task)).toEqual(["generate-post", "propose-candidates"]);
   const [generation] = await query<{ id: string; note: string; base_version_id: string }>(
     "select id, note, base_version_id from post_generations where post_id = $1 and note is not null order by created_at desc limit 1",
     [postIds[0]],
@@ -247,7 +250,7 @@ test("Regenerate with a note saves the text, starts a run, follows it, and costs
 test("rule candidates are triaged in Settings: edit, move, accept into a new version, or dismiss", async ({ page, signedIn }) => {
   void signedIn;
   const [{ id: eventId }] = await query<{ id: string }>("select id from review_events where post_id = $1 and action = 'approve' order by created_at limit 1", [postIds[0]]);
-  // The propose-rules task's part.
+  // The propose-candidates task's part.
   await query(
     `insert into rule_candidates (review_event_id, post_id, tier, section, text, before, after, reason) values
        ($1, $2, 'client', 'business_facts', 'Wet rooms are a Migss speciality.', '[CONFIRM: Migss wet room specialism wording]', 'Wet rooms are our speciality.', 'Amir supplied this fact.'),
@@ -255,8 +258,8 @@ test("rule candidates are triaged in Settings: edit, move, accept into a new ver
     [eventId, postIds[0]],
   );
   await page.goto("/settings/rules");
-  const section = page.getByRole("region", { name: "Rule candidates from your edits" });
-  await expect(section.getByText('From your edit to "Wet room maintenance week by week"')).toHaveCount(2);
+  const section = page.getByRole("region", { name: "Suggestions from your notes and edits" });
+  await expect(section.getByText('From your edits when approving "Wet room maintenance week by week"')).toHaveCount(2);
   await page.screenshot(shot("g5-rule-candidates"));
 
   const fact = section.locator("form", { has: page.getByText("Amir supplied this fact.") });
@@ -270,7 +273,7 @@ test("rule candidates are triaged in Settings: edit, move, accept into a new ver
   expect(client.sections.business_facts).toBe("- Migss specialises in wet rooms.");
   expect(client.sections.examples).toBe("Rushing or skipping a stage hides problems behind finished tiles.");
 
-  // γ6: a fact from a regenerate note is triaged the same way, with Add fact.
+  // γ6: a fact from a regenerate note is triaged the same way, with Add fact, and always applies to every channel.
   const [{ id: regenerateId }] = await query<{ id: string }>("select id from review_events where post_id = $1 and action = 'regenerate' order by created_at limit 1", [postIds[0]]);
   await query(
     `insert into rule_candidates (review_event_id, post_id, kind, tier, section, text, after, reason) values
@@ -278,12 +281,14 @@ test("rule candidates are triaged in Settings: edit, move, accept into a new ver
     [regenerateId, postIds[0]],
   );
   await page.reload();
-  const noted = section.locator("form", { has: page.getByText('From your note on "Wet room maintenance week by week"') });
+  const noted = section.locator("form", { has: page.getByText('From your regenerate note on "Wet room maintenance week by week"') });
   await expect(noted.getByLabel("Proposed fact")).toHaveValue("Migss gives a 10-year labour guarantee on every install.");
+  await expect(noted.getByLabel("Applies to")).toBeDisabled();
+  await expect(noted.getByText("Facts apply to every channel.")).toBeVisible();
   await expect(noted.getByText("we give a 10-year labour guarantee on every install")).toBeVisible();
   await page.screenshot(shot("g6-fact-candidate"));
   await noted.getByRole("button", { name: "Add fact" }).click();
-  await expect(section.getByText("Migss gives a 10-year labour guarantee on every install.")).toBeVisible();
+  await expect(section.getByText("Added to Client knowledge: Business facts")).toHaveCount(2);
   const [withFact] = await query<{ sections: { business_facts?: string } }>("select sections from knowledge_versions where tier = 'client' order by version desc limit 1");
   expect(withFact.sections.business_facts).toBe("- Migss specialises in wet rooms.\n- Migss gives a 10-year labour guarantee on every install.");
 

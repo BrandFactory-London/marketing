@@ -226,16 +226,18 @@ export async function approvePost(postId: string, input: PostText, db: Database 
   });
 }
 
-export async function rejectPost(postId: string, note: string, db: Database = getDb()): Promise<void> {
+// Returns the reject event, whose note is read for rule and fact candidates straight away (γ7 handoff item 3).
+export async function rejectPost(postId: string, note: string, db: Database = getDb()): Promise<string> {
   const trimmed = note.trim();
   if (!trimmed) throw new ReviewError("Say why you are rejecting this post.");
   if (trimmed.length > NOTE_MAX) throw new ReviewError(`Keep the note under ${NOTE_MAX} characters.`);
   if (!isUuid(postId)) throw new ReviewError("This post no longer exists.");
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     const post = await lockPost(tx, postId);
     if (!EDITABLE_STATUSES.includes(post.status)) throw new ReviewError(lockedMessage(post.status));
     await setStatus(tx, postId, "rejected");
-    await tx.insert(reviewEvents).values({ postId, action: "reject", note: trimmed });
+    const [event] = await tx.insert(reviewEvents).values({ postId, action: "reject", note: trimmed }).returning({ id: reviewEvents.id });
+    return event.id;
   });
 }
 
