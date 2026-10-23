@@ -14,6 +14,7 @@ import { requireUser } from "@/lib/session";
 import { ensureSlots } from "@/lib/slots";
 import { isUuid } from "@/lib/validation";
 import { ProjectFilter } from "./ProjectFilter";
+import { syncCalendarAfter } from "@/lib/calendar-hooks";
 
 export const metadata: Metadata = { title: "Calendar" };
 
@@ -50,6 +51,8 @@ async function CalendarContent({ searchParams }: Pick<PageProps<"/calendar">, "s
   const slotId = typeof query.slot === "string" ? query.slot : undefined;
 
   await ensureSlots({ today });
+  // New slots and changes made by Trigger.dev tasks reach the calendar after a page is read (γ8 orientation Q2).
+  syncCalendarAfter("read");
   const weeks = monthGrid(month);
   const [slots, projects, selected] = await Promise.all([
     listSlotsBetween(weeks[0][0], weeks[5][6], { projectId: project }),

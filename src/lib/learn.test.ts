@@ -11,7 +11,8 @@ import { createClient } from "./clients";
 import { queueDerivative, saveDerivativeEdit, writeDerivative } from "./derivatives";
 import { changedWords } from "./edit-diff";
 import { getCurrentKnowledge, saveKnowledge } from "./knowledge";
-import { candidateScope, latestRegenerateEvent, MIN_CHANGED_WORDS, proposeCandidates } from "./learn";
+import { candidateScope, DROP_REASONS, latestRegenerateEvent, MIN_CHANGED_WORDS, proposeCandidates } from "./learn";
+import { unstoredNote } from "./drafts";
 import { createProject } from "./projects";
 import { acceptCandidate, appendRule, candidateOrigin, dismissCandidate, listCandidates, targetLabel } from "./rules";
 
@@ -339,5 +340,37 @@ describe.skipIf(!testDatabaseUrl)("candidates from every source (local Postgres)
   it("holds exactly one source per candidate (migration 0006)", async () => {
     await expect(db.insert(ruleCandidates).values({ postId: ids.post, tier: "agency", section: "writing_rules", text: "x" })).rejects.toThrow();
     await expect(db.insert(ruleCandidates).values({ postId: ids.post, tier: "agency", section: "writing_rules", text: "x", scope: "tiktok" as never, reviewEventId: await event("reject", { note: "n" }) })).rejects.toThrow();
+  });
+
+  it("keeps what a run could not store, with the reason, on its call (backlog 24)", async () => {
+    const reject = await event("reject", { note: "10-year guarantee, please." });
+    await proposeCandidates({ reviewEventId: reject }, { db, transport: fakeApi({ candidates: [GUARANTEE] }).transport });
+    const [waiting] = await db.select().from(ruleCandidates);
+    const [clean] = await db.select().from(aiCalls);
+    expect(clean.unstored).toBeNull();
+
+    const again = await event("reject", { note: "Again: the guarantee." });
+    const reply = { candidates: [GUARANTEE, rule({ tier: "agency", section: "business_facts", text: "Wrong place." }), rule({ text: "  " })] };
+    expect(await proposeCandidates({ reviewEventId: again }, { db, transport: fakeApi(reply).transport })).toBe(0);
+    const [, call] = await db.select().from(aiCalls).orderBy(asc(aiCalls.createdAt));
+    expect(call.unstored?.dropped?.map((item) => [item.reason, item.matched ?? null])).toEqual([
+      [DROP_REASONS.waiting, waiting.id],
+      [DROP_REASONS.badPlace, null],
+      [DROP_REASONS.empty, null],
+    ]);
+    expect((call.unstored?.dropped?.[0].candidate as { text: string }).text).toBe(GUARANTEE.text);
+    expect(unstoredNote(call.unstored)).toBe(" (3 not added: already waiting, not a place a suggestion can go, empty text)");
+  });
+
+  it("keeps a reply it cannot read, cut to 20,000 characters, and names it on the cost line (backlog 24)", async () => {
+    const reject = await event("reject", { note: "Anything." });
+    const garbled = `not json ${"x".repeat(25_000)}`;
+    await expect(proposeCandidates({ reviewEventId: reject }, { db, transport: fakeApi(garbled).transport })).rejects.toThrow("returned a reply that is not JSON.");
+    const [call] = await db.select().from(aiCalls);
+    expect(call.error).toBe("claude-opus-5-5 returned a reply that is not JSON.");
+    expect(call.unstored?.raw).toHaveLength(20_000);
+    expect(call.unstored?.raw?.startsWith("not json")).toBe(true);
+    expect(unstoredNote(call.unstored)).toBe(" (reply could not be read; it is kept on the call)");
+    expect(unstoredNote(null)).toBe("");
   });
 });

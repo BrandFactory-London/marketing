@@ -4,6 +4,7 @@ import { getDb, type Executor } from "@/db/client";
 import { posts, projects } from "@/db/schema";
 import { getPackage, PACKAGES } from "@/config/packages";
 import { PRE_WRITING_STATUSES, type PostStatus } from "@/config/post-status";
+import { queueEventDeletions } from "./calendar-sync";
 import { addDays, isIsoDate, londonToday } from "./dates";
 import { isUuid } from "./validation";
 
@@ -50,14 +51,18 @@ export async function reconcileSlots(projectId: string, options: { today?: strin
   if (!project) return;
   const today = options.today ?? londonToday();
   const emptyFuture = and(eq(posts.projectId, project.id), eq(posts.status, "planned"), sql`${posts.slotDate} >= ${today}::date`);
+  // Each deleted slot's calendar event is queued for deletion in the same statement's transaction (γ8 orientation Q4).
   if (project.status === "paused") {
-    await db.delete(posts).where(emptyFuture);
+    const gone = await db.delete(posts).where(emptyFuture).returning({ id: posts.id });
+    await queueEventDeletions(db, gone.map((row) => row.id));
     return;
   }
   const days = getPackage(project.package).weekdays.map((day) => sql`${day}::int`);
-  await db
+  const gone = await db
     .delete(posts)
-    .where(and(emptyFuture, sql`${posts.cadenceDate} is not null`, sql`extract(dow from ${posts.cadenceDate})::int not in (${sql.join(days, sql`, `)})`));
+    .where(and(emptyFuture, sql`${posts.cadenceDate} is not null`, sql`extract(dow from ${posts.cadenceDate})::int not in (${sql.join(days, sql`, `)})`))
+    .returning({ id: posts.id });
+  await queueEventDeletions(db, gone.map((row) => row.id));
   await ensureSlots({ projectId: project.id, today }, db);
 }
 

@@ -65,9 +65,13 @@ export type CallRequest = {
   user: string;
   batchId?: string | null;
   postId?: string | null;
+  // Backlog 24: keep a reply that cannot be read on the call record, so the cause can be seen.
+  keepUnreadable?: boolean;
 };
 
 export type CallRecord = typeof aiCalls.$inferSelect;
+// The most of an unreadable reply that is kept (backlog 24).
+export const UNREADABLE_MAX = 20_000;
 export type TextResult = { text: string; call: CallRecord };
 export type ParsedResult<T> = { value: T; call: CallRecord };
 
@@ -108,14 +112,16 @@ export class AiClient {
   // A reply in a Zod schema's shape, such as a spec or a verdict. A reply that does not fit is an error.
   async parsed<T extends z.ZodType>(request: CallRequest, schema: T): Promise<ParsedResult<z.infer<T>>> {
     const { message, call } = await this.send(request, buildParams(request, { format: zodOutputFormat(schema) }));
+    const raw = textOf(message);
+    const keep = request.keepUnreadable ? { unstored: { raw: raw.slice(0, UNREADABLE_MAX) } } : {};
     let json: unknown;
     try {
-      json = JSON.parse(textOf(message));
+      json = JSON.parse(raw);
     } catch {
-      throw await this.fail(call, new ModelOutputError(`${request.model} returned a reply that is not JSON.`));
+      throw await this.fail(call, new ModelOutputError(`${request.model} returned a reply that is not JSON.`), keep);
     }
     const result = schema.safeParse(json);
-    if (!result.success) throw await this.fail(call, new ModelOutputError(`${request.model} returned a reply in the wrong shape.`));
+    if (!result.success) throw await this.fail(call, new ModelOutputError(`${request.model} returned a reply in the wrong shape.`), keep);
     return { value: result.data, call };
   }
 
@@ -165,8 +171,8 @@ export class AiClient {
     return { message, call };
   }
 
-  private async fail(call: CallRecord, error: Error): Promise<Error> {
-    await this.db.update(aiCalls).set({ error: error.message }).where(eq(aiCalls.id, call.id));
+  private async fail(call: CallRecord, error: Error, extra: Partial<typeof aiCalls.$inferInsert> = {}): Promise<Error> {
+    await this.db.update(aiCalls).set({ error: error.message, ...extra }).where(eq(aiCalls.id, call.id));
     return error;
   }
 }

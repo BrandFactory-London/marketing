@@ -1,7 +1,7 @@
 import { and, desc, eq, isNotNull, lt } from "drizzle-orm";
 import { hasChannelSections, type Channel, type RuleScope } from "@/config/knowledge";
 import { getDb, type Database } from "@/db/client";
-import { derivatives, postDrafts, posts, postVersions, reviewEvents, ruleCandidates, type EditHunk } from "@/db/schema";
+import { aiCalls, derivatives, postDrafts, posts, postVersions, reviewEvents, ruleCandidates, type EditHunk, type UnstoredReply } from "@/db/schema";
 import * as learnPrompt from "@/prompts/learn";
 import { AiClient, type Transport } from "./ai/client";
 import { allChannelRules, loadPack } from "./ai/pack";
@@ -91,6 +91,14 @@ async function derivativeFeedback(db: Database, derivativeId: string): Promise<F
   return { postId: row.postId, input: { source: "derivative_edit", channel, title, hunks: editHunks(before, after) } };
 }
 
+// Why a candidate in the reply was not stored (backlog 24), in the words the cost table shows.
+export const DROP_REASONS = {
+  waiting: "already waiting",
+  badPlace: "not a place a suggestion can go",
+  empty: "empty text",
+  overLimit: `over the limit of ${learnPrompt.MAX_CANDIDATES}`,
+} as const;
+
 // The regenerate event just recorded for a post, so its note can be read.
 export async function latestRegenerateEvent(postId: string, db: Database = getDb()): Promise<string | null> {
   const [row] = await db
@@ -135,6 +143,7 @@ export async function proposeCandidates(source: CandidateSource, deps: LearnDeps
       user: learnPrompt.learnUserMessage({ ...feedback.input, channelRules: allChannelRules(pack) }),
       batchId: post.batchId,
       postId: post.id,
+      keepUnreadable: true,
     },
     learnPrompt.LearnReply,
   );
@@ -142,13 +151,25 @@ export async function proposeCandidates(source: CandidateSource, deps: LearnDeps
   // Backlog 21: the same text for the same place, already waiting in Settings, is not added again.
   const pending = await pendingCandidateKeys(db);
   const rows = [];
+  // Backlog 24: every candidate the reply held but the run did not store, with the reason, kept on the call.
+  const dropped: NonNullable<UnstoredReply["dropped"]> = value.candidates.slice(learnPrompt.MAX_CANDIDATES).map((candidate) => ({ candidate, reason: DROP_REASONS.overLimit }));
   for (const candidate of value.candidates.slice(0, learnPrompt.MAX_CANDIDATES)) {
     const text = candidate.text.replace(/\s+/g, " ").trim();
-    if (!text || !learnPrompt.isCandidateTarget(candidate.tier, candidate.section)) continue;
+    if (!text) {
+      dropped.push({ candidate, reason: DROP_REASONS.empty });
+      continue;
+    }
+    if (!learnPrompt.isCandidateTarget(candidate.tier, candidate.section)) {
+      dropped.push({ candidate, reason: DROP_REASONS.badPlace });
+      continue;
+    }
     const kind = candidate.kind === "fact" && learnPrompt.FACT_SECTIONS.includes(candidate.section) ? "fact" : "rule";
     const key = await candidateKey(db, post.id, candidate.tier, candidate.section, text);
-    if (pending.has(key)) continue;
-    pending.add(key);
+    if (pending.has(key)) {
+      dropped.push({ candidate, reason: DROP_REASONS.waiting, matched: pending.get(key) });
+      continue;
+    }
+    pending.set(key, "this run");
     rows.push({
       ...("reviewEventId" in source ? { reviewEventId: source.reviewEventId } : { derivativeId: source.derivativeId }),
       postId: post.id,
@@ -164,5 +185,6 @@ export async function proposeCandidates(source: CandidateSource, deps: LearnDeps
     });
   }
   if (rows.length > 0) await db.insert(ruleCandidates).values(rows);
+  if (dropped.length > 0) await db.update(aiCalls).set({ unstored: { dropped } }).where(eq(aiCalls.id, call.id));
   return rows.length;
 }

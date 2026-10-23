@@ -26,6 +26,7 @@ import { ReviewEditor } from "./ReviewEditor";
 import { PublishCard } from "./PublishCard";
 import { DerivativesCard } from "./DerivativesCard";
 import { getPublication } from "@/lib/publish";
+import { syncCalendarAfter } from "@/lib/calendar-hooks";
 
 export const metadata: Metadata = { title: "Review a post" };
 
@@ -49,6 +50,8 @@ export default function PostPage({ params }: PageProps<"/posts/[postId]">) {
 
 async function Post({ params }: Pick<PageProps<"/posts/[postId]">, "params">) {
   await requireUser();
+  // New slots and changes made by Trigger.dev tasks reach the calendar after a page is read (γ8 orientation Q2).
+  syncCalendarAfter("read");
   const { postId } = await params;
   const [view, current] = await Promise.all([getDraftView(postId), currentText(postId)]);
   if (!view || !current) notFound();

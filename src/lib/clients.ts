@@ -5,21 +5,23 @@ import { clients, projects } from "@/db/schema";
 import { clientStatus, type ClientStatus, type PackageKey, type ProjectStatus } from "@/config/packages";
 import { isEmail, isUuid, optionalText, type FormInput, type Parsed } from "./validation";
 
-export type ClientInput = { name: string; mainContact: string | null; email: string | null; phone: string | null };
+export type ClientInput = { name: string; shortName?: string | null; mainContact: string | null; email: string | null; phone: string | null };
 export type ClientField = keyof ClientInput;
 export type Client = typeof clients.$inferSelect;
 
 export function parseClientInput(input: FormInput): Parsed<ClientInput, ClientField> {
   const name = optionalText(input.name);
   const email = optionalText(input.email);
+  const shortName = optionalText(input.shortName);
   const errors: Partial<Record<ClientField, string>> = {};
   if (!name) errors.name = "Enter the client's name.";
   else if (name.length > 200) errors.name = "Keep the name under 200 characters.";
+  if (shortName && shortName.length > 30) errors.shortName = "Keep the short name under 30 characters.";
   if (email && !isEmail(email)) errors.email = "Enter an email address such as name@business.com.";
   if (Object.keys(errors).length > 0) return { ok: false, errors };
   return {
     ok: true,
-    value: { name: name!, mainContact: optionalText(input.mainContact), email, phone: optionalText(input.phone) },
+    value: { name: name!, shortName, mainContact: optionalText(input.mainContact), email, phone: optionalText(input.phone) },
   };
 }
 

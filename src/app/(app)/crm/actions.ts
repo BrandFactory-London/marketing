@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient, parseClientInput, updateClient, type ClientField } from "@/lib/clients";
 import { requireUser } from "@/lib/session";
 import { formInput, type FieldErrors } from "@/lib/validation";
+import { syncCalendarAfter } from "@/lib/calendar-hooks";
 
 export type ClientFormState = { errors?: FieldErrors<ClientField>; message?: string; values?: Record<string, string>; saved?: boolean };
 
@@ -22,6 +23,8 @@ export async function createClientAction(_previous: ClientFormState, formData: F
 
 export async function updateClientAction(clientId: string, _previous: ClientFormState, formData: FormData): Promise<ClientFormState> {
   await requireUser();
+  // The calendar follows once the response has gone (γ8 orientation Q2).
+  syncCalendarAfter("action");
   const parsed = parseClientInput(formInput(formData));
   if (!parsed.ok) return { errors: parsed.errors, values: echo(formData) };
   const client = await updateClient(clientId, parsed.value);

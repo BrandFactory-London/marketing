@@ -14,6 +14,8 @@ export function createTestDb(): { db: Database; close: () => Promise<void> } {
 
 // Empties the domain tables, children first.
 export async function resetDomainTables(db: Database): Promise<void> {
+  await db.execute(sql`delete from calendar_deletions`);
+  await db.execute(sql`update app_settings set calendar_user_id = null, calendar_id = null, calendar_name = null, calendar_synced_at = null, calendar_error = null, calendar_error_at = null`);
   await db.execute(sql`delete from publish_events`);
   await db.execute(sql`delete from post_publications`);
   // Candidates refer to derivatives (γ7), so they go first.

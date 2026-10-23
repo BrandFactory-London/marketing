@@ -14,8 +14,13 @@ describe("client input", () => {
   it("keeps optional fields as null", () => {
     expect(parseClientInput({ name: "Migss Interiors", mainContact: "", email: "", phone: " " })).toEqual({
       ok: true,
-      value: { name: "Migss Interiors", mainContact: null, email: null, phone: null },
+      value: { name: "Migss Interiors", shortName: null, mainContact: null, email: null, phone: null },
     });
+  });
+
+  it("takes an optional short name for calendar titles, up to 30 characters (γ8)", () => {
+    expect(parseClientInput({ name: "Migss Interiors", shortName: " Migss " })).toMatchObject({ ok: true, value: { shortName: "Migss" } });
+    expect(parseClientInput({ name: "Migss Interiors", shortName: "x".repeat(31) })).toEqual({ ok: false, errors: { shortName: "Keep the short name under 30 characters." } });
   });
 });
 

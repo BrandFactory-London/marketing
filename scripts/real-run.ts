@@ -136,11 +136,12 @@ async function postReport(postId: string) {
   console.table(generations);
   const { rows: calls } = await devPool().query(
     `select to_char(created_at, 'HH24:MI:SS') as at, purpose, served_model, effort, prompt_version, input_tokens, output_tokens, cache_write_tokens,
-            cache_read_tokens, cost_usd, duration_ms, stop_reason, error
+            cache_read_tokens, cost_usd, duration_ms, stop_reason, error, unstored
        from ai_calls where post_id = $1 order by created_at`,
     [postId],
   );
-  for (const call of calls) console.log(Object.values(call).join(" | "));
+  // unstored (backlog 24) is JSON; print it as such.
+  for (const call of calls) console.log(Object.values(call).map((value) => (value && typeof value === "object" ? JSON.stringify(value) : value)).join(" | "));
   const { rows: candidates } = await devPool().query("select kind, tier, section, text, status from rule_candidates where post_id = $1 order by created_at", [postId]);
   console.table(candidates);
   const { rows: post } = await devPool().query("select status, slug from posts where id = $1", [postId]);

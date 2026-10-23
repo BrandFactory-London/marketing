@@ -6,12 +6,15 @@ import { accounts, sessions, users } from "@/db/schema";
 import { withoutStoredTokens } from "@/lib/auth-adapter";
 import { checkGoogleSignIn, storeGoogleGrant, type SignInDeps } from "@/lib/google-sign-in";
 import { findGoogleUserId, hasGoogleTokens, saveGoogleTokens } from "@/lib/google-tokens";
+import { CALENDAR_SCOPES } from "@/lib/google-calendar";
 
 export const GOOGLE_SCOPES = [
   "openid",
   "email",
   "profile",
   "https://www.googleapis.com/auth/drive.readonly",
+  // γ8: list Amir's calendars, and write events on calendars he owns (γ8 orientation Q1).
+  ...CALENDAR_SCOPES,
 ].join(" ");
 
 function signInDeps(): SignInDeps {

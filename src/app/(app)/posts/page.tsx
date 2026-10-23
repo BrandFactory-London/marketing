@@ -14,6 +14,7 @@ import { listStartedPosts } from "@/lib/posts";
 import { requireUser } from "@/lib/session";
 import { isUuid } from "@/lib/validation";
 import { ClientFilter } from "./ClientFilter";
+import { syncCalendarAfter } from "@/lib/calendar-hooks";
 
 export const metadata: Metadata = { title: "Posts" };
 
@@ -49,6 +50,8 @@ function postsHref(params: { status?: string; client?: string }) {
 // γ3 orientation Q10: words, links and views columns wait until they are real (γ4, γ5, Phase 2).
 async function PostsContent({ searchParams }: Pick<PageProps<"/posts">, "searchParams">) {
   await requireUser();
+  // New slots and changes made by Trigger.dev tasks reach the calendar after a page is read (γ8 orientation Q2).
+  syncCalendarAfter("read");
   const query = await searchParams;
   const client = typeof query.client === "string" && isUuid(query.client) ? query.client : undefined;
   const status = isPostStatus(query.status) ? query.status : undefined;
