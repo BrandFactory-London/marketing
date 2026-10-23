@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/Button";
 import { SelectField, TextAreaField, type SelectOption } from "@/components/ui/Field";
 import type { CandidateState } from "./actions";
 
-// One rule candidate: edit the text, choose where it belongs, then Accept rule or Dismiss (decision 17).
+// One rule candidate: edit the text, choose where it belongs, then Accept rule or Dismiss (decision 17). A fact from a
+// regenerate note (γ6 orientation Q7) is triaged the same way, with "Add fact".
 export function CandidateCard({
+  kind = "rule",
   text,
   from,
   before,
@@ -17,6 +19,7 @@ export function CandidateCard({
   acceptAction,
   dismissAction,
 }: {
+  kind?: "rule" | "fact";
   text: string;
   from: string;
   before: string | null;
@@ -32,11 +35,15 @@ export function CandidateCard({
   const [dismissing, startDismiss] = useTransition();
   return (
     <form action={formAction} className="app-candidate">
-      <TextAreaField label="Proposed rule" name="text" defaultValue={text} rows={2} error={state.error} help={reason ?? undefined} />
+      <TextAreaField label={kind === "fact" ? "Proposed fact" : "Proposed rule"} name="text" defaultValue={text} rows={2} error={state.error} help={reason ?? undefined} />
       <p className="small app-muted" style={{ margin: 0 }}>
         {from}
       </p>
-      {before || after ? (
+      {kind === "fact" && after ? (
+        <p className="small" style={{ margin: 0 }}>
+          Your note: <q className="app-quote">{after}</q>
+        </p>
+      ) : before || after ? (
         <dl className="app-facts small app-candidate-edit">
           <dt>Before</dt>
           <dd>{before || "(nothing)"}</dd>
@@ -60,7 +67,7 @@ export function CandidateCard({
           Dismiss
         </Button>
         <Button type="submit" size="sm" disabled={pending || dismissing}>
-          Accept rule
+          {kind === "fact" ? "Add fact" : "Accept rule"}
         </Button>
       </div>
       {dismissError ? (

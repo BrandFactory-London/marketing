@@ -6,6 +6,7 @@ import { postGenerations } from "@/db/schema";
 import type { checkAnthropic, CheckAnthropicResult } from "@/trigger/check-anthropic";
 import type { confirmLive } from "@/trigger/confirm-live";
 import type { writeDerivativeTask } from "@/trigger/write-derivative";
+import type { proposeFactsTask } from "@/trigger/propose-facts";
 import type { draftSpec } from "@/trigger/draft-spec";
 import type { generatePost } from "@/trigger/generate-post";
 import type { proposeRules } from "@/trigger/propose-rules";
@@ -32,6 +33,12 @@ export async function startGeneration(generationId: string, db: Database = getDb
 // Rule candidates from an approval's edits (decision 17). One run per approval.
 export async function startRuleCandidates(reviewEventId: string): Promise<string> {
   const handle = await tasks.trigger<typeof proposeRules>("propose-rules", { reviewEventId }, { idempotencyKey: `rules-${reviewEventId}`, tags: [`review_${reviewEventId}`] });
+  return handle.id;
+}
+
+// Fact suggestions from a regenerate note (γ6 orientation Q7). One run per note.
+export async function startFacts(reviewEventId: string): Promise<string> {
+  const handle = await tasks.trigger<typeof proposeFactsTask>("propose-facts", { reviewEventId }, { idempotencyKey: `facts-${reviewEventId}`, tags: [`review_${reviewEventId}`] });
   return handle.id;
 }
 

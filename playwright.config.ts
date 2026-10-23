@@ -33,7 +33,6 @@ export default defineConfig({
         AUTH_GOOGLE_SECRET: "playwright-client-secret",
         ALLOWED_EMAIL: "hello@brandfactorylondon.com",
         APP_ENCRYPTION_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-        DRIVE_PROOF_FOLDER_ID: "playwright-folder",
         // Never the real Trigger.dev.
         TRIGGER_API_URL: `http://localhost:${triggerPort}`,
         TRIGGER_SECRET_KEY: "tr_dev_playwright_standin",

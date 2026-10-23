@@ -1,4 +1,4 @@
-// Minimal Google Drive v3 client. γ1 uses it for the Drive proof; γ5's cover picker builds on it.
+// Minimal Google Drive v3 client: the project folder check, the cover picker (γ5) and the cover download (γ6).
 
 export type DriveFile = { id: string; name: string; mimeType: string };
 

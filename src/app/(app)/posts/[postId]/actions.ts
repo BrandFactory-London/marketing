@@ -3,7 +3,8 @@
 import { refresh } from "next/cache";
 import type { CheckResult } from "@/lib/checks";
 import { closeStalledGeneration, markNotStarted } from "@/lib/batches";
-import { startDerivative, startGeneration, startLiveCheck, startRuleCandidates } from "@/lib/jobs";
+import { startDerivative, startFacts, startGeneration, startLiveCheck, startRuleCandidates } from "@/lib/jobs";
+import { latestRegenerateEvent } from "@/lib/facts";
 import { DerivativeError, failDerivative, isChannel, queueDerivative, saveDerivativeEdit, setDerivativeRun } from "@/lib/derivatives";
 import { publishPost, PublishError, restartLiveCheck } from "@/lib/publish";
 import { PUBLISH_STEP_LABELS } from "@/lib/publish-steps";
@@ -97,6 +98,13 @@ export async function regenerateAction(postId: string, note: string, input: Text
     await markNotStarted(generationId, RUN_NOT_STARTED);
     refresh();
     return { ok: false, message: RUN_NOT_STARTED };
+  }
+  // Facts the note states are proposed for the knowledge alongside the regenerate; a failure here never blocks it.
+  try {
+    const eventId = await latestRegenerateEvent(postId);
+    if (eventId) await startFacts(eventId);
+  } catch (error) {
+    console.error("Could not start propose-facts:", error);
   }
   refresh();
   return { ok: true, message: "The writer is working on a new version." };
