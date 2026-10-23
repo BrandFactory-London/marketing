@@ -14,6 +14,7 @@ import { addDays, londonToday, monthOf } from "@/lib/dates";
 import { listSlotsBetween, nextSlots, type SlotView } from "@/lib/posts";
 import { requireUser } from "@/lib/session";
 import { ensureSlots } from "@/lib/slots";
+import { syncCalendarAfter } from "@/lib/calendar-hooks";
 
 export const metadata: Metadata = { title: "Home" };
 
@@ -35,6 +36,8 @@ async function HomeContent() {
   await requireUser();
   // The tiles' next slot must see today's top-up, which the two-week section also runs (idempotent).
   await ensureSlots();
+  // New slots and changes made by Trigger.dev tasks reach the calendar after a page is read (γ8 orientation Q2).
+  syncCalendarAfter("read");
   const [projects, clients, next] = await Promise.all([listProjects(), listClients(), nextSlots()]);
   const active = projects.filter((project) => project.status === "active").length;
 

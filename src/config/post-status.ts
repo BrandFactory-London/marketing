@@ -1,18 +1,37 @@
 // The one list of post statuses (design decision 16, methodology D.3.1). Display words follow
-// design/system/README.md; every surface that shows a post reads its word, tone and calendar style here.
+// design/system/README.md; every surface that shows a post reads its word, tone and calendar style here, and the
+// Google Calendar mirror reads its event colour here too (γ8 orientation Q3).
+
+// Google Calendar's eleven event colours, by the colorId its API takes.
+export const GOOGLE_COLOURS = {
+  lavender: "1",
+  sage: "2",
+  grape: "3",
+  flamingo: "4",
+  banana: "5",
+  tangerine: "6",
+  peacock: "7",
+  graphite: "8",
+  blueberry: "9",
+  basil: "10",
+  tomato: "11",
+} as const;
+export type GoogleColour = keyof typeof GOOGLE_COLOURS;
 
 export const POST_STATUSES = [
-  { key: "planned", label: "Planned", tone: "neutral", calendar: "planned" },
-  { key: "topic_set", label: "Topic set", tone: "neutral", calendar: "neutral" },
-  { key: "spec_confirmed", label: "Spec ready", tone: "brand", calendar: "brand" },
+  { key: "planned", label: "Planned", tone: "neutral", calendar: "planned", google: "graphite" },
+  { key: "topic_set", label: "Topic set", tone: "neutral", calendar: "neutral", google: "lavender" },
+  { key: "spec_confirmed", label: "Spec ready", tone: "brand", calendar: "brand", google: "peacock" },
   // Shown as Writing or Checking, by generation step (γ4 records the step).
-  { key: "generating", label: "Writing", tone: "brand", calendar: "brand" },
-  { key: "in_review", label: "Needs review", tone: "warning", calendar: "warning" },
-  { key: "approved", label: "Approved", tone: "brand", calendar: "brand" },
-  { key: "published", label: "Published", tone: "success", calendar: "success" },
+  { key: "generating", label: "Writing", tone: "brand", calendar: "brand", google: "peacock" },
+  { key: "in_review", label: "Needs review", tone: "warning", calendar: "warning", google: "banana" },
+  // Blueberry, not Peacock, so an approved post stands apart from one being written.
+  { key: "approved", label: "Approved", tone: "brand", calendar: "brand", google: "blueberry" },
+  { key: "published", label: "Published", tone: "success", calendar: "success", google: "basil" },
   // Decision 16's "flagged": failed the critic twice and came to Amir.
-  { key: "flagged", label: "Failed", tone: "danger", calendar: "danger" },
-  { key: "rejected", label: "Rejected", tone: "neutral", calendar: "rejected" },
+  { key: "flagged", label: "Failed", tone: "danger", calendar: "danger", google: "tomato" },
+  // Flamingo, so a rejected post does not read as an empty slot.
+  { key: "rejected", label: "Rejected", tone: "neutral", calendar: "rejected", google: "flamingo" },
 ] as const;
 
 export type PostStatus = (typeof POST_STATUSES)[number]["key"];
@@ -87,7 +106,7 @@ export const DERIVATIVE_LINES = {
 export const DRAFTED_STATUSES: readonly PostStatus[] = ["in_review", "flagged", "approved", "published", "rejected"];
 
 // "Missed" is derived, never stored: a slot whose date has passed before writing started (γ3 orientation Q4).
-export const MISSED = { label: "Missed", tone: "warning" } as const;
+export const MISSED = { label: "Missed", tone: "warning", google: "tangerine" } as const;
 
 export function isMissed(status: PostStatus, slotDate: string, today: string): boolean {
   return PRE_WRITING_STATUSES.includes(status) && slotDate < today;

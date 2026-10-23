@@ -6,7 +6,7 @@ import { keepValuesOnSubmit } from "@/components/ui/keepValues";
 import { Field } from "@/components/ui/Field";
 import type { ClientFormState } from "./actions";
 
-type ClientValues = { name: string; mainContact: string; email: string; phone: string };
+type ClientValues = { name: string; shortName: string; mainContact: string; email: string; phone: string };
 
 type Props = {
   title: string;
@@ -34,6 +34,14 @@ export function ClientForm({ title, submitLabel, action, initial = {}, onDone }:
         ) : null}
         <div className="app-form-grid">
           <Field label="Client name" name="name" placeholder="Business name" defaultValue={value("name")} error={state.errors?.name} required />
+          <Field
+            label="Short name (optional)"
+            name="shortName"
+            placeholder="Migss"
+            defaultValue={value("shortName")}
+            error={state.errors?.shortName}
+            help="How the client is named in calendar event titles. Without one, the first word of the name is used."
+          />
           <Field label="Main contact" name="mainContact" placeholder="Name" defaultValue={value("mainContact")} />
           <Field label="Email" name="email" type="email" placeholder="name@business.com" defaultValue={value("email")} error={state.errors?.email} />
           <Field label="Phone" name="phone" type="tel" placeholder="Number" defaultValue={value("phone")} />

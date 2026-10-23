@@ -26,6 +26,8 @@ export function describeScope(scope: string): string {
     "https://www.googleapis.com/auth/userinfo.email": "Email address",
     "https://www.googleapis.com/auth/userinfo.profile": "Name and photo",
     "https://www.googleapis.com/auth/drive.readonly": "Google Drive, read only",
+    "https://www.googleapis.com/auth/calendar.calendarlist.readonly": "Your calendar list, read only",
+    "https://www.googleapis.com/auth/calendar.events.owned": "Events on calendars you own",
   };
   return names[scope] ?? scope;
 }

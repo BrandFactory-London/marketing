@@ -23,14 +23,15 @@ function key(tier: KnowledgeTier, owner: string, section: string, text: string):
   return `${tier}:${owner}:${section}:${normaliseCandidate(text)}`;
 }
 
-export async function pendingCandidateKeys(db: Database): Promise<Set<string>> {
+// Each waiting candidate's key, with its ID, so a dropped duplicate can name the one it matched (backlog 24).
+export async function pendingCandidateKeys(db: Database): Promise<Map<string, string>> {
   const rows = await db
-    .select({ tier: ruleCandidates.tier, section: ruleCandidates.section, text: ruleCandidates.text, projectId: posts.projectId, clientId: projects.clientId })
+    .select({ id: ruleCandidates.id, tier: ruleCandidates.tier, section: ruleCandidates.section, text: ruleCandidates.text, projectId: posts.projectId, clientId: projects.clientId })
     .from(ruleCandidates)
     .innerJoin(posts, eq(posts.id, ruleCandidates.postId))
     .innerJoin(projects, eq(projects.id, posts.projectId))
     .where(eq(ruleCandidates.status, "proposed"));
-  return new Set(rows.map((row) => key(row.tier, ownerOf(row.tier, row), row.section, row.text)));
+  return new Map(rows.map((row) => [key(row.tier, ownerOf(row.tier, row), row.section, row.text), row.id]));
 }
 
 export async function candidateKey(db: Database, postId: string, tier: KnowledgeTier, section: string, text: string): Promise<string> {

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createProject, parseProjectInput, UnknownClient, type ProjectField } from "@/lib/projects";
 import { requireUser } from "@/lib/session";
 import { formInput, type FieldErrors } from "@/lib/validation";
+import { syncCalendarAfter } from "@/lib/calendar-hooks";
 
 export type ProjectFormState = { errors?: FieldErrors<ProjectField>; message?: string; values?: Record<string, string> };
 
@@ -13,6 +14,8 @@ function echo(formData: FormData): Record<string, string> {
 
 export async function createProjectAction(_previous: ProjectFormState, formData: FormData): Promise<ProjectFormState> {
   await requireUser();
+  // The calendar follows once the response has gone (γ8 orientation Q2).
+  syncCalendarAfter("action");
   const parsed = parseProjectInput(formInput(formData));
   if (!parsed.ok) return { errors: parsed.errors, values: echo(formData) };
   let projectId: string;

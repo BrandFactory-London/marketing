@@ -23,6 +23,7 @@ import { startGeneration, startSpec } from "@/lib/jobs";
 import { getProject } from "@/lib/projects";
 import { requireUser } from "@/lib/session";
 import { formInput, optionalText, type FieldErrors } from "@/lib/validation";
+import { syncCalendarAfter } from "@/lib/calendar-hooks";
 
 const SPEC_NOT_STARTED = "Trigger.dev could not be reached, so this spec was not started. Redraft the spec to try again.";
 const RUN_NOT_STARTED = "Trigger.dev could not be reached, so this post was not started. Retry the post.";
@@ -49,6 +50,8 @@ const PREVIEW_MESSAGE = "Generation runs in production only. Preview deployments
 
 export async function createBatchAction(projectId: string, _previous: BatchFormState, formData: FormData): Promise<BatchFormState> {
   await requireUser();
+  // The calendar follows once the response has gone (γ8 orientation Q2).
+  syncCalendarAfter("action");
   if (process.env.VERCEL_ENV === "preview") return { message: PREVIEW_MESSAGE, values: echo(formData), chosen: formData.getAll("postIds").map(String) };
   const chosen = formData.getAll("postIds").map(String);
   const parsed = parseBatchInput(formInput(formData), chosen);
@@ -70,6 +73,7 @@ export type SpecActionState = { errors?: FieldErrors<SpecField>; message?: strin
 
 export async function editSpecAction(specId: string, _previous: SpecActionState, formData: FormData): Promise<SpecActionState> {
   await requireUser();
+  syncCalendarAfter("action");
   const parsed = parseSpecEdit(formInput(formData));
   if (!parsed.ok) return { errors: parsed.errors };
   try {
@@ -84,6 +88,7 @@ export async function editSpecAction(specId: string, _previous: SpecActionState,
 
 export async function redraftSpecAction(specId: string, _previous: SpecActionState, formData: FormData): Promise<SpecActionState> {
   await requireUser();
+  syncCalendarAfter("action");
   let newId: string;
   try {
     newId = await redraftSpec(specId, optionalText(formData.get("note")));
@@ -98,12 +103,14 @@ export async function redraftSpecAction(specId: string, _previous: SpecActionSta
 
 export async function confirmSpecAction(specId: string): Promise<void> {
   await requireUser();
+  syncCalendarAfter("action");
   await confirmSpecs([specId]);
   refresh();
 }
 
 export async function confirmAllAction(batchId: string): Promise<void> {
   await requireUser();
+  syncCalendarAfter("action");
   await confirmAllSpecs(batchId);
   refresh();
 }
@@ -121,6 +128,7 @@ async function startRuns(generationIds: readonly string[]) {
 
 export async function generateBatchAction(batchId: string): Promise<void> {
   await requireUser();
+  syncCalendarAfter("action");
   if (!(await getBatch(batchId))) return;
   await startRuns(await queueGenerations(batchId));
   redirect(`/batches/${batchId}/generating`);
@@ -128,6 +136,7 @@ export async function generateBatchAction(batchId: string): Promise<void> {
 
 export async function retryPostAction(batchId: string, postId: string): Promise<void> {
   await requireUser();
+  syncCalendarAfter("action");
   await closeStalledGeneration(postId);
   await startRuns(await queueGenerations(batchId, { postId }));
   refresh();

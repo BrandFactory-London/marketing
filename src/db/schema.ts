@@ -67,6 +67,13 @@ export const appSettings = pgTable(
     writerModel: text("writer_model").notNull().default(DEFAULT_MODEL),
     criticModel: text("critic_model").notNull().default(DEFAULT_MODEL),
     derivativeModel: text("derivative_model").notNull().default(DEFAULT_MODEL),
+    // γ8: the Google Calendar every slot is mirrored to, and whose Google connection writes it (γ8 orientation Q2, Q6).
+    calendarUserId: text("calendar_user_id").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
+    calendarId: text("calendar_id"),
+    calendarName: text("calendar_name"),
+    calendarSyncedAt: timestamp("calendar_synced_at", { mode: "date", withTimezone: true }),
+    calendarError: text("calendar_error"),
+    calendarErrorAt: timestamp("calendar_error_at", { mode: "date", withTimezone: true }),
     updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [check("app_settings_single_row", sql`${table.id} = 1`)],
@@ -79,6 +86,8 @@ const updatedAt = () => timestamp("updated_at", { mode: "date", withTimezone: tr
 export const clients = pgTable("clients", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
+  // γ8: how the client is named in calendar event titles ("Migss"). Falls back to the name's first word.
+  shortName: text("short_name"),
   mainContact: text("main_contact"),
   email: text("email"),
   phone: text("phone"),
@@ -191,6 +200,10 @@ export const posts = pgTable(
     // γ6: set when the live check confirms the post on the client's site (decision 19).
     publishedAt: timestamp("published_at", { mode: "date", withTimezone: true }),
     liveUrl: text("live_url"),
+    // γ8: the hash of the calendar event last sent for this post, when, and the last error (γ8 orientation Q2).
+    calendarHash: text("calendar_hash"),
+    calendarSyncedAt: timestamp("calendar_synced_at", { mode: "date", withTimezone: true }),
+    calendarError: text("calendar_error"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -391,6 +404,9 @@ export const criticVerdicts = pgTable(
   (table) => [check("critic_verdicts_verdict_check", sql`${table.verdict} in ('pass', 'fail')`)],
 );
 
+// Backlog 24: the candidates a run dropped, with the reason for each, or the raw reply it could not read.
+export type UnstoredReply = { dropped?: { candidate: unknown; reason: string; matched?: string }[]; raw?: string };
+
 export type AiCallPurpose = "spec" | "writer" | "critic" | "check" | "rules" | "derivative" | "facts";
 
 // Every Anthropic API call: who asked, which model answered, tokens and cost (Q7). Failed calls are
@@ -415,6 +431,8 @@ export const aiCalls = pgTable(
     stopReason: text("stop_reason"),
     requestId: text("request_id"),
     error: text("error"),
+    // γ8, backlog 24: what a candidate run got back but could not store, and why.
+    unstored: jsonb("unstored").$type<UnstoredReply>(),
     createdAt: createdAt(),
   },
   (table) => [
@@ -631,3 +649,14 @@ export const derivatives = pgTable(
     check("derivatives_version_check", sql`${table.version} >= 1`),
   ],
 );
+
+// ---- γ8: Google Calendar (γ8 orientation Q4, Q6) ----
+
+// A slot deleted by reconcileSlots whose calendar event still has to go. The post is gone, so there is no foreign key.
+export const calendarDeletions = pgTable("calendar_deletions", {
+  postId: uuid("post_id").primaryKey(),
+  eventId: text("event_id").notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  error: text("error"),
+  createdAt: createdAt(),
+});

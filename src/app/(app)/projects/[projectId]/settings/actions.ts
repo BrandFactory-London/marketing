@@ -9,6 +9,7 @@ import { addPillar, DuplicatePillar, parsePillarInput, removePillar, type Pillar
 import { requireUser } from "@/lib/session";
 import { formInput, type FieldErrors } from "@/lib/validation";
 import { WixError, type WixMember } from "@/lib/wix";
+import { syncCalendarAfter } from "@/lib/calendar-hooks";
 import {
   checkWixConnection,
   chooseWixMember,
@@ -30,6 +31,8 @@ function echo(formData: FormData): Record<string, string> {
 
 export async function updateProjectSettingsAction(projectId: string, _previous: ProjectSettingsState, formData: FormData): Promise<ProjectSettingsState> {
   await requireUser();
+  // The calendar follows once the response has gone (γ8 orientation Q2).
+  syncCalendarAfter("action");
   const parsed = parseProjectInput(formInput(formData));
   if (!parsed.ok) return { errors: parsed.errors, values: echo(formData) };
   try {

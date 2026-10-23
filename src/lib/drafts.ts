@@ -1,7 +1,7 @@
 import "server-only";
 import { asc, eq, inArray } from "drizzle-orm";
 import { getDb, type Database } from "@/db/client";
-import { aiCalls, criticVerdicts, derivatives, knowledgeVersions, postDrafts, postGenerations, posts, postSpecs, projectPillars, type CriticIssue } from "@/db/schema";
+import { aiCalls, criticVerdicts, derivatives, knowledgeVersions, postDrafts, postGenerations, posts, postSpecs, projectPillars, type CriticIssue, type UnstoredReply } from "@/db/schema";
 import { findPlaceholders, type CheckResult } from "./checks";
 import { currentText } from "./review";
 import { composeMarkdown } from "./review-rules";
@@ -100,7 +100,7 @@ export async function getDraftView(postId: string, db: Database = getDb()) {
           : call.purpose === "critic"
             ? `Critic call ${++critic}`
             : call.purpose === "rules"
-              ? "Rule and fact suggestions"
+              ? `Rule and fact suggestions${unstoredNote(call.unstored)}`
               : call.purpose === "derivative"
                 ? `${derivativeChannel.get(call.id) ?? "Derivative"} call`
                 : call.purpose === "facts"
@@ -183,4 +183,13 @@ export async function listReviewQueue(db: Database = getDb()): Promise<ReviewIte
     });
   }
   return items;
+}
+
+// Backlog 24: what a candidate run could not store, for its cost line, for example " (1 not added: already waiting)".
+export function unstoredNote(unstored: UnstoredReply | null): string {
+  if (!unstored) return "";
+  if (unstored.raw !== undefined && !unstored.dropped) return " (reply could not be read; it is kept on the call)";
+  const reasons = [...new Set((unstored.dropped ?? []).map((item) => item.reason))];
+  const count = unstored.dropped?.length ?? 0;
+  return count ? ` (${count} not added: ${reasons.join(", ")})` : "";
 }

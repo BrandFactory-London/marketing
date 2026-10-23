@@ -14,6 +14,7 @@ import { listProjectPlan } from "@/lib/posts";
 import { getProject } from "@/lib/projects";
 import { requireUser } from "@/lib/session";
 import { ensureSlots } from "@/lib/slots";
+import { syncCalendarAfter } from "@/lib/calendar-hooks";
 
 export const metadata: Metadata = { title: "Run plan" };
 
@@ -34,6 +35,8 @@ async function PlanContent({ params }: Pick<PageProps<"/projects/[projectId]/pla
   if (!project) notFound();
   const today = londonToday();
   await ensureSlots({ projectId: project.id, today });
+  // New slots and changes made by Trigger.dev tasks reach the calendar after a page is read (γ8 orientation Q2).
+  syncCalendarAfter("read");
   const slots = await listProjectPlan(project.id, { today });
   const pkg = getPackage(project.package);
   const paused = project.status === "paused";

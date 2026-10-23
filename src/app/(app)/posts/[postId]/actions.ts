@@ -16,6 +16,7 @@ import { posts } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireUser } from "@/lib/session";
 import { isUuid, optionalText } from "@/lib/validation";
+import { syncCalendarAfter } from "@/lib/calendar-hooks";
 
 export type TextInput = { title: string; excerpt: string; body: string };
 export type ReviewActionResult = { ok: true; message?: string; checks?: CheckResult } | { ok: false; message: string };
@@ -38,6 +39,8 @@ export async function saveDraftAction(postId: string, input: TextInput): Promise
 
 export async function approveAction(postId: string, input: TextInput): Promise<ReviewActionResult> {
   await requireUser();
+  // The calendar follows once the response has gone (γ8 orientation Q2).
+  syncCalendarAfter("action");
   let approved: Awaited<ReturnType<typeof approvePost>>;
   try {
     approved = await approvePost(postId, parsePostText(input));
@@ -68,6 +71,7 @@ async function learnFrom(source: { reviewEventId: string } | { derivativeId: str
 
 export async function rejectAction(postId: string, note: string): Promise<ReviewActionResult> {
   await requireUser();
+  syncCalendarAfter("action");
   let eventId: string;
   try {
     eventId = await rejectPost(postId, note);
@@ -82,6 +86,7 @@ export async function rejectAction(postId: string, note: string): Promise<Review
 
 export async function reopenAction(postId: string): Promise<ReviewActionResult> {
   await requireUser();
+  syncCalendarAfter("action");
   try {
     await reopenPost(postId);
   } catch (error) {
@@ -96,6 +101,7 @@ const RUN_NOT_STARTED = "Trigger.dev could not be reached, so the regenerate did
 // Regenerate with a note: saves the text, queues a run that starts from it, and starts the run.
 export async function regenerateAction(postId: string, note: string, input: TextInput | null): Promise<ReviewActionResult> {
   await requireUser();
+  syncCalendarAfter("action");
   let generationId: string;
   try {
     generationId = await queueRegeneration(postId, note, input ? parsePostText(input) : null);
@@ -120,6 +126,7 @@ export async function regenerateAction(postId: string, note: string, input: Text
 // A regenerate that stopped reporting progress is closed, so the post goes back to Needs review.
 export async function stopWaitingAction(postId: string): Promise<ReviewActionResult> {
   await requireUser();
+  syncCalendarAfter("action");
   if (!isUuid(postId)) return { ok: false, message: "This post no longer exists." };
   await closeStalledGeneration(postId);
   refresh();
@@ -175,6 +182,7 @@ export type PublishActionResult = { ok: true; message: string } | { ok: false; m
 
 export async function publishAction(postId: string): Promise<PublishActionResult> {
   const user = await requireUser();
+  syncCalendarAfter("action");
   try {
     const outcome = await publishPost(postId, user.id, { startLiveCheck });
     refresh();
@@ -189,6 +197,7 @@ export async function publishAction(postId: string): Promise<PublishActionResult
 
 export async function checkAgainAction(postId: string): Promise<PublishActionResult> {
   await requireUser();
+  syncCalendarAfter("action");
   try {
     await restartLiveCheck(postId, { startLiveCheck });
     refresh();

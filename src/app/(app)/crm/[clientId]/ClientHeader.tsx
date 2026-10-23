@@ -6,7 +6,7 @@ import { Breadcrumb, PageHeader } from "@/components/ui/PageHeader";
 import { updateClientAction } from "../actions";
 import { ClientForm } from "../ClientForm";
 
-type Props = { client: { id: string; name: string; mainContact: string | null; email: string | null; phone: string | null } };
+type Props = { client: { id: string; name: string; shortName: string | null; mainContact: string | null; email: string | null; phone: string | null } };
 
 export function ClientHeader({ client }: Props) {
   const [editing, setEditing] = useState(false);
@@ -29,7 +29,7 @@ export function ClientHeader({ client }: Props) {
           title="Edit client"
           submitLabel="Save client"
           action={updateClientAction.bind(null, client.id)}
-          initial={{ name: client.name, mainContact: client.mainContact ?? "", email: client.email ?? "", phone: client.phone ?? "" }}
+          initial={{ name: client.name, shortName: client.shortName ?? "", mainContact: client.mainContact ?? "", email: client.email ?? "", phone: client.phone ?? "" }}
           onDone={close}
         />
       ) : null}
