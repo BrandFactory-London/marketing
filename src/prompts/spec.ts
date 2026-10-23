@@ -2,7 +2,7 @@ import { z } from "zod";
 import { list, NO_INVENTED_PRACTICE, type PostBrief } from "./shared";
 
 // The writer model turns a slot's topic into a spec Amir edits or confirms (decision 14, γ4 orientation Q3).
-export const PROMPT_VERSION = "spec-1";
+export const PROMPT_VERSION = "spec-2";
 
 export type FaqMode = "useful" | "always" | "never";
 

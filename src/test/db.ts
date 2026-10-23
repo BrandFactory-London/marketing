@@ -16,8 +16,9 @@ export function createTestDb(): { db: Database; close: () => Promise<void> } {
 export async function resetDomainTables(db: Database): Promise<void> {
   await db.execute(sql`delete from publish_events`);
   await db.execute(sql`delete from post_publications`);
-  await db.execute(sql`delete from derivatives`);
+  // Candidates refer to derivatives (γ7), so they go first.
   await db.execute(sql`delete from rule_candidates`);
+  await db.execute(sql`delete from derivatives`);
   await db.execute(sql`delete from review_events`);
   // post_versions and post_generations refer to each other, so the regenerate link is cleared first.
   await db.execute(sql`update post_generations set base_version_id = null`);

@@ -25,7 +25,7 @@ export function ModelsForm({ current }: { current: ModelSettings }) {
       <div className="app-form-grid">
         <SelectField label="Writer" name="writerModel" defaultValue={current.writerModel} options={options} help="Drafts each SEO post." />
         <SelectField label="Critic" name="criticModel" defaultValue={current.criticModel} options={options} help="Checks drafts against the rules and knowledge." />
-        <SelectField label="Derivatives" name="derivativeModel" defaultValue={current.derivativeModel} options={options} help="Writes the GMB and LinkedIn versions." />
+        <SelectField label="Derivatives" name="derivativeModel" defaultValue={current.derivativeModel} options={options} help="Writes the GBP, LinkedIn, Facebook and Pinterest versions." />
       </div>
       <p className="small app-form-note">
         Opus 5.5 is the default for all three, chosen after the model test. Each batch can override these. A post that fails the critic twice

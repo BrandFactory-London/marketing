@@ -38,9 +38,12 @@ function scopeWhere(scope: KnowledgeScope): SQL {
 // so that saving the same text twice is recognised as no change.
 export function normaliseSections(tier: KnowledgeTier, input: Record<string, unknown>): KnowledgeSections {
   const sections: KnowledgeSections = {};
-  for (const { key } of knowledgeSections(tier)) {
+  for (const { key, channel } of knowledgeSections(tier)) {
     const value = input[key];
-    sections[key] = typeof value === "string" ? value.replace(/\r\n?/g, "\n").replace(/[ \t]+$/gm, "").trimEnd() : "";
+    const text = typeof value === "string" ? value.replace(/\r\n?/g, "\n").replace(/[ \t]+$/gm, "").trimEnd() : "";
+    // A channel section is stored only once it holds something (γ7), so versions without one keep their old shape.
+    if (channel && !text) continue;
+    sections[key] = text;
   }
   return sections;
 }

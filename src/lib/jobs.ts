@@ -6,10 +6,10 @@ import { postGenerations } from "@/db/schema";
 import type { checkAnthropic, CheckAnthropicResult } from "@/trigger/check-anthropic";
 import type { confirmLive } from "@/trigger/confirm-live";
 import type { writeDerivativeTask } from "@/trigger/write-derivative";
-import type { proposeFactsTask } from "@/trigger/propose-facts";
 import type { draftSpec } from "@/trigger/draft-spec";
 import type { generatePost } from "@/trigger/generate-post";
-import type { proposeRules } from "@/trigger/propose-rules";
+import type { proposeCandidatesTask } from "@/trigger/propose-candidates";
+import type { CandidateSource } from "@/lib/learn";
 
 // The app's only way into Trigger.dev (γ4 orientation Q1). It reads TRIGGER_SECRET_KEY, and TRIGGER_API_URL
 // when set (Playwright points it at a local stand-in). The Anthropic key never reaches the app.
@@ -30,19 +30,16 @@ export async function startGeneration(generationId: string, db: Database = getDb
   return handle.id;
 }
 
-// Rule candidates from an approval's edits (decision 17). One run per approval.
-export async function startRuleCandidates(reviewEventId: string): Promise<string> {
-  const handle = await tasks.trigger<typeof proposeRules>("propose-rules", { reviewEventId }, { idempotencyKey: `rules-${reviewEventId}`, tags: [`review_${reviewEventId}`] });
+// Rule and fact candidates from one piece of Amir's feedback (γ7 orientation Q2). One run per source, so a double
+// click or a second copy never pays twice.
+export async function startCandidates(source: CandidateSource): Promise<string> {
+  const key = "reviewEventId" in source ? `learn-review-${source.reviewEventId}` : `learn-derivative-${source.derivativeId}`;
+  const tag = "reviewEventId" in source ? `review_${source.reviewEventId}` : `derivative_${source.derivativeId}`;
+  const handle = await tasks.trigger<typeof proposeCandidatesTask>("propose-candidates", source, { idempotencyKey: key, tags: [tag] });
   return handle.id;
 }
 
-// Fact suggestions from a regenerate note (γ6 orientation Q7). One run per note.
-export async function startFacts(reviewEventId: string): Promise<string> {
-  const handle = await tasks.trigger<typeof proposeFactsTask>("propose-facts", { reviewEventId }, { idempotencyKey: `facts-${reviewEventId}`, tags: [`review_${reviewEventId}`] });
-  return handle.id;
-}
-
-// GMB or LinkedIn copy (decision 20). One run per version.
+// Derivative copy (decision 20). One run per version.
 export async function startDerivative(derivativeId: string): Promise<string> {
   const handle = await tasks.trigger<typeof writeDerivativeTask>("write-derivative", { derivativeId }, { idempotencyKey: `derivative-${derivativeId}`, tags: [`derivative_${derivativeId}`] });
   return handle.id;

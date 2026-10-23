@@ -10,7 +10,7 @@ export async function acceptCandidateAction(candidateId: string, _previous: Cand
   await requireUser();
   const [tier, section] = String(formData.get("target") ?? "").split(":");
   try {
-    await acceptCandidate(candidateId, { text: String(formData.get("text") ?? ""), tier: tier ?? "", section: section ?? "" });
+    await acceptCandidate(candidateId, { text: String(formData.get("text") ?? ""), tier: tier ?? "", section: section ?? "", scope: String(formData.get("scope") ?? "all") });
   } catch (error) {
     if (error instanceof RuleError) return { error: error.message };
     throw error;

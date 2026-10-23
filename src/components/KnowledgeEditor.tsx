@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { Fragment, useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { TextAreaField } from "@/components/ui/Field";
 import type { KnowledgeActionState } from "@/app/(app)/_actions/knowledge";
@@ -21,6 +21,13 @@ type Props = {
 export function KnowledgeEditor({ label, sections, saved, savedLine, action }: Props) {
   const [current, setCurrent] = useState(sections[0].key);
   const [values, setValues] = useState<KnowledgeSections>(() => ({ ...saved }));
+  // A version saved elsewhere, such as a rule accepted below the editor (γ7), replaces the text unless Amir is editing.
+  const [base, setBase] = useState({ line: savedLine, sections: saved });
+  if (savedLine !== base.line) {
+    const editing = sections.some(({ key }) => normalise(values[key]) !== normalise(base.sections[key]));
+    setBase({ line: savedLine, sections: saved });
+    if (!editing) setValues({ ...saved });
+  }
   const [state, formAction, pending] = useActionState(action, { status: "idle" });
   const dirty = sections.some(({ key }) => normalise(values[key]) !== normalise(saved[key]));
 
@@ -44,19 +51,23 @@ export function KnowledgeEditor({ label, sections, saved, savedLine, action }: P
   return (
     <form action={formAction} className="app-knowledge" aria-label={label}>
       <nav aria-label={`${label} sections`} className="bfm-card app-knowledge-nav">
-        {sections.map((section) => {
+        {sections.map((section, index) => {
           const words = wordCount(values[section.key] ?? "");
+          // Channel sections (γ7 orientation Q1) sit under their own label, after the sections every channel reads.
+          const firstChannel = section.channel && !sections[index - 1]?.channel;
           return (
-            <button
-              key={section.key}
-              type="button"
-              className="bfm-nav-item"
-              aria-current={section.key === current ? "true" : undefined}
-              onClick={() => setCurrent(section.key)}
-            >
-              {section.label}
-              <span className="bfm-nav-count">{words === 0 ? "Empty" : `${words} ${words === 1 ? "word" : "words"}`}</span>
-            </button>
+            <Fragment key={section.key}>
+              {firstChannel ? <p className="small app-muted app-channel-group">By channel</p> : null}
+              <button
+                type="button"
+                className="bfm-nav-item"
+                aria-current={section.key === current ? "true" : undefined}
+                onClick={() => setCurrent(section.key)}
+              >
+                {section.label}
+                <span className="bfm-nav-count">{words === 0 ? "Empty" : `${words} ${words === 1 ? "word" : "words"}`}</span>
+              </button>
+            </Fragment>
           );
         })}
       </nav>

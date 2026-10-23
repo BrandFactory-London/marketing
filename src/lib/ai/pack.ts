@@ -1,4 +1,4 @@
-import { KNOWLEDGE_TIERS, knowledgeSections, type KnowledgeSections, type KnowledgeTier } from "@/config/knowledge";
+import { CHANNELS, KNOWLEDGE_TIERS, knowledgeSections, sharedSections, type Channel, type KnowledgeSections, type KnowledgeTier } from "@/config/knowledge";
 import { getDb, type Database } from "@/db/client";
 import { getCurrentKnowledge } from "@/lib/knowledge";
 import { getProject } from "@/lib/projects";
@@ -6,7 +6,8 @@ import { getProject } from "@/lib/projects";
 // The knowledge pack every spec, writer and critic call starts with (γ4 orientation Q5), in the model test's
 // shape: BrandFactory rules, client knowledge, project knowledge, then the output format. It is the cached
 // prefix of the system prompt, so the same versions must always give the same text, byte for byte: no dates,
-// no ids, sections in the fixed order of config/knowledge.ts.
+// no ids, sections in the fixed order of config/knowledge.ts. Channel sections stay out of it, so every channel
+// shares one cached prefix (γ7 orientation Q1); channelRules gives the block that follows it, uncached.
 
 export const EMPTY_SECTION = "None recorded.";
 
@@ -27,7 +28,7 @@ export type PackInput = {
 };
 
 function tierBlock(tier: KnowledgeTier, heading: string, sections: KnowledgeSections | null): string {
-  const parts = knowledgeSections(tier).map(({ key, label }) => {
+  const parts = sharedSections(tier).map(({ key, label }) => {
     const text = sections?.[key]?.replace(/\r\n?/g, "\n").trim();
     return `### ${label}\n\n${text || EMPTY_SECTION}`;
   });
@@ -55,6 +56,7 @@ export type LoadedPack = {
   agency: KnowledgeSections | null;
   // The client's sections, for the Examples check (γ5).
   client: KnowledgeSections | null;
+  clientName: string;
   siteUrl: string;
 };
 
@@ -81,6 +83,34 @@ export async function loadPack(projectId: string, db: Database = getDb()): Promi
     project: own?.sections ?? null,
     agency: agency?.sections ?? null,
     client: client?.sections ?? null,
+    clientName: project.clientName,
     siteUrl: project.siteUrl,
   };
+}
+
+// One channel's own rules and voice, for the instructions after the cached pack (γ7 orientation Q1). Empty when the
+// channel has none, so a call's prompt is unchanged until Amir adds one.
+export function channelRules(pack: Pick<LoadedPack, "agency" | "client" | "clientName">, channel: Channel): string {
+  const parts: string[] = [];
+  for (const [tier, sections, owner] of [
+    ["agency", pack.agency, KNOWLEDGE_TIERS.agency.label],
+    ["client", pack.client, `${KNOWLEDGE_TIERS.client.label} (${pack.clientName})`],
+  ] as const) {
+    for (const section of knowledgeSections(tier).filter((item) => item.channel === channel)) {
+      const text = sections?.[section.key]?.replace(/\r\n?/g, "\n").trim();
+      if (text) parts.push(`### ${owner}: ${section.label}\n\n${text}`);
+    }
+  }
+  if (parts.length === 0) return "";
+  return [`## Rules for ${CHANNELS[channel].plural} only (apply on top of the knowledge pack, never broken)`, ...parts].join("\n\n");
+}
+
+// Every channel's own sections, for the candidate proposer, which must see what already exists.
+export function allChannelRules(pack: Pick<LoadedPack, "agency" | "client" | "clientName">): string {
+  return (Object.keys(CHANNELS) as Channel[]).map((channel) => channelRules(pack, channel)).filter(Boolean).join("\n\n");
+}
+
+// A role's instructions with the channel block after them.
+export function withChannelRules(instructions: string, block: string): string {
+  return block ? `${instructions}\n\n${block}` : instructions;
 }

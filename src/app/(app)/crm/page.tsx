@@ -56,7 +56,7 @@ function Packages({ clients }: { clients: ClientListItem[] }) {
               <p className="bfm-card-title">{item.label}</p>
               <p className="display app-package-count">{item.postsPerWeek}</p>
               <p className="small app-muted">
-                SEO {item.postsPerWeek === 1 ? "post" : "posts"} a week, each with GMB and LinkedIn derivatives. Active projects get planned
+                SEO {item.postsPerWeek === 1 ? "post" : "posts"} a week, each with GBP, LinkedIn, Facebook and Pinterest derivatives. Active projects get planned
                 slots at this cadence.
               </p>
               <p className="small">

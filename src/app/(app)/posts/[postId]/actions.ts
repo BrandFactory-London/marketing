@@ -3,9 +3,10 @@
 import { refresh } from "next/cache";
 import type { CheckResult } from "@/lib/checks";
 import { closeStalledGeneration, markNotStarted } from "@/lib/batches";
-import { startDerivative, startFacts, startGeneration, startLiveCheck, startRuleCandidates } from "@/lib/jobs";
-import { latestRegenerateEvent } from "@/lib/facts";
-import { DerivativeError, failDerivative, isChannel, queueDerivative, saveDerivativeEdit, setDerivativeRun } from "@/lib/derivatives";
+import { startCandidates, startDerivative, startGeneration, startLiveCheck } from "@/lib/jobs";
+import { latestRegenerateEvent } from "@/lib/learn";
+import { copyDerivative, DerivativeError, failDerivative, isChannel, queueDerivative, queueMissingDerivatives, saveDerivativeEdit, setDerivativeRun } from "@/lib/derivatives";
+import type { DerivativeText } from "@/lib/derivative-checks";
 import { publishPost, PublishError, restartLiveCheck } from "@/lib/publish";
 import { PUBLISH_STEP_LABELS } from "@/lib/publish-steps";
 import { approvePost, parsePostText, queueRegeneration, rejectPost, reopenPost, ReviewError, savePublishingDetails, saveVersion } from "@/lib/review";
@@ -43,30 +44,40 @@ export async function approveAction(postId: string, input: TextInput): Promise<R
   } catch (error) {
     return failure(error);
   }
-  // Rule candidates are a bonus: if Trigger.dev cannot be reached the approval still stands.
+  // Candidates are a bonus: if Trigger.dev cannot be reached the approval still stands.
   let message = "Post approved.";
   if (approved.hasEdits) {
-    try {
-      await startRuleCandidates(approved.reviewEventId);
-      message = "Post approved. Rule candidates from your edits will appear in Settings, BrandFactory rules.";
-    } catch (error) {
-      console.error("Could not start propose-rules:", error);
-      message = "Post approved. Rule candidates could not be started, because Trigger.dev could not be reached.";
-    }
+    message = (await learnFrom({ reviewEventId: approved.reviewEventId }))
+      ? "Post approved. Suggestions from your edits will appear in Settings, BrandFactory rules."
+      : "Post approved. Suggestions from your edits could not be started, because Trigger.dev could not be reached.";
   }
   refresh();
   return { ok: true, message };
 }
 
+// Starts a candidate run for one piece of feedback (γ7 orientation Q2). A failure never blocks what Amir did.
+async function learnFrom(source: { reviewEventId: string } | { derivativeId: string }): Promise<boolean> {
+  try {
+    await startCandidates(source);
+    return true;
+  } catch (error) {
+    console.error("Could not start propose-candidates:", error);
+    return false;
+  }
+}
+
 export async function rejectAction(postId: string, note: string): Promise<ReviewActionResult> {
   await requireUser();
+  let eventId: string;
   try {
-    await rejectPost(postId, note);
+    eventId = await rejectPost(postId, note);
   } catch (error) {
     return failure(error);
   }
+  // The note is read for rules and facts straight away (γ7 handoff item 3).
+  await learnFrom({ reviewEventId: eventId });
   refresh();
-  return { ok: true, message: "Post rejected." };
+  return { ok: true, message: "Post rejected. Any rule or fact in your note will appear in Settings, BrandFactory rules." };
 }
 
 export async function reopenAction(postId: string): Promise<ReviewActionResult> {
@@ -99,13 +110,9 @@ export async function regenerateAction(postId: string, note: string, input: Text
     refresh();
     return { ok: false, message: RUN_NOT_STARTED };
   }
-  // Facts the note states are proposed for the knowledge alongside the regenerate; a failure here never blocks it.
-  try {
-    const eventId = await latestRegenerateEvent(postId);
-    if (eventId) await startFacts(eventId);
-  } catch (error) {
-    console.error("Could not start propose-facts:", error);
-  }
+  // Rules and facts the note holds are proposed alongside the regenerate (γ7 handoff item 3); a failure never blocks it.
+  const eventId = await latestRegenerateEvent(postId);
+  if (eventId) await learnFrom({ reviewEventId: eventId });
   refresh();
   return { ok: true, message: "The writer is working on a new version." };
 }
@@ -192,9 +199,22 @@ export async function checkAgainAction(postId: string): Promise<PublishActionRes
   }
 }
 
-// ---- GMB and LinkedIn copy (γ6 orientation Q6) ----
+// ---- Derivative copy (γ6 orientation Q6, γ7 orientation Q2, Q3, Q5) ----
 
 export type DerivativeActionResult = { ok: true; message: string } | { ok: false; message: string };
+
+const RUN_NOT_REACHED = "Trigger.dev could not be reached, so the run did not start.";
+
+async function startDerivativeRun(derivativeId: string): Promise<boolean> {
+  try {
+    await setDerivativeRun(derivativeId, await startDerivative(derivativeId));
+    return true;
+  } catch (error) {
+    console.error("Could not start the derivative run:", error);
+    await failDerivative(derivativeId, new Error(RUN_NOT_REACHED));
+    return false;
+  }
+}
 
 export async function generateDerivativeAction(postId: string, channel: string, note: string | null): Promise<DerivativeActionResult> {
   await requireUser();
@@ -206,27 +226,54 @@ export async function generateDerivativeAction(postId: string, channel: string, 
     if (error instanceof DerivativeError) return { ok: false, message: error.message };
     throw error;
   }
-  try {
-    await setDerivativeRun(derivativeId, await startDerivative(derivativeId));
-  } catch (error) {
-    console.error("Could not start the derivative run:", error);
-    await failDerivative(derivativeId, new Error("Trigger.dev could not be reached, so the run did not start."));
-    refresh();
-    return { ok: false, message: "Trigger.dev could not be reached, so the run did not start." };
-  }
+  const started = await startDerivativeRun(derivativeId);
+  // What was wrong with the last version is read for rules and facts (γ7 handoff item 2).
+  if (started && note?.trim()) await learnFrom({ derivativeId });
   refresh();
-  return { ok: true, message: "Writing." };
+  return started ? { ok: true, message: "Writing." } : { ok: false, message: RUN_NOT_REACHED };
 }
 
-export async function saveDerivativeAction(postId: string, channel: string, body: string): Promise<DerivativeActionResult> {
+// Generate all (γ7 handoff item 8): every channel with no version yet.
+export async function generateAllDerivativesAction(postId: string): Promise<DerivativeActionResult> {
+  await requireUser();
+  let queued: Awaited<ReturnType<typeof queueMissingDerivatives>>;
+  try {
+    queued = await queueMissingDerivatives(postId);
+  } catch (error) {
+    if (error instanceof DerivativeError) return { ok: false, message: error.message };
+    throw error;
+  }
+  const started = await Promise.all(queued.map((row) => startDerivativeRun(row.id)));
+  refresh();
+  return started.every(Boolean) ? { ok: true, message: "Writing." } : { ok: false, message: RUN_NOT_REACHED };
+}
+
+export async function saveDerivativeAction(postId: string, channel: string, text: DerivativeText): Promise<DerivativeActionResult> {
   await requireUser();
   if (!isChannel(channel)) return { ok: false, message: "Unknown channel." };
   try {
-    await saveDerivativeEdit(postId, channel, body);
+    await saveDerivativeEdit(postId, channel, text);
   } catch (error) {
     if (error instanceof DerivativeError) return { ok: false, message: error.message };
     throw error;
   }
   refresh();
   return { ok: true, message: "Edit saved." };
+}
+
+// Copy (γ7 orientation Q3): unsaved changes are saved first, and an edited version is read for rules and facts once.
+// The browser copies the text itself; this records what was posted.
+export async function copyDerivativeAction(postId: string, channel: string, text: DerivativeText): Promise<DerivativeActionResult> {
+  await requireUser();
+  if (!isChannel(channel)) return { ok: false, message: "Unknown channel." };
+  let copied: Awaited<ReturnType<typeof copyDerivative>>;
+  try {
+    copied = await copyDerivative(postId, channel, text);
+  } catch (error) {
+    if (error instanceof DerivativeError) return { ok: false, message: error.message };
+    throw error;
+  }
+  if (copied.isEdit && copied.derivativeId) await learnFrom({ derivativeId: copied.derivativeId });
+  refresh();
+  return { ok: true, message: "Copied." };
 }

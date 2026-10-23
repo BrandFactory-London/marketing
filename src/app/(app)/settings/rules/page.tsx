@@ -3,8 +3,8 @@ import { Suspense } from "react";
 import { KnowledgeTier } from "@/components/KnowledgeTier";
 import { Badge } from "@/components/ui/Badge";
 import { LoadingCard } from "@/components/ui/LoadingCard";
-import { KNOWLEDGE_TIERS, type KnowledgeTier as Tier } from "@/config/knowledge";
-import { CANDIDATE_SECTIONS } from "@/prompts/rules";
+import { CHANNELS, hasChannelSections, KNOWLEDGE_TIERS, RULE_SCOPES, scopeLabel, type KnowledgeTier as Tier } from "@/config/knowledge";
+import { CANDIDATE_SECTIONS } from "@/prompts/learn";
 import { listCandidates, targetLabel, type CandidateView } from "@/lib/rules";
 import { requireUser } from "@/lib/session";
 import { acceptCandidateAction, dismissCandidateAction } from "./actions";
@@ -16,8 +16,9 @@ export default function RulesPage({ searchParams }: PageProps<"/settings/rules">
   return (
     <section className="app-section" aria-label="BrandFactory rules">
       <p className="small app-muted" style={{ margin: 0 }}>
-        The writer and critic apply these to every post for every client. Client knowledge (in the CRM) and project knowledge (on each
-        project) add to them; they never override them.
+        The writer and critic apply these to every post for every client. Writing rules and banned phrases apply on every channel; the
+        sections under By channel apply only to that channel. Client knowledge (in the CRM) and project knowledge (on each project) add
+        to them; they never override them.
       </p>
       <Suspense fallback={<LoadingCard minHeight={320} />}>
         <Rules searchParams={searchParams} />
@@ -35,7 +36,8 @@ async function Rules({ searchParams }: Pick<PageProps<"/settings/rules">, "searc
   return <KnowledgeTier scope={{ tier: "agency" }} basePath="/settings/rules" version={typeof version === "string" ? version : undefined} />;
 }
 
-// Rule candidates from Amir's edits (decision 17, γ5 orientation Q5), as the prototype places them.
+// Rule and fact candidates from Amir's notes and edits on every channel (decision 17, γ5 orientation Q5, γ7 handoff
+// items 5 and 9), as the prototype places them.
 async function Candidates() {
   await requireUser();
   const { proposed, decided } = await listCandidates();
@@ -44,19 +46,22 @@ async function Candidates() {
       CANDIDATE_SECTIONS[tier].map((section) => ({
         value: `${tier}:${section}`,
         label: `${tier === "client" ? `${KNOWLEDGE_TIERS.client.label} (${candidate.clientName})` : tier === "project" ? `${KNOWLEDGE_TIERS.project.label} (${candidate.projectName})` : KNOWLEDGE_TIERS.agency.label}: ${targetLabel(tier, section).split(": ")[1]}`,
+        scoped: hasChannelSections(tier, section),
       })),
     );
+  const scopes = RULE_SCOPES.map((scope) => ({ value: scope, label: scopeLabel(scope) }));
   return (
     <section className="bfm-aurora app-stack app-candidates" aria-labelledby="candidates-heading">
       <div className="app-card-head">
         <h2 id="candidates-heading" className="heading" style={{ margin: 0 }}>
-          Rule candidates from your edits
+          Suggestions from your notes and edits
         </h2>
-        <span className="small app-muted">Choose where each rule belongs</span>
+        <span className="small app-muted">Choose where each one belongs</span>
       </div>
       {proposed.length === 0 ? (
         <p className="small app-muted" style={{ margin: 0 }}>
-          None waiting. When you approve a post you edited, Claude proposes rules from your edits here, and facts from your regenerate notes.
+          None waiting. When you regenerate or reject a post with a note, approve a post you edited, or regenerate or edit and copy a derivative,
+          Claude proposes any rule or fact in it here.
         </p>
       ) : (
         proposed.map((candidate) => (
@@ -64,7 +69,10 @@ async function Candidates() {
             key={candidate.id}
             kind={candidate.kind}
             text={candidate.text}
-            from={candidate.kind === "fact" ? `From your note on "${candidate.postTitle}"` : `From your edit to "${candidate.postTitle}"`}
+            from={candidate.from}
+            channel={candidate.channel === "blog" ? null : CHANNELS[candidate.channel].label}
+            scope={candidate.scope}
+            scopes={scopes}
             before={candidate.before}
             after={candidate.after}
             reason={candidate.reason}
@@ -78,10 +86,10 @@ async function Candidates() {
       {decided.length > 0 ? (
         <ul className="app-plain-list small">
           {decided.map((candidate) => (
-            <li key={candidate.id} className="app-card-head">
+            <li key={candidate.id} className="app-card-head app-decided">
               <span>{candidate.text}</span>
               <Badge tone={candidate.status === "accepted" ? "success" : "neutral"}>
-                {candidate.status === "accepted" ? `Added to ${targetLabel(candidate.tier, candidate.section)}` : "Dismissed"}
+                {candidate.status === "accepted" ? `Added to ${targetLabel(candidate.tier, candidate.section, candidate.scope)}` : "Dismissed"}
               </Badge>
             </li>
           ))}

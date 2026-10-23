@@ -80,6 +80,8 @@ a:hover { color: var(--brand-hover); }
 .app-card-link { text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: var(--space-3); }
 .app-card-head { display: flex; justify-content: space-between; align-items: start; gap: var(--space-3); }
 .app-card-head .bfm-card-title, .app-card-head .bfm-card-meta { margin: 0; }
+.app-decided { flex-wrap: wrap; }
+.app-decided > span { flex: 1 1 16rem; }
 .app-badges { display: flex; flex-wrap: wrap; gap: 6px; }
 .app-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2) var(--space-4); margin: 0; }
 .app-facts dt { color: var(--ink-muted); }
@@ -329,3 +331,6 @@ a:hover { color: var(--brand-hover); }
 /* γ6 Derivatives (Publish.dc.html) */
 .app-derivatives { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: var(--space-6); }
 .app-derivative { padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-3); border-radius: var(--radius-lg); }
+.app-pin-cover { margin: 0; display: flex; gap: var(--space-3); align-items: flex-start; }
+.app-pin-cover img { width: 96px; height: 96px; object-fit: cover; border-radius: var(--radius-md); flex: none; }
+.app-channel-group { padding: var(--space-3) var(--space-3) var(--space-1); margin: 0; }

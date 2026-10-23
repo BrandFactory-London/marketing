@@ -1,9 +1,10 @@
+import { readFileSync } from "node:fs";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestDb, resetDomainTables, testDatabaseUrl } from "@/test/db";
 import { createClient } from "@/lib/clients";
 import { createProject } from "@/lib/projects";
 import { saveKnowledge } from "@/lib/knowledge";
-import { buildPack, EMPTY_SECTION, loadPack, type PackInput } from "./pack";
+import { allChannelRules, buildPack, channelRules, EMPTY_SECTION, loadPack, withChannelRules, type PackInput } from "./pack";
 
 const input: PackInput = {
   clientName: "Migss Interiors",
@@ -40,8 +41,52 @@ describe("knowledge pack", () => {
     expect(buildPack({ ...input, client: null })).toContain(`### Business facts\n\n${EMPTY_SECTION}`);
   });
 
+  // γ7 orientation Q1: pack.golden.txt is this input's pack as main built it before channel sections existed (44ca0c4).
+  it("is unchanged by the channel sections, byte for byte", () => {
+    const golden = readFileSync(new URL("./pack.golden.txt", import.meta.url), "utf8");
+    expect(buildPack(input)).toBe(golden);
+    const withChannels: PackInput = {
+      ...input,
+      agency: { ...input.agency!, writing_rules_linkedin: "Open with a plain statement." },
+      client: { ...input.client!, voice_gmb: "Short and local." },
+    };
+    expect(buildPack(withChannels)).toBe(golden);
+  });
+
   it("holds no em dashes of its own", () => {
     expect(buildPack(input)).not.toContain("\u2014");
+  });
+});
+
+describe("channel rules (γ7 orientation Q1)", () => {
+  const pack = {
+    clientName: "Migss Interiors",
+    agency: { writing_rules: "All channels.", writing_rules_linkedin: "Open with a plain statement.", writing_rules_blog: "  " },
+    client: { voice: "You and we.", voice_linkedin: "First person plural.", voice_gmb: "Short and local." },
+  };
+
+  it("gives a channel only its own rules and voice", () => {
+    const linkedin = channelRules(pack, "linkedin");
+    expect(linkedin).toBe(
+      "## Rules for LinkedIn posts only (apply on top of the knowledge pack, never broken)\n\n" +
+        "### BrandFactory rules: LinkedIn post rules\n\nOpen with a plain statement.\n\n" +
+        "### Client knowledge (Migss Interiors): LinkedIn post voice\n\nFirst person plural.",
+    );
+    expect(channelRules(pack, "gmb")).toContain("Short and local.");
+    expect(channelRules(pack, "gmb")).not.toContain("plain statement");
+    expect(channelRules(pack, "facebook")).toBe("");
+  });
+
+  it("leaves the instructions as they were when a channel has nothing of its own", () => {
+    expect(withChannelRules("Write the post.", channelRules(pack, "blog"))).toBe("Write the post.");
+    expect(withChannelRules("Write the post.", channelRules(pack, "linkedin"))).toMatch(/^Write the post\.\n\n## Rules for LinkedIn/);
+  });
+
+  it("lists every channel's own sections for the candidate proposer", () => {
+    const all = allChannelRules(pack);
+    expect(all).toContain("Open with a plain statement.");
+    expect(all).toContain("Short and local.");
+    expect(all).not.toContain("All channels.");
   });
 });
 

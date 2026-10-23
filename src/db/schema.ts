@@ -1,7 +1,7 @@
 import { boolean, check, date, index, integer, jsonb, numeric, pgTable, primaryKey, text, timestamp, unique, uniqueIndex, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import type { AdapterAccountType } from "next-auth/adapters";
-import type { KnowledgeSections, KnowledgeTier } from "@/config/knowledge";
+import type { KnowledgeSections, KnowledgeTier, RuleScope } from "@/config/knowledge";
 import { DEFAULT_MODEL } from "@/config/models";
 import type { PackageKey, ProjectStatus, PublishingTarget } from "@/config/packages";
 import type { GenerationStep, PostStatus } from "@/config/post-status";
@@ -484,9 +484,9 @@ export const ruleCandidates = pgTable(
   "rule_candidates",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    reviewEventId: uuid("review_event_id")
-      .notNull()
-      .references(() => reviewEvents.id, { onDelete: "restrict" }),
+    // Where it came from: a review event on the blog post, or (γ7) a derivative version's note or edit. Exactly one.
+    reviewEventId: uuid("review_event_id").references(() => reviewEvents.id, { onDelete: "restrict" }),
+    derivativeId: uuid("derivative_id").references((): AnyPgColumn => derivatives.id, { onDelete: "restrict" }),
     postId: uuid("post_id")
       .notNull()
       .references(() => posts.id, { onDelete: "restrict" }),
@@ -499,6 +499,8 @@ export const ruleCandidates = pgTable(
     status: text("status").$type<CandidateStatus>().notNull().default("proposed"),
     // γ6: "fact" for a fact proposed from a regenerate note (γ6 orientation Q7).
     kind: text("kind").$type<CandidateKind>().notNull().default("rule"),
+    // γ7: the channel a rule applies to, or every channel (γ7 orientation Q1, Q6).
+    scope: text("scope").$type<RuleScope>().notNull().default("all"),
     knowledgeVersionId: uuid("knowledge_version_id").references(() => knowledgeVersions.id, { onDelete: "restrict" }),
     aiCallId: uuid("ai_call_id").references(() => aiCalls.id, { onDelete: "restrict" }),
     createdAt: createdAt(),
@@ -509,6 +511,8 @@ export const ruleCandidates = pgTable(
     check("rule_candidates_tier_check", sql`${table.tier} in ('agency', 'client', 'project')`),
     check("rule_candidates_status_check", sql`${table.status} in ('proposed', 'accepted', 'dismissed')`),
     check("rule_candidates_kind_check", sql`${table.kind} in ('rule', 'fact')`),
+    check("rule_candidates_scope_check", sql`${table.scope} in ('all', 'blog', 'gmb', 'linkedin', 'facebook', 'pinterest')`),
+    check("rule_candidates_source_check", sql`(${table.reviewEventId} is null) <> (${table.derivativeId} is null)`),
   ],
 );
 
@@ -593,10 +597,10 @@ export const publishEvents = pgTable(
   ],
 );
 
-export type DerivativeChannel = "gmb" | "linkedin";
+export type DerivativeChannel = "gmb" | "linkedin" | "facebook" | "pinterest";
 export type DerivativeStatus = "writing" | "ready" | "failed";
 
-// GMB and LinkedIn copy from an approved post (decision 20). Every generation and every saved edit is a version.
+// GBP, LinkedIn, Facebook and Pinterest copy from an approved post (decision 20, γ7). Every generation and every saved edit is a version.
 export const derivatives = pgTable(
   "derivatives",
   {
@@ -608,6 +612,8 @@ export const derivatives = pgTable(
     version: integer("version").notNull(),
     status: text("status").$type<DerivativeStatus>().notNull(),
     source: text("source").$type<"model" | "edit">().notNull(),
+    // γ7: a Pinterest pin's title; body holds its description. Null on every other channel.
+    title: text("title"),
     body: text("body"),
     checks: jsonb("checks"),
     note: text("note"),
@@ -619,7 +625,7 @@ export const derivatives = pgTable(
   },
   (table) => [
     unique("derivatives_post_channel_version_unique").on(table.postId, table.channel, table.version),
-    check("derivatives_channel_check", sql`${table.channel} in ('gmb', 'linkedin')`),
+    check("derivatives_channel_check", sql`${table.channel} in ('gmb', 'linkedin', 'facebook', 'pinterest')`),
     check("derivatives_status_check", sql`${table.status} in ('writing', 'ready', 'failed')`),
     check("derivatives_source_check", sql`${table.source} in ('model', 'edit')`),
     check("derivatives_version_check", sql`${table.version} >= 1`),

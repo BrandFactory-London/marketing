@@ -1,0 +1,55 @@
+# Knowledge pack: Migss Interiors website
+
+## Tier 1: BrandFactory rules (apply to every post, never broken)
+
+### Writing rules
+
+1. Never use em dashes.
+
+### Banned phrases
+
+- "elevate"
+
+## Tier 2: Client knowledge (Migss Interiors)
+
+### Business facts
+
+Bathroom and kitchen renovation.
+
+### Voice
+
+You and we.
+
+### Examples
+
+None recorded.
+
+### Counter-examples
+
+None recorded.
+
+## Tier 3: Project knowledge (Migss Interiors website)
+
+### Ideal customer profiles
+
+Homeowners in Chigwell.
+
+### Project facts
+
+None recorded.
+
+### Call to action
+
+Book a free design consultation at /contact.
+
+### Allowed internal links
+
+/contact
+
+## Output format for every draft
+
+- Markdown. One H1 title, H2 section headings, H3 only if needed.
+- First line after the title: an excerpt of at most 160 characters, prefixed "Excerpt: ".
+- End with a call-to-action section under its own H2 heading, asking for what the spec's call to action says and linking to its page.
+- Include an FAQ section (H2 "Frequently asked questions") with 3 to 5 questions only if the spec says so.
+- Link only to the allowed internal links, by path, with Markdown links.

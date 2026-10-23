@@ -6,7 +6,7 @@ import { failureMessage, isRetryable } from "@/lib/generation";
 
 export type WriteDerivativePayload = { derivativeId: string };
 
-// GMB or LinkedIn copy from an approved post (design decision 20, γ6 orientation Q6). A failure leaves the version
+// Derivative copy from an approved post (design decision 20, γ6 orientation Q6, γ7 orientation Q5). A failure leaves the version
 // marked failed with its reason; Regenerate starts another.
 export const writeDerivativeTask = task({
   id: "write-derivative",
