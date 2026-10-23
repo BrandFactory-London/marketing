@@ -1,70 +1,14 @@
 import "server-only";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
-import { getDb, type Executor } from "@/db/client";
-import { posts, projects } from "@/db/schema";
-import { getPackage, PACKAGES } from "@/config/packages";
+import { getDb, type Database, type Executor } from "@/db/client";
+import { posts } from "@/db/schema";
 import { PRE_WRITING_STATUSES, type PostStatus } from "@/config/post-status";
-import { queueEventDeletions } from "./calendar-sync";
-import { addDays, isIsoDate, londonToday } from "./dates";
+import { isIsoDate, londonToday, longDate } from "./dates";
+import { afterSeoMove, runBoundsFor } from "./runs";
 import { isUuid } from "./validation";
 
-// Calendar slots (design decision 15). Active projects keep planned slots on their package's weekdays,
-// eight weeks ahead, topped up whenever a project changes and whenever the calendar, Home or Run plan is
-// read (γ3 orientation Q1). The generator skips any cadence date that already has a slot, moved or not.
-
-export const SLOT_WINDOW_DAYS = 56;
-
-// One row per package weekday, from src/config/packages.ts, as SQL VALUES.
-function packageWeekdays() {
-  const rows = PACKAGES.flatMap((item) => item.weekdays.map((day) => sql`(${item.key}, ${day}::int)`));
-  return sql.join(rows, sql`, `);
-}
-
-// Adds any missing planned slot for active projects (or one project) from today to eight weeks ahead.
-// Safe to run at any time, and twice at once: the unique (project_id, cadence_date) makes it a no-op.
-export async function ensureSlots(options: { projectId?: string; today?: string } = {}, db: Executor = getDb()): Promise<number> {
-  const today = options.today ?? londonToday();
-  const last = addDays(today, SLOT_WINDOW_DAYS - 1);
-  const result = await db.execute(sql`
-    insert into posts (project_id, cadence_date, slot_date, status)
-    select p.id, d::date, d::date, 'planned'
-    from projects p
-    join (values ${packageWeekdays()}) as w(package, dow) on w.package = p.package
-    cross join generate_series(${today}::date, ${last}::date, interval '1 day') as d
-    where p.status = 'active'
-      and extract(dow from d)::int = w.dow
-      ${options.projectId ? sql`and p.id = ${options.projectId}` : sql``}
-    on conflict (project_id, cadence_date) do nothing
-  `);
-  return result.rowCount ?? 0;
-}
-
-// Brings a project's slots in line with its saved status and package (γ3 orientation Q8). It reads both
-// from the database, so it always agrees with ensureSlots. Slots with a topic and past slots are never touched.
-// - Paused: future empty slots go.
-// - Active: future empty slots on a weekday the package no longer uses go, then the cadence is topped up.
-export async function reconcileSlots(projectId: string, options: { today?: string } = {}, db: Executor = getDb()): Promise<void> {
-  const [project] = await db
-    .select({ id: projects.id, status: projects.status, package: projects.package })
-    .from(projects)
-    .where(eq(projects.id, projectId));
-  if (!project) return;
-  const today = options.today ?? londonToday();
-  const emptyFuture = and(eq(posts.projectId, project.id), eq(posts.status, "planned"), sql`${posts.slotDate} >= ${today}::date`);
-  // Each deleted slot's calendar event is queued for deletion in the same statement's transaction (γ8 orientation Q4).
-  if (project.status === "paused") {
-    const gone = await db.delete(posts).where(emptyFuture).returning({ id: posts.id });
-    await queueEventDeletions(db, gone.map((row) => row.id));
-    return;
-  }
-  const days = getPackage(project.package).weekdays.map((day) => sql`${day}::int`);
-  const gone = await db
-    .delete(posts)
-    .where(and(emptyFuture, sql`${posts.cadenceDate} is not null`, sql`extract(dow from ${posts.cadenceDate})::int not in (${sql.join(days, sql`, `)})`))
-    .returning({ id: posts.id });
-  await queueEventDeletions(db, gone.map((row) => row.id));
-  await ensureSlots({ projectId: project.id, today }, db);
-}
+// Calendar slots (design decision 15). Since Phase 2 A1 a run creates its project's slots (src/lib/runs.ts); the package
+// generator that kept eight weeks of slots topped up is retired. Topics and moves stay here.
 
 export class SlotError extends Error {
   constructor(message: string) {
@@ -105,13 +49,19 @@ export async function setTopic(id: string, input: unknown, db: Executor = getDb(
   return row;
 }
 
-// Moves a slot to today or later. Its cadence date stays, so the generator does not refill the old day.
-export async function moveSlot(id: string, input: unknown, options: { today?: string } = {}, db: Executor = getDb()) {
+// Moves a slot to today or later, inside its run. Its cadence date stays, so a rule change leaves it alone, and its
+// derived slots keep after it (Phase 2 A1, orientation Q4).
+export async function moveSlot(id: string, input: unknown, options: { today?: string } = {}, db: Database = getDb()) {
   const today = options.today ?? londonToday();
   if (!isIsoDate(input)) throw new SlotError("Choose a date.");
   if (input < today) throw new SlotError("Choose today or a later date.");
   const slot = await editableSlot(id, db);
   if (slot.status === "published") throw new SlotError("A published post cannot be moved.");
-  const [row] = await db.update(posts).set({ slotDate: input, updatedAt: sql`now()` }).where(eq(posts.id, id)).returning();
-  return row;
+  const run = await runBoundsFor(id, db);
+  if (run && (input < run.startsOn || input > run.endsOn)) throw new SlotError(`Keep it inside ${run.name}, ${longDate(run.startsOn)} to ${longDate(run.endsOn)}.`);
+  return db.transaction(async (tx) => {
+    const [row] = await tx.update(posts).set({ slotDate: input, updatedAt: sql`now()` }).where(eq(posts.id, id)).returning();
+    await afterSeoMove(tx, id, input);
+    return row;
+  });
 }

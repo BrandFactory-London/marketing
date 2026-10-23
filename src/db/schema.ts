@@ -4,6 +4,9 @@ import type { AdapterAccountType } from "next-auth/adapters";
 import type { KnowledgeSections, KnowledgeTier, RuleScope } from "@/config/knowledge";
 import { DEFAULT_MODEL } from "@/config/models";
 import type { PackageKey, ProjectStatus, PublishingTarget } from "@/config/packages";
+import type { Cadence, RunPresetKey } from "@/config/run-presets";
+import type { RunStatus } from "@/config/run-status";
+import type { ContentType, DerivedType } from "@/config/content-types";
 import type { GenerationStep, PostStatus } from "@/config/post-status";
 
 // Auth.js tables. Property names are what @auth/drizzle-adapter expects.
@@ -96,7 +99,7 @@ export const clients = pgTable("clients", {
 });
 
 // One site that gets marketing content. Package, status and publishing target are checked against the
-// keys in src/config/packages.ts; γ3 generates calendar slots from package and status.
+// keys in src/config/packages.ts. From Phase 2 A1 runs make the slots and the package is no longer read.
 export const projects = pgTable(
   "projects",
   {
@@ -106,7 +109,8 @@ export const projects = pgTable(
       .references(() => clients.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
     siteUrl: text("site_url").notNull(),
-    package: text("package").$type<PackageKey>().notNull(),
+    // Retired by runs (Phase 2 session A1): no longer read or written, dropped in A2.
+    package: text("package").$type<PackageKey>(),
     status: text("status").$type<ProjectStatus>().notNull(),
     statusChangedAt: timestamp("status_changed_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
     publishingTarget: text("publishing_target").$type<PublishingTarget>().notNull().default("wix_blog"),
@@ -119,7 +123,7 @@ export const projects = pgTable(
   },
   (table) => [
     index("projects_client_id_idx").on(table.clientId),
-    check("projects_package_check", sql`${table.package} in ('entry', 'mid', 'premium')`),
+    check("projects_package_check", sql`${table.package} is null or ${table.package} in ('entry', 'mid', 'premium')`),
     check("projects_status_check", sql`${table.status} in ('active', 'paused')`),
     check("projects_publishing_target_check", sql`${table.publishingTarget} in ('wix_blog')`),
   ],
@@ -170,9 +174,8 @@ export const sitePages = pgTable(
 );
 
 // One row per calendar slot. A slot is a post that has not started: γ4 to γ6 add the spec, draft, review
-// and publishing to the same record. cadence_date is the package weekday the slot was generated for and
-// never changes, so moving slot_date never makes the generator add another slot for that day
-// (γ3 orientation Q2). Statuses are the keys in src/config/post-status.ts.
+// and publishing to the same record. cadence_date is the day the run's rule gave the slot and never changes,
+// so moving slot_date never makes the generator add another slot for that day (γ3 orientation Q2, Phase 2 A1). Statuses are the keys in src/config/post-status.ts.
 export const posts = pgTable(
   "posts",
   {
@@ -182,6 +185,9 @@ export const posts = pgTable(
       .references(() => projects.id, { onDelete: "restrict" }),
     status: text("status").$type<PostStatus>().notNull().default("planned"),
     statusChangedAt: timestamp("status_changed_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+    // Phase 2 A1: the run the slot belongs to. Null only for a slot the retired package generator added during the
+    // deploy, which the backstop adopts or removes (orientation Q3).
+    runId: uuid("run_id").references((): AnyPgColumn => runs.id, { onDelete: "restrict" }),
     cadenceDate: date("cadence_date", { mode: "string" }),
     slotDate: date("slot_date", { mode: "string" }).notNull(),
     topic: text("topic"),
@@ -652,7 +658,8 @@ export const derivatives = pgTable(
 
 // ---- γ8: Google Calendar (γ8 orientation Q4, Q6) ----
 
-// A slot deleted by reconcileSlots whose calendar event still has to go. The post is gone, so there is no foreign key.
+// A slot deleted by a run change whose calendar event still has to go. The record is gone, so there is no foreign key;
+// post_id holds an SEO post's ID or, from Phase 2 A1, a derived slot's.
 export const calendarDeletions = pgTable("calendar_deletions", {
   postId: uuid("post_id").primaryKey(),
   eventId: text("event_id").notNull(),
@@ -660,3 +667,93 @@ export const calendarDeletions = pgTable("calendar_deletions", {
   error: text("error"),
   createdAt: createdAt(),
 });
+
+// ---- Phase 2 session A1: runs (orientation Q1 to Q4) ----
+
+// A block of content for one project: 1 to 3 months, an amount and a cadence per content type, and priority notes.
+// Runs of one project never overlap; the migration adds an exclusion constraint for that, which this file cannot express.
+export const runs = pgTable(
+  "runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    preset: text("preset").$type<RunPresetKey>().notNull(),
+    startsOn: date("starts_on", { mode: "string" }).notNull(),
+    endsOn: date("ends_on", { mode: "string" }).notNull(),
+    priorityNotes: text("priority_notes"),
+    status: text("status").$type<RunStatus>().notNull().default("setting_up"),
+    // Run 1: made by the migration from the project's Phase 1 slots, and written through hand-made batches.
+    imported: boolean("imported").notNull().default(false),
+    // The post defaults the batch form asks for today; A4's batches take them.
+    lengthMin: integer("length_min").notNull().default(1200),
+    lengthMax: integer("length_max").notNull().default(1600),
+    cta: text("cta"),
+    faqMode: text("faq_mode").$type<"useful" | "always" | "never">().notNull().default("useful"),
+    writerModel: text("writer_model").notNull().default(DEFAULT_MODEL),
+    criticModel: text("critic_model").notNull().default(DEFAULT_MODEL),
+    planApprovedAt: timestamp("plan_approved_at", { mode: "date", withTimezone: true }),
+    clientApprovedAt: timestamp("client_approved_at", { mode: "date", withTimezone: true }),
+    activatedAt: timestamp("activated_at", { mode: "date", withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("runs_project_id_idx").on(table.projectId),
+    check("runs_dates_check", sql`${table.endsOn} >= ${table.startsOn}`),
+    check("runs_preset_check", sql`${table.preset} in ('entry', 'mid', 'premium', 'custom')`),
+    check("runs_status_check", sql`${table.status} in ('setting_up', 'planning', 'plan_approved', 'active')`),
+    check("runs_length_check", sql`${table.lengthMin} > 0 and ${table.lengthMax} >= ${table.lengthMin}`),
+    check("runs_faq_mode_check", sql`${table.faqMode} in ('useful', 'always', 'never')`),
+  ],
+);
+
+// A run's amount and cadence for one content type.
+export const runChannels = pgTable(
+  "run_channels",
+  {
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => runs.id, { onDelete: "cascade" }),
+    contentType: text("content_type").$type<ContentType>().notNull(),
+    amount: integer("amount").notNull(),
+    cadence: jsonb("cadence").$type<Cadence>().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.runId, table.contentType] }),
+    check("run_channels_type_check", sql`${table.contentType} in ('seo', 'gmb', 'linkedin', 'facebook', 'pinterest')`),
+    check("run_channels_amount_check", sql`${table.amount} >= 0`),
+  ],
+);
+
+// A dated placeholder for a post derived from an SEO post (orientation Q2). Its text is the newest derivatives version
+// for its parent and channel, so γ6 and γ7's versions are joined, never reshaped. One per channel per SEO post.
+export const derivedSlots = pgTable(
+  "derived_slots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => runs.id, { onDelete: "restrict" }),
+    parentPostId: uuid("parent_post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "restrict" }),
+    contentType: text("content_type").$type<DerivedType>().notNull(),
+    slotDate: date("slot_date", { mode: "string" }).notNull(),
+    // The date its rule gave; a slot moved by hand keeps it, so a rule change leaves it alone.
+    cadenceDate: date("cadence_date", { mode: "string" }).notNull(),
+    calendarHash: text("calendar_hash"),
+    calendarSyncedAt: timestamp("calendar_synced_at", { mode: "date", withTimezone: true }),
+    calendarError: text("calendar_error"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    unique("derived_slots_parent_type_unique").on(table.parentPostId, table.contentType),
+    index("derived_slots_run_id_idx").on(table.runId),
+    index("derived_slots_slot_date_idx").on(table.slotDate),
+    check("derived_slots_type_check", sql`${table.contentType} in ('gmb', 'linkedin', 'facebook', 'pinterest')`),
+  ],
+);

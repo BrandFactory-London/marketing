@@ -1,4 +1,4 @@
-import { expect, query, test, resetDomain } from "./fixtures";
+import { expect, query, test, resetDomain, seedRun } from "./fixtures";
 
 // γ3.2: the calendar page and Home's two weeks, against the local test database. "Today" is the real
 // London date, so dates are worked out here the same way the app does.
@@ -16,6 +16,7 @@ const shot = (name: string) => ({ path: `e2e/screenshots/${name}.png`, fullPage:
 
 let clientId = "";
 let projectId = "";
+let runId = "";
 const today = londonToday();
 
 test.beforeAll(async () => {
@@ -25,6 +26,8 @@ test.beforeAll(async () => {
     "insert into projects (client_id, name, site_url, package, status) values ($1, 'Migss Interiors Website', 'https://www.migssinteriors.com', 'premium', 'active') returning id",
     [clientId],
   );
+  // Phase 2 A1: slots come from a run, here eight weeks of Mon, Wed and Fri.
+  runId = await seedRun(projectId, [1, 3, 5], { preset: "premium" });
 });
 
 async function slotRows() {
@@ -34,7 +37,7 @@ async function slotRows() {
   );
 }
 
-test("opening the calendar plans eight weeks of Mon, Wed and Fri slots", async ({ page, signedIn }) => {
+test("opening the calendar shows the run's eight weeks of Mon, Wed and Fri slots", async ({ page, signedIn }) => {
   void signedIn;
   await page.goto("/calendar");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("BrandFactory calendar");
@@ -42,7 +45,7 @@ test("opening the calendar plans eight weeks of Mon, Wed and Fri slots", async (
   expect(rows).toHaveLength(24);
   expect(new Set(rows.map((row) => weekday(row.slot_date)))).toEqual(new Set([1, 3, 5]));
   expect(rows[0].slot_date >= today && rows.at(-1)!.slot_date <= addDays(today, 55)).toBe(true);
-  // Reloading tops up nothing new.
+  // Reloading adds nothing: the package generator is retired.
   await page.reload();
   expect(await slotRows()).toHaveLength(24);
 
@@ -98,9 +101,10 @@ test("moving a slot keeps one slot for that cadence day", async ({ page, signedI
 test("a past slot with no writing shows as missed", async ({ page, signedIn }) => {
   void signedIn;
   const yesterday = addDays(today, -1);
+  await query("update runs set starts_on = $2 where id = $1", [runId, yesterday]);
   const [missed] = await query<{ id: string }>(
-    "insert into posts (project_id, cadence_date, slot_date, status) values ($1, $2, $2, 'planned') returning id",
-    [projectId, yesterday],
+    "insert into posts (project_id, run_id, cadence_date, slot_date, status) values ($1, $2, $3, $3, 'planned') returning id",
+    [projectId, runId, yesterday],
   );
   await page.goto(`/calendar?month=${yesterday.slice(0, 7)}&slot=${missed.id}`);
   const panel = page.getByRole("complementary", { name: "Selected slot" });
@@ -115,6 +119,7 @@ test("the project filter and month arrows change what is shown", async ({ page, 
     "insert into projects (client_id, name, site_url, package, status) values ($1, 'Second site', 'https://example.com', 'entry', 'active') returning id",
     [clientId],
   );
+  await seedRun(other, [2], { preset: "entry" });
   await page.goto("/calendar");
   const month = page.getByRole("grid", { name: "Month" });
   await expect(month.getByRole("link", { name: /Second site/ }).first()).toBeVisible();
@@ -126,6 +131,7 @@ test("the project filter and month arrows change what is shown", async ({ page, 
   await expect(page).toHaveURL(/month=\d{4}-\d{2}.*project=/);
   await expect(page.getByRole("link", { name: "Back to this month" })).toBeVisible();
   await query("delete from posts where project_id = $1", [other]);
+  await query("delete from runs where project_id = $1", [other]);
   await query("delete from projects where id = $1", [other]);
 });
 

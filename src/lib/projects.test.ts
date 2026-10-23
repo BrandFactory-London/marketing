@@ -1,10 +1,12 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { projects } from "@/db/schema";
 import { createTestDb, resetDomainTables, testDatabaseUrl } from "@/test/db";
 import { createClient } from "./clients";
 import { createProject, getProject, listClientProjects, listProjects, parseProjectInput, setDriveFolder, UnknownClient, updateProjectSettings } from "./projects";
 
 const clientId = "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed";
-const valid = { clientId, name: "Migss Interiors website", siteUrl: "www.migssinteriors.com/", package: "entry", status: "active" };
+const valid = { clientId, name: "Migss Interiors website", siteUrl: "www.migssinteriors.com/", status: "active" };
 
 describe("project input", () => {
   it("normalises the website and defaults the publishing target to Wix Blog", () => {
@@ -15,9 +17,9 @@ describe("project input", () => {
   });
 
   it("reports every missing or invalid field", () => {
-    const result = parseProjectInput({ clientId: "x", name: "", siteUrl: "ftp://x.com", package: "gold", status: "live", publishingTarget: "wordpress" });
+    const result = parseProjectInput({ clientId: "x", name: "", siteUrl: "ftp://x.com", status: "live", publishingTarget: "wordpress" });
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(["clientId", "name", "package", "publishingTarget", "siteUrl", "status"]);
+    if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(["clientId", "name", "publishingTarget", "siteUrl", "status"]);
   });
 });
 
@@ -39,7 +41,7 @@ describe.skipIf(!testDatabaseUrl)("projects (local Postgres)", () => {
   it("creates a project under its client and lists it with the client name", async () => {
     const { client, value } = await setup();
     const project = await createProject(value, db);
-    expect(await getProject(project.id, db)).toMatchObject({ name: "Migss Interiors website", clientName: "Migss Interiors", package: "entry" });
+    expect(await getProject(project.id, db)).toMatchObject({ name: "Migss Interiors website", clientName: "Migss Interiors", currentRun: null });
     expect((await listProjects(db)).map((p) => p.name)).toEqual(["Migss Interiors website"]);
     expect((await listClientProjects(client.id, db)).map((p) => p.id)).toEqual([project.id]);
   });
@@ -52,17 +54,18 @@ describe.skipIf(!testDatabaseUrl)("projects (local Postgres)", () => {
   it("moves status_changed_at only when the status changes", async () => {
     const { value } = await setup();
     const project = await createProject(value, db);
-    const samePackage = await updateProjectSettings(project.id, { ...value, package: "mid" }, db);
-    expect(samePackage!.statusChangedAt.getTime()).toBe(project.statusChangedAt.getTime());
+    const sameStatus = await updateProjectSettings(project.id, { ...value, name: "Renamed" }, db);
+    expect(sameStatus!.statusChangedAt.getTime()).toBe(project.statusChangedAt.getTime());
     await new Promise((resolve) => setTimeout(resolve, 10));
     const paused = await updateProjectSettings(project.id, { ...value, status: "paused" }, db);
     expect(paused!.status).toBe("paused");
     expect(paused!.statusChangedAt.getTime()).toBeGreaterThan(project.statusChangedAt.getTime());
   });
 
-  it("the database refuses an unknown package even if the app is bypassed", async () => {
+  it("the database still refuses an unknown package while the column lives on", async () => {
     const { value } = await setup();
-    await expect(createProject({ ...value, package: "gold" as never }, db)).rejects.toThrow();
+    const project = await createProject(value, db);
+    await expect(db.update(projects).set({ package: "gold" as never }).where(eq(projects.id, project.id))).rejects.toThrow();
   });
 
   it("stores and clears the Drive folder", async () => {

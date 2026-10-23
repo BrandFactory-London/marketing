@@ -97,7 +97,7 @@ describe.skipIf(!testDatabaseUrl)("review (local Postgres)", () => {
     await resetDomainTables(db);
     const client = await createClient({ name: "Migss Interiors", mainContact: null, email: null, phone: null }, db);
     const project = await createProject(
-      { clientId: client.id, name: "Migss website", siteUrl: "https://www.migss.co.uk", package: "entry", status: "paused", publishingTarget: "wix_blog" },
+      { clientId: client.id, name: "Migss website", siteUrl: "https://www.migss.co.uk", status: "paused", publishingTarget: "wix_blog" },
       db,
     );
     await saveKnowledge({ tier: "project", projectId: project.id }, { allowed_links: "/contact" }, db);

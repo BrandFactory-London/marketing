@@ -110,7 +110,7 @@ describe.skipIf(!testDatabaseUrl)("Wix credentials (local Postgres)", () => {
     await resetDomainTables(db);
     const client = await createClient({ name: "Migss Interiors", mainContact: null, email: null, phone: null }, db);
     const project = await createProject(
-      { clientId: client.id, name: "Migss website", siteUrl: "https://www.migss.co.uk", package: "entry", status: "paused", publishingTarget: "wix_blog" },
+      { clientId: client.id, name: "Migss website", siteUrl: "https://www.migss.co.uk", status: "paused", publishingTarget: "wix_blog" },
       db,
     );
     projectId = project.id;
@@ -126,7 +126,7 @@ describe.skipIf(!testDatabaseUrl)("Wix credentials (local Postgres)", () => {
     expect(await loadWixCredentials(projectId, db)).toEqual(credentials);
     // The ciphertext is bound to its project: copied to another project's row, it does not decrypt.
     const other = await createProject(
-      { clientId: (await createClient({ name: "Other", mainContact: null, email: null, phone: null }, db)).id, name: "Other site", siteUrl: "https://other.example", package: "entry", status: "paused", publishingTarget: "wix_blog" },
+      { clientId: (await createClient({ name: "Other", mainContact: null, email: null, phone: null }, db)).id, name: "Other site", siteUrl: "https://other.example", status: "paused", publishingTarget: "wix_blog" },
       db,
     );
     await db.insert(projectWix).values({ projectId: other.id, credentialsEnc: row.credentialsEnc, keyHint: "7f3a" });

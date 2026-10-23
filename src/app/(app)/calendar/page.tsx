@@ -11,7 +11,7 @@ import { isMonth, londonToday, longDate, monthGrid, monthLabel, monthOf, shiftMo
 import { getSlot, listSlotsBetween, type SlotView } from "@/lib/posts";
 import { listProjects } from "@/lib/projects";
 import { requireUser } from "@/lib/session";
-import { ensureSlots } from "@/lib/slots";
+import { adoptOrphanSlots } from "@/lib/runs";
 import { isUuid } from "@/lib/validation";
 import { ProjectFilter } from "./ProjectFilter";
 import { syncCalendarAfter } from "@/lib/calendar-hooks";
@@ -50,7 +50,7 @@ async function CalendarContent({ searchParams }: Pick<PageProps<"/calendar">, "s
   const project = typeof query.project === "string" && isUuid(query.project) ? query.project : undefined;
   const slotId = typeof query.slot === "string" ? query.slot : undefined;
 
-  await ensureSlots({ today });
+  await adoptOrphanSlots();
   // New slots and changes made by Trigger.dev tasks reach the calendar after a page is read (γ8 orientation Q2).
   syncCalendarAfter("read");
   const weeks = monthGrid(month);

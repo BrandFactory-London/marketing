@@ -47,17 +47,17 @@ describe.skipIf(!testDatabaseUrl)("clients (local Postgres)", () => {
     expect(await updateClient("1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", { name: "X", mainContact: null, email: null, phone: null }, db)).toBeNull();
   });
 
-  it("lists clients by name with their projects, packages and derived status", async () => {
+  it("lists clients by name with their projects and derived status", async () => {
     const migss = await createClient({ name: "Migss Interiors", mainContact: null, email: null, phone: null }, db);
     await createClient({ name: "brandFactory London", mainContact: null, email: null, phone: null }, db);
     await db.insert(projects).values([
-      { clientId: migss.id, name: "Migss Interiors website", siteUrl: "https://www.migssinteriors.com", package: "entry", status: "active" },
-      { clientId: migss.id, name: "Another site", siteUrl: "https://example.com", package: "mid", status: "paused" },
+      { clientId: migss.id, name: "Migss Interiors website", siteUrl: "https://www.migssinteriors.com", status: "active" },
+      { clientId: migss.id, name: "Another site", siteUrl: "https://example.com", status: "paused" },
     ]);
     const list = await listClients(db);
-    expect(list.map((client) => [client.name, client.status, client.projects.map((p) => `${p.name}:${p.package}`)])).toEqual([
+    expect(list.map((client) => [client.name, client.status, client.projects.map((p) => p.name)])).toEqual([
       ["brandFactory London", "setup", []],
-      ["Migss Interiors", "active", ["Another site:mid", "Migss Interiors website:entry"]],
+      ["Migss Interiors", "active", ["Another site", "Migss Interiors website"]],
     ]);
   });
 });

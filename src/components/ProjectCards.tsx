@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { Badge } from "@/components/ui/Badge";
-import { getProjectStatus, packageSummary, publishingTargetLabel, type ProjectStatus } from "@/config/packages";
+import { getProjectStatus, publishingTargetLabel, type ProjectStatus } from "@/config/packages";
+import { presetLabel } from "@/config/run-presets";
 import { shortDate } from "@/lib/dates";
 import type { NextSlot } from "@/lib/posts";
 import type { ProjectWithClient } from "@/lib/projects";
@@ -15,9 +16,15 @@ export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
 export const projectHref = (project: { id: string }) => `/projects/${project.id}`;
 
 // The "Next in run plan" line (γ3 orientation Q11): the first slot from today on.
-export function nextInRunPlan(project: Pick<ProjectWithClient, "status">, next: NextSlot | undefined): string {
+export function nextInRunPlan(project: Pick<ProjectWithClient, "status" | "currentRun">, next: NextSlot | undefined): string {
   if (next) return `${shortDate(next.slotDate)} · ${next.topic ?? "No topic yet"}`;
+  if (!project.currentRun) return "No run set up";
   return project.status === "paused" ? "Paused, no slots planned" : "No slots planned";
+}
+
+// Runs replace packages (Phase 2 A1): "Run 2 · Mid · to 26 Jan", or "No run set up".
+export function runSummary(run: ProjectWithClient["currentRun"]): string {
+  return run ? `${run.name} · ${presetLabel(run.preset)} · to ${shortDate(run.endsOn)}` : "No run set up";
 }
 
 // Home gallery: a plain cover in the shape of a browser window. Live screenshots replace it in Phase 2.
@@ -46,7 +53,7 @@ export function ProjectTile({ project, next, index = 0 }: { project: ProjectWith
         <div className="app-badges">
           {next ? <Badge tone="brand">Next post {shortDate(next.slotDate)}</Badge> : null}
           {!next && project.status === "paused" ? <Badge>Paused, no slots planned</Badge> : null}
-          <Badge>{packageSummary(project.package)}</Badge>
+          <Badge>{runSummary(project.currentRun)}</Badge>
         </div>
       </div>
     </Link>
@@ -65,8 +72,8 @@ export function ProjectSummaryCard({ project, next, index = 0 }: { project: Proj
         <ProjectStatusBadge status={project.status} />
       </div>
       <dl className="app-facts small">
-        <dt>Package</dt>
-        <dd>{packageSummary(project.package)}</dd>
+        <dt>Run</dt>
+        <dd>{runSummary(project.currentRun)}</dd>
         <dt>Publishes to</dt>
         <dd>{publishingTargetLabel(project.publishingTarget)}</dd>
         <dt>Next in run plan</dt>
@@ -76,7 +83,7 @@ export function ProjectSummaryCard({ project, next, index = 0 }: { project: Proj
   );
 }
 
-// Client page: compact card with the package badge.
+// Client page: compact card with the current run's badge.
 export function ClientProjectCard({ project }: { project: ProjectWithClient }) {
   return (
     <Link href={projectHref(project)} className="bfm-card bfm-card-interactive app-card-link">
@@ -90,7 +97,7 @@ export function ClientProjectCard({ project }: { project: ProjectWithClient }) {
         <ProjectStatusBadge status={project.status} />
       </div>
       <div className="app-badges">
-        <Badge tone="brand">{packageSummary(project.package)}</Badge>
+        <Badge tone="brand">{runSummary(project.currentRun)}</Badge>
       </div>
     </Link>
   );

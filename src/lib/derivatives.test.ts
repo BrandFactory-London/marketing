@@ -120,7 +120,7 @@ describe.skipIf(!testDatabaseUrl)("derivatives (local Postgres)", () => {
   beforeEach(async () => {
     await resetDomainTables(db);
     const client = await createClient({ name: "Migss Interiors", mainContact: null, email: null, phone: null }, db);
-    const project = await createProject({ clientId: client.id, name: "Migss website", siteUrl: "https://www.migssinteriors.com", package: "entry", status: "paused", publishingTarget: "wix_blog" }, db);
+    const project = await createProject({ clientId: client.id, name: "Migss website", siteUrl: "https://www.migssinteriors.com", status: "paused", publishingTarget: "wix_blog" }, db);
     await saveKnowledge({ tier: "agency" }, { banned_phrases: "- dream bathroom" }, db);
     const [batch] = await db
       .insert(batches)

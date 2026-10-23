@@ -2,8 +2,10 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestDb, resetDomainTables, testDatabaseUrl } from "@/test/db";
 import { clients, posts, projects } from "@/db/schema";
-import { getSlot, listProjectPlan, listSlotsBetween, listStartedPosts, nextSlots } from "./posts";
-import { ensureSlots, setTopic } from "./slots";
+import { getSlot, listSlotsBetween, listStartedPosts, nextSlots } from "./posts";
+import { runInput } from "@/test/runs";
+import { createRun } from "./runs";
+import { setTopic } from "./slots";
 
 const today = "2026-10-21";
 
@@ -20,13 +22,15 @@ describe.skipIf(!testDatabaseUrl)("slot and post reads (local Postgres)", () => 
     [other] = await db.insert(clients).values({ name: "Another client" }).returning({ id: clients.id });
     [site] = await db
       .insert(projects)
-      .values({ clientId: migss.id, name: "Migss Interiors Website", siteUrl: "https://www.migssinteriors.com", package: "premium", status: "active" })
+      .values({ clientId: migss.id, name: "Migss Interiors Website", siteUrl: "https://www.migssinteriors.com", status: "active" })
       .returning({ id: projects.id });
     [shop] = await db
       .insert(projects)
-      .values({ clientId: other.id, name: "Another site", siteUrl: "https://example.com", package: "entry", status: "active" })
+      .values({ clientId: other.id, name: "Another site", siteUrl: "https://example.com", status: "active" })
       .returning({ id: projects.id });
-    await ensureSlots({ today }, db);
+    // Premium (Mon, Wed, Fri) for Migss and Entry (Tue) for the other site.
+    await createRun(site.id, runInput("premium", today, 2), db, { today });
+    await createRun(shop.id, runInput("entry", today, 2), db, { today });
   });
   afterAll(async () => {
     await resetDomainTables(db);
@@ -43,17 +47,6 @@ describe.skipIf(!testDatabaseUrl)("slot and post reads (local Postgres)", () => 
     ]);
     expect(week[0]).toMatchObject({ clientName: "Migss Interiors", status: "planned", topic: null });
     expect(await listSlotsBetween("2026-10-26", "2026-11-01", { projectId: shop.id }, db)).toHaveLength(1);
-  });
-
-  it("puts missed slots in the run plan and leaves out past slots that moved on", async () => {
-    await db.insert(posts).values([
-      { projectId: site.id, cadenceDate: "2026-10-19", slotDate: "2026-10-19", status: "planned" },
-      { projectId: site.id, cadenceDate: "2026-10-16", slotDate: "2026-10-16", status: "published", topic: "Older post" },
-    ]);
-    const plan = await listProjectPlan(site.id, { today }, db);
-    expect(plan[0].slotDate).toBe("2026-10-19");
-    expect(plan.some((slot) => slot.topic === "Older post")).toBe(false);
-    expect(plan).toHaveLength(25);
   });
 
   it("lists started posts only, newest first, filtered by client", async () => {

@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { getPostStatus, GOOGLE_COLOURS, isMissed, MISSED, postStatusLabel, type GenerationStep, type PostStatus } from "@/config/post-status";
+import { CONTENT_TYPES, type DerivedType } from "@/config/content-types";
+import { derivedSlotLine, type DerivedVersionStatus } from "@/config/run-status";
 import { addDays } from "./dates";
 
 // A post's Google Calendar event (γ8 orientation Q3, Q4). Pure: the same post always gives the same event, so its hash
@@ -8,8 +10,6 @@ import { addDays } from "./dates";
 
 export const APP_TAG = "brandfactory-marketing";
 
-// Each kind of post's word in event titles. Phase 2's derived posts add theirs here.
-export const CONTENT_TYPES = { seo: "SEO" } as const;
 
 export type CalendarPost = {
   postId: string;
@@ -42,6 +42,11 @@ export function eventIdFor(postId: string): string {
   return `bfm${postId.replace(/-/g, "").toLowerCase()}`;
 }
 
+// A derived slot's event (Phase 2 A1): "bfmd" and the slot's UUID, so it never meets an SEO post's ID.
+export function derivedEventIdFor(slotId: string): string {
+  return `bfmd${slotId.replace(/-/g, "").toLowerCase()}`;
+}
+
 export function shortName(clientName: string, short: string | null): string {
   return short?.trim() || clientName.trim().split(/\s+/)[0] || clientName;
 }
@@ -64,7 +69,7 @@ export function buildEvent(post: CalendarPost, options: { today: string; appUrl:
     .join("\n");
   return {
     id: eventIdFor(post.postId),
-    summary: `${shortName(post.clientName, post.clientShortName)} · ${CONTENT_TYPES.seo} · ${what}`,
+    summary: `${shortName(post.clientName, post.clientShortName)} · ${CONTENT_TYPES.seo.short} · ${what}`,
     description,
     colorId: GOOGLE_COLOURS[colour],
     start: { date: post.slotDate },
@@ -73,6 +78,46 @@ export function buildEvent(post: CalendarPost, options: { today: string; appUrl:
     transparency: "transparent",
     status: "confirmed",
     extendedProperties: { private: { bfmApp: APP_TAG, bfmPostId: post.postId } },
+  };
+}
+
+// A derived slot's event (Phase 2 A1): its own date, the channel's short name and its SEO post's topic, so the calendar
+// shows what it will be made from.
+export type CalendarDerivedSlot = {
+  slotId: string;
+  contentType: DerivedType;
+  slotDate: string;
+  versionStatus: DerivedVersionStatus;
+  parentPostId: string;
+  parentTopic: string | null;
+  clientName: string;
+  clientShortName: string | null;
+  projectName: string;
+};
+
+export function buildDerivedEvent(slot: CalendarDerivedSlot, options: { today: string; appUrl: string | null }): CalendarEvent {
+  const line = derivedSlotLine(slot.versionStatus, slot.slotDate, options.today);
+  const type = CONTENT_TYPES[slot.contentType];
+  const link = options.appUrl ? `${options.appUrl.replace(/\/+$/, "")}${slot.parentTopic ? `/posts/${slot.parentPostId}` : "/calendar"}` : null;
+  const description = [
+    `Status: ${line.label}`,
+    `Project: ${slot.projectName}`,
+    `From the SEO post: ${slot.parentTopic ?? "no topic yet"}`,
+    link ? `Open in BrandFactory Marketing: ${link}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return {
+    id: derivedEventIdFor(slot.slotId),
+    summary: `${shortName(slot.clientName, slot.clientShortName)} · ${type.short} · ${slot.parentTopic ?? "Planned slot"}`,
+    description,
+    colorId: GOOGLE_COLOURS[line.google],
+    start: { date: slot.slotDate },
+    end: { date: addDays(slot.slotDate, 1) },
+    transparency: "transparent",
+    status: "confirmed",
+    // bfmPostId holds the record's own ID for both kinds, so a resync can match any app event to its row.
+    extendedProperties: { private: { bfmApp: APP_TAG, bfmPostId: slot.slotId } },
   };
 }
 

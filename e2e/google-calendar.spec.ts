@@ -1,5 +1,5 @@
 import { encrypt } from "../src/lib/crypto";
-import { expect, query, resetDomain, test, TEST_EMAIL } from "./fixtures";
+import { expect, query, resetDomain, test, TEST_EMAIL, seedRun } from "./fixtures";
 
 // γ8: Google Calendar on Connections (needs connecting, choosing the calendar, Sync calendar now), events following a
 // topic and a move, a Google failure that never blocks the action, and the client's short name. Google is the local
@@ -37,6 +37,8 @@ test.beforeAll(async () => {
     "insert into projects (client_id, name, site_url, package, status) values ($1, 'Migss Interiors Website', 'https://www.migssinteriors.com', 'entry', 'active') returning id",
     [clientId],
   );
+  // Phase 2 A1: eight weeks of Tuesday slots from a run.
+  await seedRun(projectId, [2], { preset: "entry" });
 });
 
 test.afterAll(async () => {
@@ -60,7 +62,6 @@ test("Calendar needs connecting until Google grants it; Drive is unaffected", as
 test("choosing BrandFactory Content fills it with every slot, then Sync calendar now finds nothing to change", async ({ page, signedIn }) => {
   void signedIn;
   await storeGoogleToken(`${DRIVE} ${CALENDAR}`);
-  // Opening the calendar page creates the eight weeks of slots.
   await page.goto("/calendar");
   const all = await slots();
   expect(all.length).toBeGreaterThan(0);
