@@ -7,13 +7,18 @@ import * as derivativePrompt from "@/prompts/derivative";
 import type { Transport } from "./ai/client";
 import { runChecks } from "./checks";
 import { createClient } from "./clients";
-import { checkDerivative, findPhoneNumbers } from "./derivative-checks";
-import { DerivativeError, queueDerivative, saveDerivativeEdit, writeDerivative } from "./derivatives";
+import { checkDerivative, findPhoneNumbers, parsePin } from "./derivative-checks";
+import { copyDerivative, DerivativeError, derivativeViews, queueDerivative, queueMissingDerivatives, saveDerivativeEdit, writeDerivative } from "./derivatives";
 import { createProject } from "./projects";
 import { saveKnowledge } from "./knowledge";
 
 const URL = "https://www.migssinteriors.com/blog/wet-room-maintenance";
 const GMB = "A wet room stays watertight when the seals are looked after. Check the silicone around the tray every month and clear the drain of hair and soap each week. Small leaks are cheap to fix when caught early. Read the full guide for a week by week routine.";
+const FACEBOOK = `Most wet room leaks start at the silicone, not the tiles.\n\nA quick look at the joints around the tray each month catches small leaks while they are cheap to fix.\n\nOur week by week routine is here:\n${URL}`;
+const PIN = {
+  title: "Wet room maintenance: a week by week routine",
+  body: "A simple routine for keeping a wet room watertight: what to check each week and each month, from the silicone around the tray to the drain.",
+};
 const LINKEDIN = `Most wet room leaks start at the silicone, not the tiles.\n\nChecking the joints around the tray each month catches small leaks while they are cheap to fix.\n\nRead the full guide:\n${URL}\n\n#WetRooms #BathroomDesign`;
 
 describe("derivative checks (γ6 orientation Q6, as amended)", () => {
@@ -50,10 +55,36 @@ describe("derivative checks (γ6 orientation Q6, as amended)", () => {
   });
 
   it("fails over each platform's limit, dashes, banned phrases and placeholders", () => {
-    expect(checkDerivative("x".repeat(1501), "gmb", opts).issues[0].message).toBe("1,501 characters; GMB posts take at most 1,500.");
+    expect(checkDerivative("x".repeat(1501), "gmb", opts).issues[0].message).toBe("1,501 characters; GBP posts take at most 1,500.");
     expect(checkDerivative(`${LINKEDIN} ${"y".repeat(3000)}`, "linkedin", opts).issues.map((issue) => issue.check)).toContain("length");
     const dashed = checkDerivative(`${GMB} Your dream bathroom — sorted [CONFIRM: price].`, "gmb", opts);
     expect(dashed.issues.map((issue) => issue.check)).toEqual(expect.arrayContaining(["em_dash", "banned", "placeholder"]));
+  });
+
+  it("passes clean Facebook copy with the link, and fails it without the link or with hashtags (γ7 orientation Q5)", () => {
+    expect(checkDerivative(FACEBOOK, "facebook", opts)).toMatchObject({ passed: true, issues: [] });
+    expect(checkDerivative(FACEBOOK.replace(URL, ""), "facebook", opts).issues.map((issue) => issue.check)).toContain("link");
+    expect(checkDerivative(`${FACEBOOK} #WetRooms`, "facebook", opts).issues.map((issue) => issue.message)).toContain("Facebook posts here use no hashtags.");
+    expect(checkDerivative(`${FACEBOOK}${"z".repeat(2000)}`, "facebook", opts).issues[0].message).toMatch(/characters; Facebook posts take at most 2,000\.$/);
+  });
+
+  it("checks a pin's title and description apart, within Pinterest's 100 and 800 characters", () => {
+    expect(checkDerivative(PIN, "pinterest", opts)).toMatchObject({ passed: true, issues: [], titleCharacters: PIN.title.length });
+    const long = checkDerivative({ title: "t".repeat(101), body: "d".repeat(801) }, "pinterest", opts);
+    expect(long.issues.map((issue) => [issue.field, issue.message])).toEqual([
+      ["title", "101 characters; pin titles take at most 100."],
+      ["description", "801 characters; pin descriptions take at most 800."],
+    ]);
+    const linked = checkDerivative({ title: "Wet room care — a guide", body: `${PIN.body} ${URL} #WetRooms` }, "pinterest", opts);
+    expect(linked.issues.map((issue) => `${issue.field}:${issue.check}`)).toEqual(expect.arrayContaining(["title:em_dash", "description:link", "description:hashtags"]));
+    expect(checkDerivative({ title: "", body: PIN.body }, "pinterest", opts).issues[0]).toMatchObject({ field: "title", message: "The title is empty." });
+  });
+
+  it("splits the model's pin reply into its two fields, or says it cannot", () => {
+    expect(parsePin(`Title: ${PIN.title}\nDescription: ${PIN.body}`)).toEqual(PIN);
+    expect(parsePin(`  Title: ${PIN.title}\r\n\r\nDescription: ${PIN.body}\n`)).toEqual(PIN);
+    expect(parsePin(PIN.body)).toBeNull();
+    expect(parsePin("Title: \nDescription: x")).toBeNull();
   });
 
   it("tells the writer to leave contact details to the call button", () => {
@@ -114,7 +145,7 @@ describe.skipIf(!testDatabaseUrl)("derivatives (local Postgres)", () => {
     expect(user).toContain(`The article's link: ${URL}`);
     expect(user).toContain("Check the silicone every month.");
     const [call] = await db.select().from(aiCalls).where(eq(aiCalls.id, row.aiCallId!));
-    expect(call).toMatchObject({ purpose: "derivative", promptVersion: "derivative-1", effort: "medium", postId });
+    expect(call).toMatchObject({ purpose: "derivative", promptVersion: "derivative-2", effort: "medium", postId });
     expect(call.costUsd).toBeGreaterThan(0);
     // A retried run does not pay twice.
     expect(await writeDerivative(id, { db, transport: api.transport })).toBeNull();
@@ -155,6 +186,64 @@ describe.skipIf(!testDatabaseUrl)("derivatives (local Postgres)", () => {
 
   it("only writes copy for approved or published posts", async () => {
     await db.update(posts).set({ status: "in_review" }).where(eq(posts.id, postId));
-    await expect(queueDerivative(postId, "gmb", null, db)).rejects.toThrow("GMB and LinkedIn posts are written from approved or published posts.");
+    await expect(queueDerivative(postId, "gmb", null, db)).rejects.toThrow("Derivatives are written from approved or published posts.");
+  });
+
+  it("asks what was wrong once the channel has text, but not for a first run or a retry after nothing was written (γ7 handoff item 1)", async () => {
+    const first = await queueDerivative(postId, "gmb", null, db);
+    await db.update(derivatives).set({ status: "failed", error: "Stopped reporting." }).where(eq(derivatives.id, first));
+    const retry = await queueDerivative(postId, "gmb", null, db);
+    await writeDerivative(retry, { db, transport: fakeApi([GMB]).transport });
+    await expect(queueDerivative(postId, "gmb", null, db)).rejects.toThrow("Say what was wrong with this version.");
+    await expect(queueDerivative(postId, "gmb", "   ", db)).rejects.toThrow("Say what was wrong with this version.");
+    expect(await queueDerivative(postId, "gmb", "Too long.", db)).toBeTruthy();
+  });
+
+  it("writes Facebook copy with the Facebook rules, and a pin as two fields (γ7 orientation Q5)", async () => {
+    const facebook = fakeApi([FACEBOOK]);
+    await writeDerivative(await queueDerivative(postId, "facebook", null, db), { db, transport: facebook.transport });
+    expect(facebook.calls[0].messages[0].content as string).toContain("This is a post on the client's Facebook Page.");
+
+    const pin = fakeApi([PIN.body, `Title: ${PIN.title}\nDescription: ${PIN.body}`]);
+    const id = await queueDerivative(postId, "pinterest", null, db);
+    expect((await writeDerivative(id, { db, transport: pin.transport }))?.passed).toBe(true);
+    // The first reply had no labels, so the fix round asked for them.
+    expect(pin.calls).toHaveLength(2);
+    expect(pin.calls[1].messages[0].content as string).toContain('Reply as two lines, "Title:" then "Description:".');
+    const [row] = await db.select().from(derivatives).where(eq(derivatives.id, id));
+    expect(row).toMatchObject({ channel: "pinterest", status: "ready", title: PIN.title, body: PIN.body });
+  });
+
+  it("saves a pin edit with both fields, and refuses an empty title", async () => {
+    const id = await queueDerivative(postId, "pinterest", null, db);
+    await writeDerivative(id, { db, transport: fakeApi([`Title: ${PIN.title}\nDescription: ${PIN.body}`]).transport });
+    await expect(saveDerivativeEdit(postId, "pinterest", { title: " ", body: PIN.body }, db)).rejects.toThrow("The pin title is empty.");
+    const saved = await saveDerivativeEdit(postId, "pinterest", { title: "Wet room care, week by week", body: PIN.body }, db);
+    expect(saved.saved).toBe(true);
+    const [row] = await db.select().from(derivatives).where(eq(derivatives.id, saved.derivativeId!));
+    expect(row).toMatchObject({ source: "edit", version: 2, title: "Wet room care, week by week", body: PIN.body });
+  });
+
+  it("generates every channel with no version yet, and none twice (γ7 handoff item 8)", async () => {
+    await queueDerivative(postId, "linkedin", null, db);
+    const queued = await queueMissingDerivatives(postId, db);
+    expect(queued.map((row) => row.channel)).toEqual(["gmb", "facebook", "pinterest"]);
+    await expect(queueMissingDerivatives(postId, db)).rejects.toThrow("Every channel has a version already.");
+    expect((await derivativeViews(postId, db)).map((view) => [view.channel, view.latest?.status])).toEqual([
+      ["gmb", "writing"],
+      ["linkedin", "writing"],
+      ["facebook", "writing"],
+      ["pinterest", "writing"],
+    ]);
+  });
+
+  it("saves unsaved changes on Copy, and reports whether the copied version is Amir's edit (γ7 orientation Q3)", async () => {
+    const id = await queueDerivative(postId, "linkedin", null, db);
+    await writeDerivative(id, { db, transport: fakeApi([LINKEDIN]).transport });
+    expect(await copyDerivative(postId, "linkedin", LINKEDIN, db)).toEqual({ derivativeId: id, isEdit: false });
+    const edited = await copyDerivative(postId, "linkedin", LINKEDIN.replace("Most", "Nearly all"), db);
+    expect(edited.isEdit).toBe(true);
+    expect(await copyDerivative(postId, "linkedin", LINKEDIN.replace("Most", "Nearly all"), db)).toEqual(edited);
+    expect(await db.select().from(derivatives)).toHaveLength(2);
   });
 });

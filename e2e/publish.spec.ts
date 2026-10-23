@@ -207,16 +207,16 @@ test("a failed step names itself and Try again resumes without a second post", a
   expect(wix.files).toHaveLength(2);
 });
 
-test("GMB and LinkedIn copy: generate, live checks on edits, save as a version, copy", async ({ page, context, signedIn }) => {
+test("GBP copy: generate, live checks on edits, save as a version, copy, and the edit is read for rules", async ({ page, context, signedIn }) => {
   void signedIn;
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await fetch(`${TRIGGER}/__reset`, { method: "POST" });
   await page.goto(`/posts/${postIds[0]}`);
   const card = page.getByRole("region", { name: "Derivatives" });
-  const gmb = card.getByRole("region", { name: "GMB post" });
+  const gmb = card.getByRole("region", { name: "GBP post" });
   await expect(gmb.getByText("Not generated yet.")).toBeVisible();
-  await gmb.getByRole("button", { name: "Generate GMB post" }).click();
-  await expect(gmb.getByText("Writing the GMB post from the approved post")).toBeVisible();
+  await gmb.getByRole("button", { name: "Generate GBP post" }).click();
+  await expect(gmb.getByText("Writing the GBP post from the approved post")).toBeVisible();
   const runs = (await triggered()).filter((run) => run.task === "write-derivative");
   expect(runs).toHaveLength(1);
   await page.screenshot(shot("g6-derivative-writing"));
@@ -224,20 +224,118 @@ test("GMB and LinkedIn copy: generate, live checks on edits, save as a version, 
   // The task writes a version with a phone number in it.
   const text = "A wet room stays watertight when the seals are looked after. Check the silicone around the tray every month. Call 020 8500 1234 to book.";
   await query("update derivatives set status = 'ready', body = $2, checks = '{}' where id = $1", [runs[0].payload.derivativeId, text]);
-  await expect(gmb.getByLabel("GMB post text")).toHaveValue(text, { timeout: 10_000 });
+  await expect(gmb.getByLabel("GBP post text")).toHaveValue(text, { timeout: 10_000 });
   await expect(gmb.getByText("Google rejects posts with a phone number in the text.", { exact: false })).toBeVisible();
   await expect(gmb.getByText("1 to check")).toBeVisible();
   await expect(gmb.getByText("Add the post's link as the \"Learn more\" button: https://www.migssinteriors.com/blog/wet-room-maintenance-week-by-week")).toBeVisible();
   await page.screenshot(shot("g6-derivative-warning"));
 
-  await gmb.getByLabel("GMB post text").fill(text.replace(" Call 020 8500 1234 to book.", " Read the full guide for a weekly routine."));
+  await gmb.getByLabel("GBP post text").fill(text.replace(" Call 020 8500 1234 to book.", " Read the full guide for a weekly routine."));
   await expect(gmb.getByText("Ready to copy")).toBeVisible();
   await gmb.getByRole("button", { name: "Save edit" }).click();
   await expect(gmb.getByText("version 2 of 2, your edit", { exact: false })).toBeVisible();
+  expect((await triggered()).filter((run) => run.task === "propose-candidates")).toHaveLength(0);
   await gmb.getByRole("button", { name: "Copy", exact: true }).click();
   await expect(gmb.getByRole("button", { name: "Copied" })).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain("Read the full guide for a weekly routine.");
+  // γ7 orientation Q3: copying Amir's edit reads it for rules, once.
+  const [edit] = await query<{ id: string }>("select id from derivatives where post_id = $1 and channel = 'gmb' and source = 'edit'", [postIds[0]]);
+  await expect.poll(async () => (await triggered()).filter((run) => run.task === "propose-candidates").map((run) => run.payload.derivativeId)).toEqual([edit.id]);
   await page.screenshot(shot("g6-derivatives"));
+});
+
+test("Regenerate asks what was wrong; the note becomes a LinkedIn rule in Settings, scoped to LinkedIn (γ7 items 1, 2, 4, 5)", async ({ page, signedIn }) => {
+  void signedIn;
+  await fetch(`${TRIGGER}/__reset`, { method: "POST" });
+  const linkedinText = "Most wet room leaks start at the silicone.\n\nRead the full guide:\nhttps://www.migssinteriors.com/blog/wet-room-maintenance-week-by-week";
+  await query("insert into derivatives (post_id, channel, version, status, source, body, checks) values ($1, 'linkedin', 1, 'ready', 'model', $2, '{}')", [postIds[0], linkedinText]);
+  await page.goto(`/posts/${postIds[0]}`);
+  const linkedin = page.getByRole("region", { name: "LinkedIn post" });
+  await linkedin.getByRole("button", { name: "Regenerate", exact: true }).click();
+  await expect(linkedin.getByRole("button", { name: "Regenerate LinkedIn post" })).toBeDisabled();
+  await linkedin.getByLabel("What was wrong with this version?").fill("Never open with a question on LinkedIn.");
+  await page.screenshot(shot("g7-derivative-note"));
+  await linkedin.getByRole("button", { name: "Regenerate LinkedIn post" }).click();
+  await expect(linkedin.getByText("Writing the LinkedIn post from the approved post")).toBeVisible();
+  const [regenerate] = await query<{ id: string; note: string }>("select id, note from derivatives where post_id = $1 and channel = 'linkedin' and version = 2", [postIds[0]]);
+  expect(regenerate.note).toBe("Never open with a question on LinkedIn.");
+  await expect.poll(async () => (await triggered()).map((run) => run.task)).toEqual(["write-derivative", "propose-candidates"]);
+  expect((await triggered())[1].payload).toEqual({ derivativeId: regenerate.id });
+
+  // The propose-candidates task's part: a LinkedIn writing rule.
+  await query(
+    `insert into rule_candidates (derivative_id, post_id, tier, section, scope, text, after, reason) values
+       ($1, $2, 'agency', 'writing_rules', 'linkedin', 'Open LinkedIn posts with a plain statement, never a question.', 'Never open with a question on LinkedIn.', 'Holds for every LinkedIn post.')`,
+    [regenerate.id, postIds[0]],
+  );
+  await page.goto("/settings/rules");
+  const section = page.getByRole("region", { name: "Suggestions from your notes and edits" });
+  const card = section.locator("form", { has: page.getByText('From your note on the LinkedIn post for "Wet room maintenance week by week"') });
+  await expect(card.getByText("LinkedIn post", { exact: true })).toBeVisible();
+  await expect(card.getByLabel("Applies to")).toHaveValue("linkedin");
+  await page.screenshot(shot("g7-scoped-candidate"));
+  // Amir can widen it, but here keeps it to LinkedIn.
+  await card.getByLabel("Where it belongs").selectOption("agency:banned_phrases");
+  await expect(card.getByLabel("Applies to")).toBeDisabled();
+  await card.getByLabel("Where it belongs").selectOption("agency:writing_rules");
+  await card.getByLabel("Applies to").selectOption("linkedin");
+  await card.getByRole("button", { name: "Accept rule" }).click();
+  await expect(section.getByText("Added to BrandFactory rules: LinkedIn post rules")).toBeVisible();
+  const [agency] = await query<{ sections: Record<string, string> }>("select sections from knowledge_versions where tier = 'agency' order by version desc limit 1");
+  expect(agency.sections.writing_rules_linkedin).toBe("- Open LinkedIn posts with a plain statement, never a question.");
+  expect(agency.sections.writing_rules ?? "").not.toContain("plain statement");
+
+  // The rule is readable under its channel in the BrandFactory rules editor.
+  await page.getByRole("button", { name: /LinkedIn post rules/ }).click();
+  await expect(page.getByLabel("LinkedIn post rules (Markdown)")).toHaveValue("- Open LinkedIn posts with a plain statement, never a question.");
+  await expect(page.getByText("By channel")).toBeVisible();
+  await page.screenshot(shot("g7-channel-rules"));
+});
+
+test("Facebook and Pinterest: Generate all, a pin's two fields with their own Copy, and the cover suggested (γ7 items 7, 8)", async ({ page, context, signedIn }) => {
+  void signedIn;
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await fetch(`${TRIGGER}/__reset`, { method: "POST" });
+  await page.goto(`/posts/${postIds[1]}`);
+  const card = page.getByRole("region", { name: "Derivatives" });
+  await card.getByRole("button", { name: "Generate all channels" }).click();
+  await expect.poll(async () => (await triggered()).filter((run) => run.task === "write-derivative")).toHaveLength(4);
+  await expect(card.getByRole("button", { name: "Generate all channels" })).toHaveCount(0);
+  const rows = await query<{ id: string; channel: string }>("select id, channel from derivatives where post_id = $1 order by channel", [postIds[1]]);
+  expect(rows.map((row) => row.channel)).toEqual(["facebook", "gmb", "linkedin", "pinterest"]);
+
+  const link = "https://www.migssinteriors.com/blog/shower-trays-compared";
+  const facebookText = `Choosing a shower tray comes down to the floor it sits on.\n\nStone resin suits most bathrooms; a level-access former suits a wet room.\n\nThe full comparison:\n${link}`;
+  const pin = { title: "Shower trays compared: stone resin, acrylic and wet room formers", body: "How to choose a shower tray for your bathroom: the main materials compared, which floors suit each, and what a wet room former changes." };
+  await query("update derivatives set status = 'ready', body = $2, checks = '{}' where id = $1", [rows.find((row) => row.channel === "facebook")!.id, facebookText]);
+  await query("update derivatives set status = 'ready', title = $2, body = $3, checks = '{}' where id = $1", [rows.find((row) => row.channel === "pinterest")!.id, pin.title, pin.body]);
+  await query("update derivatives set status = 'failed', error = 'Stopped reporting.' where post_id = $1 and channel in ('gmb', 'linkedin')", [postIds[1]]);
+
+  const facebook = card.getByRole("region", { name: "Facebook post" });
+  await expect(facebook.getByLabel("Facebook post text")).toHaveValue(facebookText, { timeout: 10_000 });
+  await expect(facebook.getByText("Ready to copy")).toBeVisible();
+
+  const pinterest = card.getByRole("region", { name: "Pinterest pin" });
+  await expect(pinterest.getByLabel("Pin title")).toHaveValue(pin.title);
+  await expect(pinterest.getByLabel("Pin description")).toHaveValue(pin.body);
+  await expect(pinterest.getByText(`The pin's destination link: ${link}`)).toBeVisible();
+  await expect(pinterest.getByText("Suggested image: the post's cover, Wet room 3.jpg.", { exact: false })).toBeVisible();
+  await pinterest.getByRole("button", { name: "Copy title" }).click();
+  await expect(pinterest.getByRole("button", { name: "Title copied" })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(pin.title);
+  await pinterest.getByRole("button", { name: "Copy description" }).click();
+  await expect(pinterest.getByRole("button", { name: "Copied" })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(pin.body);
+  // Copying the model's own version learns nothing.
+  expect((await triggered()).filter((run) => run.task === "propose-candidates")).toHaveLength(0);
+
+  // A pin title over Pinterest's 100 characters is flagged on its field.
+  await pinterest.getByLabel("Pin title").fill("x".repeat(101));
+  await expect(pinterest.getByText("Title: 101 characters; pin titles take at most 100.")).toBeVisible();
+  await pinterest.getByLabel("Pin title").fill(pin.title);
+  // A channel whose run wrote nothing is retried without a note.
+  await expect(card.getByRole("region", { name: "GBP post" }).getByRole("button", { name: "Try again" })).toBeVisible();
+  await page.screenshot(shot("g7-facebook-pinterest"));
 });
 
 test("the Publish card and Wix settings fit a 390px phone", async ({ page, signedIn }) => {
@@ -246,6 +344,8 @@ test("the Publish card and Wix settings fit a 390px phone", async ({ page, signe
   for (const [name, path, heading] of [
     ["g6-mobile-publish", `/posts/${postIds[1]}`, "Publish"],
     ["g6-mobile-published", `/posts/${postIds[0]}`, "Derivatives"],
+    ["g7-mobile-derivatives", `/posts/${postIds[1]}`, "Derivatives"],
+    ["g7-mobile-candidates", "/settings/rules", "Suggestions from your notes and edits"],
     ["g6-mobile-wix-settings", `/projects/${projectId}/settings`, "Wix Blog publishing"],
   ] as const) {
     await page.goto(path);

@@ -75,7 +75,7 @@ export const PUBLISH_LINES = {
   failed: { label: "Publish failed", tone: "danger" },
 } as const;
 
-// A GMB or LinkedIn version's display lines (γ6 orientation Q6). Derivatives are not posts, so these are not statuses.
+// A derivative version's display lines (γ6 orientation Q6). Derivatives are not posts, so these are not statuses.
 export const DERIVATIVE_LINES = {
   notGenerated: { label: "Not generated yet", tone: "neutral" },
   writing: { label: GENERATION_STEPS.writer, tone: "brand" },

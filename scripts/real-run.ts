@@ -8,19 +8,28 @@
 //   ... scripts/real-run.ts regenerate <postId> "<note>"     (γ5: Regenerate with a note)
 //   ... scripts/real-run.ts approve <postId>                  (γ5: removes placeholder sentences, approves, proposes rules)
 //   ... scripts/real-run.ts post-report <postId>
-//   ... scripts/real-run.ts derivative <postId> gmb|linkedin  (γ6: GMB or LinkedIn copy)
-//   ... scripts/real-run.ts facts <postId>                    (γ6: fact suggestions from the post's regenerate notes)
+//   ... scripts/real-run.ts derivative <postId> <channel> ["<note>"]  (γ6, γ7: derivative copy; a note regenerates and is
+//                                                                        read for candidates, as the button does)
+//   ... scripts/real-run.ts candidates <postId>               (γ7: the post's candidates, with scope and origin)
+//   ... scripts/real-run.ts accept <candidateId> [scope]      (γ7: Accept rule, as the button does)
+//   ... scripts/real-run.ts instructions <postId> <channel>   (γ7: the instructions block that channel's call is sent)
+//   ... scripts/real-run.ts derivative-model <modelId>        (γ7: Settings, AI models, Derivatives model)
 //
 // It talks to Neon over the WebSocket driver, as scripts/migrate-lib.ts does (port 5432 is blocked from
 // Claude's cloud environment), and refuses any database but Neon dev.
 import { devPool, getDb } from "./dev-db-client";
 import { confirmAllSpecs, createBatch, DEFAULT_LENGTH, defaultCta, listBatchableSlots, queueGenerations } from "@/lib/batches";
 import { findPlaceholders } from "@/lib/checks";
-import { startDerivative, startFacts, startGeneration, startRuleCandidates, startSpec } from "@/lib/jobs";
+import { startCandidates, startDerivative, startGeneration, startSpec } from "@/lib/jobs";
 import { isChannel, queueDerivative, setDerivativeRun } from "@/lib/derivatives";
 import { approvePost, currentText, queueRegeneration } from "@/lib/review";
 import { getCurrentKnowledge } from "@/lib/knowledge";
-import { getModelSettings } from "@/lib/settings";
+import { getModelSettings, updateModelSettings } from "@/lib/settings";
+import { channelRules, loadPack, withChannelRules } from "@/lib/ai/pack";
+import { isRuleScope, type Channel } from "@/config/knowledge";
+import { latestRegenerateEvent } from "@/lib/learn";
+import { acceptCandidate, listCandidates } from "@/lib/rules";
+import * as derivativePrompt from "@/prompts/derivative";
 import { setTopic } from "@/lib/slots";
 
 const DEV_ENDPOINT = "ep-square-mode-zatw6e39";
@@ -94,6 +103,8 @@ async function report(batchId: string) {
 async function regenerate(postId: string, note: string) {
   const generationId = await queueRegeneration(postId, note, null, db);
   console.log(`Regenerate ${generationId}: run ${await startGeneration(generationId, db)}`);
+  const eventId = await latestRegenerateEvent(postId, db);
+  if (eventId) console.log(`Candidates from the note: run ${await startCandidates({ reviewEventId: eventId })}`);
 }
 
 // Stands in for Amir's edits: every sentence holding a placeholder is taken out, as he would where Migss has no
@@ -114,7 +125,7 @@ async function approve(postId: string) {
   const text = { title: current.text.title, excerpt: strip(current.text.excerpt), body };
   const result = await approvePost(postId, text, db);
   console.log(`Approved: review event ${result.reviewEventId}, edits ${result.hasEdits}`);
-  if (result.hasEdits) console.log(`Rule candidates: run ${await startRuleCandidates(result.reviewEventId)}`);
+  if (result.hasEdits) console.log(`Candidates from the edits: run ${await startCandidates({ reviewEventId: result.reviewEventId })}`);
 }
 
 async function postReport(postId: string) {
@@ -136,23 +147,45 @@ async function postReport(postId: string) {
   console.table(post);
 }
 
-async function derivative(postId: string, channel: string) {
-  if (!isChannel(channel)) throw new Error("Channel is gmb or linkedin.");
-  const id = await queueDerivative(postId, channel, null, db);
+async function derivative(postId: string, channel: string, note?: string) {
+  if (!isChannel(channel)) throw new Error("Channel is gmb, linkedin, facebook or pinterest.");
+  const id = await queueDerivative(postId, channel, note ?? null, db);
   const run = await startDerivative(id);
   await setDerivativeRun(id, run, db);
   console.log(`Derivative ${id} (${channel}): run ${run}`);
+  if (note) console.log(`Candidates from the note: run ${await startCandidates({ derivativeId: id })}`);
 }
 
-// The regenerate notes already on the post, each read for facts as the regenerate action does.
-async function facts(postId: string) {
-  const { rows } = await devPool().query("select id, note from review_events where post_id = $1 and action = 'regenerate' order by created_at", [postId]);
-  for (const row of rows) console.log(`Facts for "${row.note}": run ${await startFacts(row.id)}`);
+async function candidates(postId: string) {
+  const { proposed, decided } = await listCandidates(db);
+  for (const row of [...proposed, ...decided].filter((item) => item.postId === postId)) {
+    console.log(JSON.stringify({ id: row.id, status: row.status, kind: row.kind, tier: row.tier, section: row.section, scope: row.scope, from: row.from, text: row.text, after: row.after, reason: row.reason }, null, 2));
+  }
+}
+
+async function accept(candidateId: string, scope?: string) {
+  const { proposed } = await listCandidates(db);
+  const candidate = proposed.find((row) => row.id === candidateId);
+  if (!candidate) throw new Error("No such proposed candidate.");
+  const result = await acceptCandidate(candidateId, { text: candidate.text, tier: candidate.tier, section: candidate.section, scope: scope ?? candidate.scope }, db);
+  console.log(`Accepted into ${result.tier}, version ${result.version}`);
+}
+
+// The exact instructions block write-derivative sends for that channel, built by the same functions.
+async function instructions(postId: string, channel: string) {
+  const [post] = await devPool().query("select project_id from posts where id = $1", [postId]).then((result) => result.rows);
+  const pack = await loadPack(post.project_id, db);
+  console.log(withChannelRules(derivativePrompt.INSTRUCTIONS, channelRules(pack, channel as Channel)));
+}
+
+async function derivativeModel(model: string) {
+  await updateModelSettings({ derivativeModel: model }, db);
+  console.log(`Derivative model: ${(await getModelSettings(db)).derivativeModel}`);
 }
 
 async function derivativeReport(postId: string) {
   const { rows } = await devPool().query(
-    `select d.channel, d.version, d.status, d.source, length(d.body) as characters, d.checks->'passed' as passed, d.checks->'issues' as issues, d.error, d.body
+    `select d.id, d.channel, d.version, d.status, d.source, d.note, length(d.body) as characters, d.checks->'passed' as passed, d.checks->'issues' as issues, d.error, d.title, d.body
        from derivatives d where d.post_id = $1 order by d.channel, d.version`,
     [postId],
   );
@@ -169,8 +202,11 @@ async function main() {
     else if (command === "regenerate" && id && note) await regenerate(id, note);
     else if (command === "approve" && id) await approve(id);
     else if (command === "post-report" && id) await postReport(id);
-    else if (command === "derivative" && id && note) await derivative(id, note);
-    else if (command === "facts" && id) await facts(id);
+    else if (command === "derivative" && id && note) await derivative(id, note, process.argv[5]);
+    else if (command === "candidates" && id) await candidates(id);
+    else if (command === "accept" && id) await accept(id, note && isRuleScope(note) ? note : undefined);
+    else if (command === "instructions" && id && note) await instructions(id, note);
+    else if (command === "derivative-model" && id) await derivativeModel(id);
     else if (command === "derivative-report" && id) await derivativeReport(id);
     else throw new Error("Usage: real-run.ts start | generate <batchId> | report <batchId> | regenerate <postId> <note> | approve <postId> | post-report <postId>");
   } finally {

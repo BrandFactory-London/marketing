@@ -135,7 +135,7 @@ async function Post({ params }: Pick<PageProps<"/posts/[postId]">, "params">) {
             </p>
             {lastApproval?.diff && lastApproval.diff.length > 0 ? (
               <p className="small app-muted" style={{ margin: 0 }}>
-                {proposed > 0 ? `${proposed} rule ${proposed === 1 ? "candidate" : "candidates"} from your edits ${proposed === 1 ? "is" : "are"} waiting in ` : candidates.length > 0 ? "The rule candidates from your edits are decided in " : "Rule candidates from your edits appear in "}
+                {proposed > 0 ? `${proposed} ${proposed === 1 ? "suggestion" : "suggestions"} from your notes and edits ${proposed === 1 ? "is" : "are"} waiting in ` : candidates.length > 0 ? "The suggestions from your notes and edits are decided in " : "Suggestions from your notes and edits appear in "}
                 <Link href="/settings/rules#candidates-heading">Settings, BrandFactory rules</Link>
                 {candidates.length === 0 ? " within a minute or two." : "."}
               </p>
@@ -147,7 +147,7 @@ async function Post({ params }: Pick<PageProps<"/posts/[postId]">, "params">) {
       {post.status === "approved" || post.status === "published" ? (
         <>
           <PublishCard postId={post.id} projectId={project.id} status={post.status} publication={publication} clientName={project.clientName} />
-          <DerivativesCard postId={post.id} projectId={project.id} siteUrl={project.siteUrl} post={{ liveUrl: post.liveUrl, slug: post.slug }} />
+          <DerivativesCard postId={post.id} projectId={project.id} siteUrl={project.siteUrl} post={{ liveUrl: post.liveUrl, slug: post.slug }} cover={post.coverDriveFileId ? { fileId: post.coverDriveFileId, name: post.coverName ?? "Photo" } : null} />
         </>
       ) : null}
       {post.status === "rejected" ? (

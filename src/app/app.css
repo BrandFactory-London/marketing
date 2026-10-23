@@ -329,3 +329,6 @@ a:hover { color: var(--brand-hover); }
 /* γ6 Derivatives (Publish.dc.html) */
 .app-derivatives { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: var(--space-6); }
 .app-derivative { padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-3); border-radius: var(--radius-lg); }
+.app-pin-cover { margin: 0; display: flex; gap: var(--space-3); align-items: flex-start; }
+.app-pin-cover img { width: 96px; height: 96px; object-fit: cover; border-radius: var(--radius-md); flex: none; }
+.app-channel-group { padding: var(--space-3) var(--space-3) var(--space-1); margin: 0; }
