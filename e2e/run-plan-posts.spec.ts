@@ -105,7 +105,7 @@ test("a topic and moves are kept in place, and the GBP slot follows its SEO post
   const [, second] = await slots();
   const secondRow = page.locator(".app-plan-row").nth(1);
   await secondRow.getByText("Set topic or date").click();
-  await secondRow.getByLabel("Date").fill(addDays(second.slot_date, 1));
+  await secondRow.getByLabel("Date", { exact: true }).fill(addDays(second.slot_date, 1));
   await secondRow.getByRole("button", { name: "Move slot" }).click();
   await expect(secondRow.getByText("Slot moved")).toBeVisible();
   await expect.poll(async () => (await derived()).find((child) => child.parent_post_id === second.id)?.slot_date).toBe(addDays(second.slot_date, 2));

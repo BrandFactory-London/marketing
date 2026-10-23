@@ -100,8 +100,8 @@ test("a topic and a move update the slot's event", async ({ page, signedIn }) =>
   expect((await eventFor(first.id))?.colorId).toBe("1");
 
   const target = (await slots()).at(-1)!.slot_date;
-  if (!(await row.getByLabel("Date").isVisible())) await row.getByText("Set topic or date").click();
-  await row.getByLabel("Date").fill(target);
+  if (!(await row.getByLabel("Date", { exact: true }).isVisible())) await row.getByText("Set topic or date").click();
+  await row.getByLabel("Date", { exact: true }).fill(target);
   await row.getByRole("button", { name: "Move slot" }).click();
   await expect.poll(async () => (await eventFor(first.id))?.start.date, { timeout: 15_000 }).toBe(target);
 });
