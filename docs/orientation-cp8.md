@@ -209,3 +209,13 @@ Nothing runs against Neon dev or Google until this is approved.
 ---
 
 **Stopping here. No code until you approve.**
+
+## Approval (Amir, 23 Oct 2026)
+
+Approved, with these answers:
+- **Q1:** the calendar is "BrandFactory Content" on hello@brandfactorylondon.com, which Amir owns. Use the two narrow scopes. If it does not appear in the picker during the smoke, switch to `calendar.events`.
+- **Q2:** add the daily Vercel Cron at about 06:00 UK time. Amir sets `CRON_SECRET` in Vercel Production; the smoke list says exactly when.
+- **Q5:** keep missed slots on the calendar.
+- **Q7:** no read-only connector check; the calendar list was confirmed in the review chat.
+
+Everything else as proposed.
