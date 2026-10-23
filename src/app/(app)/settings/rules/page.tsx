@@ -56,14 +56,15 @@ async function Candidates() {
       </div>
       {proposed.length === 0 ? (
         <p className="small app-muted" style={{ margin: 0 }}>
-          None waiting. When you approve a post you edited, Claude proposes rules from your edits here.
+          None waiting. When you approve a post you edited, Claude proposes rules from your edits here, and facts from your regenerate notes.
         </p>
       ) : (
         proposed.map((candidate) => (
           <CandidateCard
             key={candidate.id}
+            kind={candidate.kind}
             text={candidate.text}
-            from={`From your edit to "${candidate.postTitle}"`}
+            from={candidate.kind === "fact" ? `From your note on "${candidate.postTitle}"` : `From your edit to "${candidate.postTitle}"`}
             before={candidate.before}
             after={candidate.after}
             reason={candidate.reason}

@@ -5,6 +5,8 @@ const port = 3100;
 const triggerPort = 3199;
 // The local stand-in for Google's token and Drive APIs (e2e/google-standin.mjs).
 const googlePort = 3198;
+// The local stand-in for the Wix REST API (e2e/wix-standin.mjs).
+const wixPort = 3197;
 
 export default defineConfig({
   testDir: "e2e",
@@ -16,6 +18,7 @@ export default defineConfig({
   webServer: [
     { command: "node e2e/trigger-standin.mjs", url: `http://localhost:${triggerPort}`, reuseExistingServer: false, env: { PORT: String(triggerPort) } },
     { command: "node e2e/google-standin.mjs", url: `http://localhost:${googlePort}`, reuseExistingServer: false, env: { PORT: String(googlePort) } },
+    { command: "node e2e/wix-standin.mjs", url: `http://localhost:${wixPort}`, reuseExistingServer: false, env: { PORT: String(wixPort) } },
     {
       command: `pnpm build && pnpm start --port ${port}`,
       url: `http://localhost:${port}`,
@@ -30,12 +33,13 @@ export default defineConfig({
         AUTH_GOOGLE_SECRET: "playwright-client-secret",
         ALLOWED_EMAIL: "hello@brandfactorylondon.com",
         APP_ENCRYPTION_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-        DRIVE_PROOF_FOLDER_ID: "playwright-folder",
         // Never the real Trigger.dev.
         TRIGGER_API_URL: `http://localhost:${triggerPort}`,
         TRIGGER_SECRET_KEY: "tr_dev_playwright_standin",
         // Never the real Google.
         GOOGLE_API_URL: `http://localhost:${googlePort}`,
+        // Never the real Wix.
+        WIX_API_URL: `http://localhost:${wixPort}`,
       },
     },
   ],

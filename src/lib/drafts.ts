@@ -1,7 +1,7 @@
 import "server-only";
 import { asc, eq, inArray } from "drizzle-orm";
 import { getDb, type Database } from "@/db/client";
-import { aiCalls, criticVerdicts, knowledgeVersions, postDrafts, postGenerations, posts, postSpecs, projectPillars, type CriticIssue } from "@/db/schema";
+import { aiCalls, criticVerdicts, derivatives, knowledgeVersions, postDrafts, postGenerations, posts, postSpecs, projectPillars, type CriticIssue } from "@/db/schema";
 import { findPlaceholders, type CheckResult } from "./checks";
 import { currentText } from "./review";
 import { composeMarkdown } from "./review-rules";
@@ -65,6 +65,9 @@ export async function getDraftView(postId: string, db: Database = getDb()) {
     ? await db.select({ id: knowledgeVersions.id, tier: knowledgeVersions.tier, version: knowledgeVersions.version }).from(knowledgeVersions).where(inArray(knowledgeVersions.id, versionIds))
     : [];
 
+  // Each derivative version records its last call; an earlier call of the same version is its fix round's first try.
+  const derivativeRows = await db.select({ channel: derivatives.channel, aiCallId: derivatives.aiCallId }).from(derivatives).where(eq(derivatives.postId, postId));
+  const derivativeChannel = new Map(derivativeRows.filter((row) => row.aiCallId).map((row) => [row.aiCallId!, row.channel === "gmb" ? "GMB post" : "LinkedIn post"]));
   const callModel = (id: string | null) => calls.find((call) => call.id === id)?.servedModel ?? null;
   const rounds: DraftRound[] = drafts.map((draft) => {
     const verdict = verdicts.find((item) => item.draftId === draft.id);
@@ -97,10 +100,14 @@ export async function getDraftView(postId: string, db: Database = getDb()) {
             ? `Critic call ${++critic}`
             : call.purpose === "rules"
               ? "Rule candidates"
-              : "Check";
+              : call.purpose === "derivative"
+                ? `${derivativeChannel.get(call.id) ?? "GMB or LinkedIn post"} call`
+                : call.purpose === "facts"
+                  ? "Fact suggestions"
+                  : "Check";
     const runIndex = generations.findLastIndex((item) => item.createdAt <= call.createdAt);
     return {
-      run: call.purpose === "spec" ? "Spec" : call.purpose === "rules" ? "After approval" : labels[Math.max(runIndex, 0)],
+      run: call.purpose === "spec" ? "Spec" : call.purpose === "rules" ? "After approval" : call.purpose === "derivative" ? "GMB and LinkedIn copy" : labels[Math.max(runIndex, 0)],
       label: call.error ? `${label} (stopped: ${call.error})` : label,
       costUsd: call.costUsd,
       inputTokens: call.inputTokens + call.cacheWriteTokens,

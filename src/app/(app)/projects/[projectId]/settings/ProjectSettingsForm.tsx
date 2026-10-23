@@ -57,7 +57,7 @@ export function ProjectSettingsForm({ clients, project, action }: Props) {
           name="publishingTarget"
           defaultValue={value("publishingTarget")}
           options={PUBLISHING_TARGETS.map((item) => ({ value: item.key, label: item.label }))}
-          help="Wix credentials are added before publishing is switched on."
+          help="Wix credentials and the author are set under Wix Blog publishing, below."
           error={state.errors?.publishingTarget}
         />
       </div>

@@ -208,6 +208,37 @@ function around(text: string, index: number, length: number): string {
     .trim();
 }
 
+// Dashes and banned phrases (decision 12): the checks every text gets, posts and derivatives alike (γ6 Q6).
+export function styleIssues(text: string, bannedPhrases: readonly string[]): CheckIssue[] {
+  const issues: CheckIssue[] = [];
+  for (const [check, dash, name] of [
+    ["em_dash", "\u2014", "em dash"],
+    ["en_dash", "\u2013", "en dash"],
+  ] as const) {
+    let index = text.indexOf(dash);
+    while (index !== -1) {
+      issues.push({ check, message: `Uses an ${name}.`, quote: around(text, index, 1) });
+      index = text.indexOf(dash, index + 1);
+    }
+  }
+
+  const banned = [
+    ...BUILT_IN_BANNED,
+    ...bannedPhrases.map((phrase) => ({ label: `"${phrase}"`, pattern: phrasePattern(phrase) })),
+  ];
+  const seen = new Set<string>();
+  for (const { label, pattern } of banned) {
+    for (const match of text.matchAll(new RegExp(pattern.source, pattern.flags))) {
+      const key = `${match.index}:${match[0].toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      issues.push({ check: "banned", message: `Banned phrase ${label}.`, quote: around(text, match.index ?? 0, match[0].length) });
+    }
+  }
+
+  return issues;
+}
+
 export function runChecks(input: CheckInput): CheckResult {
   const text = input.markdown;
   const issues: CheckIssue[] = [];
@@ -227,30 +258,7 @@ export function runChecks(input: CheckInput): CheckResult {
     lengthNote = `${wordCount} words, ${input.lengthMin - wordCount} under the range but within the tolerance.`;
   }
 
-  for (const [check, dash, name] of [
-    ["em_dash", "\u2014", "em dash"],
-    ["en_dash", "\u2013", "en dash"],
-  ] as const) {
-    let index = text.indexOf(dash);
-    while (index !== -1) {
-      issues.push({ check, message: `Uses an ${name}.`, quote: around(text, index, 1) });
-      index = text.indexOf(dash, index + 1);
-    }
-  }
-
-  const banned = [
-    ...BUILT_IN_BANNED,
-    ...input.bannedPhrases.map((phrase) => ({ label: `"${phrase}"`, pattern: phrasePattern(phrase) })),
-  ];
-  const seen = new Set<string>();
-  for (const { label, pattern } of banned) {
-    for (const match of text.matchAll(new RegExp(pattern.source, pattern.flags))) {
-      const key = `${match.index}:${match[0].toLowerCase()}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      issues.push({ check: "banned", message: `Banned phrase ${label}.`, quote: around(text, match.index ?? 0, match[0].length) });
-    }
-  }
+  issues.push(...styleIssues(text, input.bannedPhrases));
 
   const links = [...text.matchAll(/\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)].map((match) => match[1]);
   const allowed = new Set(input.allowedLinks.map(normalisePath));

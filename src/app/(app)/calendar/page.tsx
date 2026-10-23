@@ -147,6 +147,16 @@ function SlotPanel({ slot, today, closeHref, project }: { slot: SlotView | null;
         </dd>
         <dt>Client</dt>
         <dd>{slot.clientName}</dd>
+        {slot.liveUrl ? (
+          <>
+            <dt>Live at</dt>
+            <dd>
+              <a href={slot.liveUrl} target="_blank" rel="noreferrer">
+                {slot.liveUrl.replace(/^https?:\/\//, "")}
+              </a>
+            </dd>
+          </>
+        ) : null}
       </dl>
       {DRAFTED_STATUSES.includes(slot.status) ? (
         <ButtonLink href={`/posts/${slot.id}`}>Open post</ButtonLink>

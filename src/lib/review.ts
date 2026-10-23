@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { getDb, type Database, type Executor } from "@/db/client";
-import { criticVerdicts, postDrafts, postGenerations, posts, postSpecs, postVersions, projectPillars, reviewEvents, sitePages, type CriticPlaceholder } from "@/db/schema";
+import { criticVerdicts, postDrafts, postGenerations, postPublications, posts, postSpecs, postVersions, projectPillars, reviewEvents, sitePages, type CriticPlaceholder } from "@/db/schema";
 import type { PostStatus } from "@/config/post-status";
 import { loadPack } from "./ai/pack";
 import { parseAllowedLinks, parseBannedPhrases, runChecks, type CheckInput, type CheckResult } from "./checks";
@@ -123,6 +123,14 @@ export function parsePostText(input: { title?: unknown; excerpt?: unknown; body?
   return text;
 }
 
+// Once Wix holds a draft of the post, its text and publishing details are fixed (γ6 orientation Q4).
+export const WIX_HAS_IT = "Wix already has this post, so it can no longer be changed here. Change it in the Wix Blog.";
+
+export async function wixHasDraft(tx: Executor, postId: string): Promise<boolean> {
+  const [row] = await tx.select({ draftId: postPublications.wixDraftId }).from(postPublications).where(eq(postPublications.postId, postId));
+  return Boolean(row?.draftId);
+}
+
 async function lockPost(tx: Executor, postId: string) {
   const [post] = await tx.select().from(posts).where(eq(posts.id, postId)).for("update");
   if (!post) throw new ReviewError("This post no longer exists.");
@@ -237,6 +245,7 @@ export async function reopenPost(postId: string, db: Database = getDb()): Promis
   await db.transaction(async (tx) => {
     const post = await lockPost(tx, postId);
     if (post.status !== "approved") throw new ReviewError(post.status === "published" ? "Published posts cannot be reopened." : "Only approved posts can be reopened.");
+    if (await wixHasDraft(tx, postId)) throw new ReviewError(WIX_HAS_IT);
     await setStatus(tx, postId, "in_review", { approvedAt: null });
     await tx.insert(reviewEvents).values({ postId, action: "reopen" });
   });
@@ -312,6 +321,7 @@ export async function savePublishingDetails(postId: string, input: DetailsInput,
   await db.transaction(async (tx) => {
     const post = await lockPost(tx, postId);
     if (!DETAILS_STATUSES.includes(post.status)) throw new ReviewError("Publishing details can be changed in Review or once approved, before publishing.");
+    if (await wixHasDraft(tx, postId)) throw new ReviewError(WIX_HAS_IT);
     const slug = input.slug.trim().toLowerCase();
     const problem = await slugProblem(tx, post.projectId, postId, slug);
     if (problem) throw new ReviewError(problem);

@@ -23,8 +23,14 @@ import { approveAction, browseCoversAction, chooseCoverAction, detailsAction, re
 import { CoverPicker } from "./CoverPicker";
 import { DetailsForm, RegenerateForm, ReopenButton, StopWaitingButton } from "./PostControls";
 import { ReviewEditor } from "./ReviewEditor";
+import { PublishCard } from "./PublishCard";
+import { DerivativesCard } from "./DerivativesCard";
+import { getPublication } from "@/lib/publish";
 
 export const metadata: Metadata = { title: "Review a post" };
+
+// Publish post runs its Wix steps in a server action on this page: a few API calls and the cover upload.
+export const maxDuration = 60;
 
 export default function PostPage({ params }: PageProps<"/posts/[postId]">) {
   return (
@@ -49,7 +55,9 @@ async function Post({ params }: Pick<PageProps<"/posts/[postId]">, "params">) {
   const { post, project, latest } = view;
   const status = getPostStatus(post.status);
   const editable = EDITABLE_STATUSES.includes(post.status);
-  const [pillars, events, candidates] = await Promise.all([listPillars(project.id), listReviewEvents(post.id), candidatesForPost(post.id)]);
+  const [pillars, events, candidates, publication] = await Promise.all([listPillars(project.id), listReviewEvents(post.id), candidatesForPost(post.id), getPublication(post.id)]);
+  const wixHasIt = Boolean(publication?.wixDraftId);
+  const detailsLocked = !DETAILS_STATUSES.includes(post.status) || wixHasIt;
   const lastApproval = events.findLast((event) => event.action === "approve");
   const proposed = candidates.filter((candidate) => candidate.status === "proposed").length;
   const slug = post.slug ?? (DETAILS_STATUSES.includes(post.status) ? await suggestedSlug(post.id, project.id, current.text.title) : "");
@@ -71,7 +79,7 @@ async function Post({ params }: Pick<PageProps<"/posts/[postId]">, "params">) {
         slugSaved={Boolean(post.slug)}
         pillarId={post.pillarId}
         pillars={pillars.map((pillar) => ({ value: pillar.id, label: pillar.label }))}
-        locked={!DETAILS_STATUSES.includes(post.status)}
+        locked={detailsLocked}
       />
     </section>
   );
@@ -87,7 +95,7 @@ async function Post({ params }: Pick<PageProps<"/posts/[postId]">, "params">) {
         projectId={project.id}
         cover={post.coverDriveFileId ? { fileId: post.coverDriveFileId, name: post.coverName ?? "Photo", path: post.coverPath } : null}
         hasFolder={Boolean(project.driveFolderId)}
-        locked={!DETAILS_STATUSES.includes(post.status)}
+        locked={detailsLocked}
         browseAction={browseCoversAction.bind(null, post.id)}
         chooseAction={chooseCoverAction.bind(null, post.id)}
       />
@@ -122,7 +130,8 @@ async function Post({ params }: Pick<PageProps<"/posts/[postId]">, "params">) {
         <div className="bfm-card app-card-head" role="status">
           <div className="app-stack">
             <p className="body" style={{ margin: 0 }}>
-              Approved{post.approvedAt ? ` on ${longDate(post.approvedAt.toISOString().slice(0, 10))}` : ""}. The text is locked; publishing details can still change until it is published.
+              Approved{post.approvedAt ? ` on ${longDate(post.approvedAt.toISOString().slice(0, 10))}` : ""}.{" "}
+              {wixHasIt ? "Wix has this post, so its text and publishing details are fixed." : "The text is locked; publishing details can still change until it is published."}
             </p>
             {lastApproval?.diff && lastApproval.diff.length > 0 ? (
               <p className="small app-muted" style={{ margin: 0 }}>
@@ -132,8 +141,14 @@ async function Post({ params }: Pick<PageProps<"/posts/[postId]">, "params">) {
               </p>
             ) : null}
           </div>
-          <ReopenButton action={reopenAction.bind(null, post.id)} />
+          {wixHasIt ? null : <ReopenButton action={reopenAction.bind(null, post.id)} />}
         </div>
+      ) : null}
+      {post.status === "approved" || post.status === "published" ? (
+        <>
+          <PublishCard postId={post.id} projectId={project.id} status={post.status} publication={publication} clientName={project.clientName} />
+          <DerivativesCard postId={post.id} projectId={project.id} siteUrl={project.siteUrl} post={{ liveUrl: post.liveUrl, slug: post.slug }} />
+        </>
       ) : null}
       {post.status === "rejected" ? (
         <div className="bfm-card app-stack" role="status">

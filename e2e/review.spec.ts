@@ -212,7 +212,8 @@ test("Regenerate with a note saves the text, starts a run, follows it, and costs
   await page.getByRole("button", { name: "Regenerate post" }).click();
   await expect(page.getByText('the writer is working on a new version for your note "Say how often to clear the drain".', { exact: false })).toBeVisible();
   const runs = await triggered();
-  expect(runs.at(-1)?.task).toBe("generate-post");
+  // γ6: the note is also read for facts, beside the regenerate (γ6 orientation Q7).
+  expect(runs.slice(-2).map((run) => run.task)).toEqual(["generate-post", "propose-facts"]);
   const [generation] = await query<{ id: string; note: string; base_version_id: string }>(
     "select id, note, base_version_id from post_generations where post_id = $1 and note is not null order by created_at desc limit 1",
     [postIds[0]],
@@ -268,6 +269,23 @@ test("rule candidates are triaged in Settings: edit, move, accept into a new ver
   expect(client.version).toBe(2);
   expect(client.sections.business_facts).toBe("- Migss specialises in wet rooms.");
   expect(client.sections.examples).toBe("Rushing or skipping a stage hides problems behind finished tiles.");
+
+  // γ6: a fact from a regenerate note is triaged the same way, with Add fact.
+  const [{ id: regenerateId }] = await query<{ id: string }>("select id from review_events where post_id = $1 and action = 'regenerate' order by created_at limit 1", [postIds[0]]);
+  await query(
+    `insert into rule_candidates (review_event_id, post_id, kind, tier, section, text, after, reason) values
+       ($1, $2, 'fact', 'client', 'business_facts', 'Migss gives a 10-year labour guarantee on every install.', 'we give a 10-year labour guarantee on every install', 'Posts can state it instead of a placeholder.')`,
+    [regenerateId, postIds[0]],
+  );
+  await page.reload();
+  const noted = section.locator("form", { has: page.getByText('From your note on "Wet room maintenance week by week"') });
+  await expect(noted.getByLabel("Proposed fact")).toHaveValue("Migss gives a 10-year labour guarantee on every install.");
+  await expect(noted.getByText("we give a 10-year labour guarantee on every install")).toBeVisible();
+  await page.screenshot(shot("g6-fact-candidate"));
+  await noted.getByRole("button", { name: "Add fact" }).click();
+  await expect(section.getByText("Migss gives a 10-year labour guarantee on every install.")).toBeVisible();
+  const [withFact] = await query<{ sections: { business_facts?: string } }>("select sections from knowledge_versions where tier = 'client' order by version desc limit 1");
+  expect(withFact.sections.business_facts).toBe("- Migss specialises in wet rooms.\n- Migss gives a 10-year labour guarantee on every install.");
 
   const rule = section.locator("form", { has: page.getByText("Readers need a frequency.") });
   await rule.getByRole("button", { name: "Dismiss" }).click();

@@ -5,6 +5,7 @@ import { posts, reviewEvents, ruleCandidates } from "@/db/schema";
 import * as rulesPrompt from "@/prompts/rules";
 import { AiClient, type Transport } from "./ai/client";
 import { loadPack } from "./ai/pack";
+import { candidateKey, pendingCandidateKeys } from "./candidate-keys";
 import { getCurrentKnowledge, saveKnowledge, type KnowledgeScope } from "./knowledge";
 import { getProject } from "./projects";
 import { getModelSettings } from "./settings";
@@ -61,9 +62,18 @@ export async function proposeRuleCandidates(reviewEventId: string, deps: RuleDep
   const candidates = value.candidates
     .filter((candidate) => rulesPrompt.isCandidateTarget(candidate.tier, candidate.section) && candidate.text.trim())
     .slice(0, rulesPrompt.MAX_CANDIDATES);
-  if (candidates.length === 0) return 0;
+  // Backlog 21: a rule already waiting in Settings for the same place is not added again.
+  const pending = await pendingCandidateKeys(db);
+  const fresh = [];
+  for (const candidate of candidates) {
+    const key = await candidateKey(db, post.id, candidate.tier, candidate.section, candidate.text);
+    if (pending.has(key)) continue;
+    pending.add(key);
+    fresh.push(candidate);
+  }
+  if (fresh.length === 0) return 0;
   await db.insert(ruleCandidates).values(
-    candidates.map((candidate) => ({
+    fresh.map((candidate) => ({
       reviewEventId,
       postId: post.id,
       tier: candidate.tier,
@@ -75,7 +85,7 @@ export async function proposeRuleCandidates(reviewEventId: string, deps: RuleDep
       aiCallId: call.id,
     })),
   );
-  return candidates.length;
+  return fresh.length;
 }
 
 // Adds the rule as a new list item at the end of the section, leaving every existing line as it was.
