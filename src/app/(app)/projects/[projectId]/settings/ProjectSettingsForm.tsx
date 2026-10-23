@@ -4,12 +4,12 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/Button";
 import { keepValuesOnSubmit } from "@/components/ui/keepValues";
 import { Field, SelectField } from "@/components/ui/Field";
-import { PACKAGES, PROJECT_STATUSES, PUBLISHING_TARGETS, packageOption } from "@/config/packages";
+import { PROJECT_STATUSES, PUBLISHING_TARGETS } from "@/config/packages";
 import type { ProjectSettingsState } from "./actions";
 
 type Props = {
   clients: { id: string; name: string }[];
-  project: { clientId: string; name: string; siteUrl: string; package: string; status: string; publishingTarget: string };
+  project: { clientId: string; name: string; siteUrl: string; status: string; publishingTarget: string };
   action: (state: ProjectSettingsState, formData: FormData) => Promise<ProjectSettingsState>;
 };
 
@@ -40,16 +40,8 @@ export function ProjectSettingsForm({ clients, project, action }: Props) {
           name="status"
           defaultValue={value("status")}
           options={PROJECT_STATUSES.map((item) => ({ value: item.key, label: item.label }))}
-          help="Only active projects get planned slots."
+          help="Only active projects get posts generated. Slots come from the project's runs, on the Run plan tab."
           error={state.errors?.status}
-        />
-        <SelectField
-          label="Marketing package"
-          name="package"
-          defaultValue={value("package")}
-          options={PACKAGES.map((item) => ({ value: item.key, label: packageOption(item.key) }))}
-          help="Sets how many planned slots appear in the calendar each week."
-          error={state.errors?.package}
         />
         <Field label="Website URL" name="siteUrl" defaultValue={value("siteUrl")} error={state.errors?.siteUrl} help="The sitemap is read from here." />
         <SelectField

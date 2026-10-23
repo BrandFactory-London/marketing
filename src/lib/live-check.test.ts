@@ -61,7 +61,7 @@ describe.skipIf(!testDatabaseUrl)("the live check (local Postgres)", () => {
     await resetDomainTables(db);
     const client = await createClient({ name: "Migss Interiors", mainContact: null, email: null, phone: null }, db);
     const project = await createProject(
-      { clientId: client.id, name: "Migss website", siteUrl: "https://migssinteriors.com", package: "entry", status: "paused", publishingTarget: "wix_blog" },
+      { clientId: client.id, name: "Migss website", siteUrl: "https://migssinteriors.com", status: "paused", publishingTarget: "wix_blog" },
       db,
     );
     const [pillar] = await db.insert(projectPillars).values({ projectId: project.id, label: "Bathroom Renovation", slug: "bathroom-renovation" }).returning();

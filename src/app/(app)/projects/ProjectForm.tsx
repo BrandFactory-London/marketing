@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/Button";
 import { keepValuesOnSubmit } from "@/components/ui/keepValues";
 import { Field, SelectField } from "@/components/ui/Field";
-import { PACKAGES, PROJECT_STATUSES, PUBLISHING_TARGETS, packageOption } from "@/config/packages";
+import { PROJECT_STATUSES, PUBLISHING_TARGETS } from "@/config/packages";
 import type { ProjectFormState } from "./actions";
 
 type Props = {
@@ -46,18 +46,11 @@ export function ProjectForm({ clients, clientId, action, onCancel }: Props) {
             error={state.errors?.clientId}
           />
           <SelectField
-            label="Marketing package"
-            name="package"
-            defaultValue={value("package", "entry")}
-            options={PACKAGES.map((item) => ({ value: item.key, label: packageOption(item.key) }))}
-            error={state.errors?.package}
-          />
-          <SelectField
             label="Status"
             name="status"
             defaultValue={value("status", "active")}
             options={PROJECT_STATUSES.map((item) => ({ value: item.key, label: item.label }))}
-            help="Active projects get planned slots in the calendar."
+            help="Slots come from the project's runs: set up the first run on its Run plan tab."
             error={state.errors?.status}
           />
           <Field label="Project name" name="name" placeholder="e.g. Migss Interiors website" defaultValue={value("name")} error={state.errors?.name} />

@@ -1,7 +1,6 @@
 import { expect, query, test, resetDomain } from "./fixtures";
 
-// γ3.3: the Run plan tab, the Posts page and the project cards, plus the smoke's pause and package
-// changes made through the real Settings form.
+// γ3.3, reworked in Phase 2 A1: the Run plan tab with runs, the Posts page and the project cards.
 
 test.describe.configure({ mode: "serial" });
 
@@ -36,68 +35,161 @@ async function slots() {
   );
 }
 
-test("the Run plan lists eight weeks of slots and edits them in place", async ({ page, signedIn }) => {
-  void signedIn;
-  const yesterday = addDays(today, -1);
-  await query("insert into posts (project_id, cadence_date, slot_date, status) values ($1, $2, $2, 'planned')", [projectId, yesterday]);
-  await page.goto(`/projects/${projectId}/plan`);
-  await expect(page.getByText("Premium package: 3 planned slots a week, kept eight weeks ahead. Give each one a topic.")).toBeVisible();
-  await expect(page.locator(".app-plan-row")).toHaveCount(25);
-  // The missed slot comes first.
-  await expect(page.locator(".app-plan-row").first()).toContainText("Missed");
+// Every day from `from` to `to` on the given weekdays.
+const matching = (from: string, to: string, weekdays: number[]) => {
+  const days: string[] = [];
+  for (let day = from; day <= to; day = addDays(day, 1)) if (weekdays.includes(weekday(day))) days.push(day);
+  return days;
+};
+// The day before the same date a month later, as the app's run end.
+const monthEnd = (start: string) => {
+  const [year, month, day] = start.split("-").map(Number);
+  const last = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return addDays(new Date(Date.UTC(year, month, Math.min(day, last))).toISOString().slice(0, 10), -1);
+};
+const longDate = (iso: string) =>
+  new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso}T00:00:00Z`)).replace(",", "");
 
+async function derived() {
+  return query<{ id: string; parent_post_id: string; content_type: string; slot_date: string }>(
+    "select d.id, d.parent_post_id, d.content_type, to_char(d.slot_date, 'YYYY-MM-DD') as slot_date from derived_slots d join posts p on p.id = d.parent_post_id where p.project_id = $1 order by d.slot_date",
+    [projectId],
+  );
+}
+
+test("setting up a run puts typed SEO and GBP slots on the Run plan (Phase 2 A1)", async ({ page, signedIn }) => {
+  void signedIn;
+  await page.goto(`/projects/${projectId}/plan`);
+  await expect(page.getByRole("heading", { name: "No run set up" })).toBeVisible();
+  await page.getByRole("button", { name: "Set up a run" }).click();
+  const form = page.getByRole("form", { name: "Run configuration" });
+  await expect(form.getByRole("combobox", { name: "Preset" })).toHaveValue("mid");
+  await form.getByRole("combobox", { name: "Preset" }).selectOption("premium");
+  await form.getByRole("combobox", { name: "Length" }).selectOption("1");
+  const end = monthEnd(today);
+  const seoDays = matching(today, end, [1, 3, 5]);
+  await expect(form.getByRole("spinbutton", { name: "How many SEO posts" })).toHaveValue(String(seoDays.length));
+  // GBP stays, the other channels are switched off: the run becomes Custom.
+  for (const name of ["How many LinkedIn posts", "How many Facebook posts", "How many Pinterest pins"]) await form.getByRole("spinbutton", { name }).fill("0");
+  await expect(form.getByRole("combobox", { name: "Preset" })).toHaveValue("custom");
+  const gbp = seoDays.filter((day) => addDays(day, 1) <= end).length;
+  await expect(form.getByRole("status")).toHaveText(`${seoDays.length} SEO posts from ${longDate(seoDays[0])} to ${longDate(seoDays.at(-1)!)}; ${gbp} GBP. The run ends on ${longDate(end)}.`);
+  await page.screenshot(shot("run-form"));
+  await form.getByRole("button", { name: "Create run" }).click();
+
+  await expect(page.getByRole("heading", { name: "Run 1", level: 2 })).toBeVisible();
+  await expect(page.getByText("Setting up", { exact: true }).first()).toBeVisible();
   const all = await slots();
-  const future = all.filter((row) => row.slot_date >= today);
-  expect(future).toHaveLength(24);
-  const first = page.locator(".app-plan-row").nth(1);
+  expect(all.map((row) => row.slot_date)).toEqual(seoDays);
+  const children = await derived();
+  expect(children).toHaveLength(gbp);
+  expect(children.every((child) => child.content_type === "gmb")).toBe(true);
+  await expect(page.locator(".app-plan-row")).toHaveCount(seoDays.length);
+  const first = page.locator(".app-plan-row").first();
+  await expect(first).toContainText("SEO post 1");
+  await expect(first.locator(".app-plan-derived-row")).toContainText("GBP post");
+  await page.screenshot(shot("run-plan"));
+});
+
+test("a topic and moves are kept in place, and the GBP slot follows its SEO post", async ({ page, signedIn }) => {
+  void signedIn;
+  await page.goto(`/projects/${projectId}/plan`);
+  const first = page.locator(".app-plan-row").first();
   await first.getByText("Set topic or date").click();
   await first.getByRole("textbox", { name: "Topic" }).fill("Bathroom renovation cost in Essex");
   await first.getByRole("button", { name: "Set topic" }).click();
   await expect(first).toContainText("Topic set");
   await expect(first).toContainText("Bathroom renovation cost in Essex");
-  await page.screenshot(shot("run-plan"));
+
+  // Moving the second SEO post a day takes its GBP slot with it.
+  const [, second] = await slots();
+  const secondRow = page.locator(".app-plan-row").nth(1);
+  await secondRow.getByText("Set topic or date").click();
+  await secondRow.getByLabel("Date", { exact: true }).fill(addDays(second.slot_date, 1));
+  await secondRow.getByRole("button", { name: "Move slot" }).click();
+  await expect(secondRow.getByText("Slot moved")).toBeVisible();
+  await expect.poll(async () => (await derived()).find((child) => child.parent_post_id === second.id)?.slot_date).toBe(addDays(second.slot_date, 2));
+
+  // A GBP slot cannot go before its SEO post.
+  const [firstPost] = await slots();
+  const gbp = (await derived()).find((child) => child.parent_post_id === firstPost.id)!;
+  const derivedRow = page.locator(".app-plan-row").first().locator(".app-plan-derived-row");
+  await derivedRow.getByText("Move date").click();
+  await derivedRow.getByLabel("Date for the GBP post").fill(addDays(firstPost.slot_date, -1));
+  await derivedRow.getByRole("button", { name: "Move slot" }).click();
+  await expect(derivedRow.getByText(/Keep it on or after its SEO post|Choose today or a later date/)).toBeVisible();
+  await derivedRow.getByLabel("Date for the GBP post").fill(addDays(gbp.slot_date, 1));
+  await derivedRow.getByRole("button", { name: "Move slot" }).click();
+  await expect(derivedRow.getByText("Date saved")).toBeVisible();
+  expect((await derived()).find((child) => child.id === gbp.id)?.slot_date).toBe(addDays(gbp.slot_date, 1));
 });
 
-test("pausing in Settings removes empty future slots and keeps the topic", async ({ page, signedIn }) => {
+test("editing the run to Mid regenerates only the empty, unmoved slots", async ({ page, signedIn }) => {
   void signedIn;
+  const before = await slots();
+  const moved = before[1];
+  await page.goto(`/projects/${projectId}/plan`);
+  await page.getByRole("button", { name: "Edit run" }).click();
+  const form = page.getByRole("form", { name: "Run configuration" });
+  // Only SEO weekdays change: Tuesday and Thursday instead of Monday, Wednesday and Friday.
+  for (const day of ["Mon", "Wed", "Fri"]) await form.locator(".app-weekday", { hasText: day }).first().click();
+  for (const day of ["Tue", "Thu"]) await form.locator(".app-weekday", { hasText: day }).first().click();
+  await form.getByRole("button", { name: "Save run" }).click();
+  await expect(form).toHaveCount(0);
+  const after = await slots();
+  // The amount stays, but a month has fewer Tuesdays and Thursdays: the two kept slots plus every free one.
+  const [run] = await query<{ ends_on: string }>("select to_char(ends_on, 'YYYY-MM-DD') as ends_on from runs where project_id = $1", [projectId]);
+  expect(after).toHaveLength(Math.min(before.length, 2 + matching(today, run.ends_on, [2, 4]).length));
+  expect(after.find((row) => row.topic === "Bathroom renovation cost in Essex")).toBeTruthy();
+  expect(after.find((row) => row.id === moved.id)).toMatchObject({ slot_date: moved.slot_date });
+  const fresh = after.filter((row) => row.topic === null && row.id !== moved.id);
+  expect(fresh.every((row) => [2, 4].includes(weekday(row.slot_date)))).toBe(true);
+});
+
+test("the next run starts after Run 1, and an overlap is refused", async ({ page, signedIn }) => {
+  void signedIn;
+  const [run1] = await query<{ ends_on: string }>("select to_char(ends_on, 'YYYY-MM-DD') as ends_on from runs where project_id = $1", [projectId]);
+  await page.goto(`/projects/${projectId}/plan`);
+  await page.getByRole("button", { name: "Set up the next run" }).click();
+  const form = page.getByRole("form", { name: "Run configuration" });
+  await expect(form.getByLabel("Starts on")).toHaveValue(addDays(run1.ends_on, 1));
+  await form.getByLabel("Starts on").fill(today);
+  await form.getByRole("button", { name: "Create run" }).click();
+  await expect(form.getByRole("alert")).toContainText(`This run overlaps Run 1`);
+  await form.getByLabel("Starts on").fill(addDays(run1.ends_on, 1));
+  await form.getByRole("button", { name: "Create run" }).click();
+  const runs = page.getByRole("region", { name: "Runs" });
+  await expect(runs.getByRole("listitem")).toHaveCount(2);
+  await runs.getByRole("link", { name: "Run 2" }).click();
+  await expect(page).toHaveURL(/\?run=/);
+  await expect(page.getByRole("heading", { name: "Run 2", level: 2 })).toBeVisible();
+});
+
+test("a post the retired generator left outside every run is shown, never hidden", async ({ page, signedIn }) => {
+  void signedIn;
+  await query("insert into posts (project_id, cadence_date, slot_date, status, topic) values ($1, $2, $2, 'topic_set', 'Started before any run')", [projectId, addDays(today, -1)]);
+  await page.goto(`/projects/${projectId}/plan`);
+  await expect(page.getByRole("region", { name: "Outside any run" })).toContainText("Started before any run");
+  await query("delete from posts where topic = 'Started before any run'");
+});
+
+test("pausing in Settings keeps the run's slots", async ({ page, signedIn }) => {
+  void signedIn;
+  const before = await slots();
   await page.goto(`/projects/${projectId}/settings`);
   const form = page.getByRole("form", { name: "Project settings" });
   await form.getByRole("combobox", { name: "Status" }).selectOption("paused");
   await form.getByRole("button", { name: "Save settings" }).click();
   await expect(form.getByText("Settings saved")).toBeVisible();
-  const after = await slots();
-  expect(after.filter((row) => row.slot_date >= today).map((row) => row.topic)).toEqual(["Bathroom renovation cost in Essex"]);
-  // The missed slot in the past is kept.
-  expect(after.filter((row) => row.slot_date < today)).toHaveLength(1);
-
+  expect((await slots()).map((row) => row.id)).toEqual(before.map((row) => row.id));
   await page.goto("/projects");
   const card = page.getByRole("link", { name: /Migss Interiors Website/ });
   await expect(card).toContainText("Paused");
-  await expect(card).toContainText("Bathroom renovation cost in Essex");
-});
-
-test("resuming, then switching to Mid and back, ends with the same cadence and the topic intact", async ({ page, signedIn }) => {
-  void signedIn;
-  const save = async (status: string, pkg: string) => {
-    await page.goto(`/projects/${projectId}/settings`);
-    const form = page.getByRole("form", { name: "Project settings" });
-    await form.getByRole("combobox", { name: "Status" }).selectOption(status);
-    await form.getByRole("combobox", { name: "Marketing package" }).selectOption(pkg);
-    await form.getByRole("button", { name: "Save settings" }).click();
-    await expect(form.getByText("Settings saved")).toBeVisible();
-    return (await slots()).filter((row) => row.slot_date >= today);
-  };
-  const resumed = await save("active", "premium");
-  expect(resumed).toHaveLength(24);
-  const mid = await save("active", "mid");
-  const midEmpty = mid.filter((row) => row.topic === null);
-  expect(new Set(midEmpty.map((row) => weekday(row.cadence_date)))).toEqual(new Set([2, 4]));
-  expect(midEmpty).toHaveLength(16);
-  expect(mid.filter((row) => row.topic !== null).map((row) => row.topic)).toEqual(["Bathroom renovation cost in Essex"]);
-  const back = await save("active", "premium");
-  expect(back).toHaveLength(24);
-  expect(new Set(back.map((row) => weekday(row.cadence_date)))).toEqual(new Set([1, 3, 5]));
-  expect(back.filter((row) => row.topic !== null)).toHaveLength(1);
+  await expect(card).toContainText("Run 1");
+  await page.goto(`/projects/${projectId}/settings`);
+  await page.getByRole("form", { name: "Project settings" }).getByRole("combobox", { name: "Status" }).selectOption("active");
+  await page.getByRole("form", { name: "Project settings" }).getByRole("button", { name: "Save settings" }).click();
+  await expect(page.getByText("Settings saved")).toBeVisible();
 });
 
 test("the Posts page lists posts with a topic and filters by status and client", async ({ page, signedIn }) => {
@@ -158,6 +250,10 @@ test("phone width: Run plan and Posts fit without sideways scrolling", async ({ 
   await expect(page.locator(".app-plan-row").first()).toBeVisible();
   expect(await overflow()).toBeLessThanOrEqual(0);
   await page.screenshot(shot("run-plan-mobile"));
+  await page.getByRole("button", { name: "Edit run" }).click();
+  await expect(page.getByRole("form", { name: "Run configuration" })).toBeVisible();
+  expect(await overflow()).toBeLessThanOrEqual(0);
+  await page.screenshot(shot("run-form-mobile"));
   await page.goto("/posts");
   await expect(page.getByRole("table", { name: "Posts" })).toBeVisible();
   expect(await overflow()).toBeLessThanOrEqual(0);

@@ -152,7 +152,7 @@ describe.skipIf(!testDatabaseUrl)("importing a sitemap (local Postgres)", () => 
 
   it("stores the pages, then replaces them on re-import and records the time", async () => {
     const client = await createClient({ name: "Client", mainContact: null, email: null, phone: null }, db);
-    const project = await createProject({ clientId: client.id, name: "Site", siteUrl: site, package: "entry", status: "active", publishingTarget: "wix_blog" }, db);
+    const project = await createProject({ clientId: client.id, name: "Site", siteUrl: site, status: "active", publishingTarget: "wix_blog" }, db);
     const first = fakeFetch({ [`${site}/sitemap.xml`]: { body: urlset(["/", "/old"]) }, [`${site}/`]: page("Home") });
     await importSitemap(project, { fetchImpl: first.impl }, db);
     expect((await listSitePages(project.id, db)).map((p) => [p.path, p.title])).toEqual([["/", "Home"], ["/old", "/old"]]);
@@ -166,7 +166,7 @@ describe.skipIf(!testDatabaseUrl)("importing a sitemap (local Postgres)", () => 
 
   it("keeps the old list when the import fails", async () => {
     const client = await createClient({ name: "Client", mainContact: null, email: null, phone: null }, db);
-    const project = await createProject({ clientId: client.id, name: "Site", siteUrl: site, package: "entry", status: "active", publishingTarget: "wix_blog" }, db);
+    const project = await createProject({ clientId: client.id, name: "Site", siteUrl: site, status: "active", publishingTarget: "wix_blog" }, db);
     await importSitemap(project, { fetchImpl: fakeFetch({ [`${site}/sitemap.xml`]: { body: urlset(["/kept"]) } }).impl }, db);
     await expect(importSitemap(project, { fetchImpl: fakeFetch({}).impl }, db)).rejects.toThrow(SitemapError);
     expect((await listSitePages(project.id, db)).map((p) => p.path)).toEqual(["/kept"]);

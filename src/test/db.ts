@@ -30,7 +30,10 @@ export async function resetDomainTables(db: Database): Promise<void> {
   await db.execute(sql`delete from post_generations`);
   await db.execute(sql`delete from post_specs`);
   await db.execute(sql`delete from ai_calls`);
+  // Derived slots refer to their SEO posts and their run (Phase 2 A1).
+  await db.execute(sql`delete from derived_slots`);
   await db.execute(sql`delete from posts`);
+  await db.execute(sql`delete from runs`);
   await db.execute(sql`delete from batches`);
   await db.execute(sql`delete from project_pillars`);
   await db.execute(sql`delete from site_pages`);

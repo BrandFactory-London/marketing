@@ -48,7 +48,6 @@ async function SettingsContent({ params }: Pick<PageProps<"/projects/[projectId]
           clientId: project.clientId,
           name: project.name,
           siteUrl: project.siteUrl,
-          package: project.package,
           status: project.status,
           publishingTarget: project.publishingTarget,
         }}

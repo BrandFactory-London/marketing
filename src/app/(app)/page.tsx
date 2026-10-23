@@ -13,7 +13,7 @@ import { listProjects } from "@/lib/projects";
 import { addDays, londonToday, monthOf } from "@/lib/dates";
 import { listSlotsBetween, nextSlots, type SlotView } from "@/lib/posts";
 import { requireUser } from "@/lib/session";
-import { ensureSlots } from "@/lib/slots";
+import { adoptOrphanSlots } from "@/lib/runs";
 import { syncCalendarAfter } from "@/lib/calendar-hooks";
 
 export const metadata: Metadata = { title: "Home" };
@@ -34,8 +34,8 @@ export default function HomePage() {
 
 async function HomeContent() {
   await requireUser();
-  // The tiles' next slot must see today's top-up, which the two-week section also runs (idempotent).
-  await ensureSlots();
+  // Runs own the slots now; a slot the retired package generator left during a deploy is adopted or removed (A1, Q3).
+  await adoptOrphanSlots();
   // New slots and changes made by Trigger.dev tasks reach the calendar after a page is read (γ8 orientation Q2).
   syncCalendarAfter("read");
   const [projects, clients, next] = await Promise.all([listProjects(), listClients(), nextSlots()]);
@@ -82,7 +82,6 @@ async function HomeContent() {
 async function NextTwoWeeks() {
   await requireUser();
   const today = londonToday();
-  await ensureSlots({ today });
   const days = Array.from({ length: 14 }, (_, index) => addDays(today, index));
   const [slots, projects] = await Promise.all([listSlotsBetween(days[0], days[13]), listProjects()]);
   const showProject = projects.length > 1;

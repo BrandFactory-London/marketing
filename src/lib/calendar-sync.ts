@@ -1,12 +1,12 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import { getDb, type Database } from "@/db/client";
-import { appSettings, calendarDeletions, clients, googleTokens, posts, postSpecs, projects } from "@/db/schema";
-import { APP_TAG, buildEvent, eventHash, eventIdFor, ownedFields, type CalendarEvent, type CalendarPost } from "./calendar-events";
+import { appSettings, calendarDeletions, clients, derivatives, derivedSlots, googleTokens, posts, postSpecs, projects } from "@/db/schema";
+import { APP_TAG, buildDerivedEvent, buildEvent, eventHash, eventIdFor, ownedFields, type CalendarEvent, type CalendarPost } from "./calendar-events";
 import { londonToday } from "./dates";
 import { deleteEvent, hasCalendarScopes, listAppEvents, listOwnedCalendars, upsertEvent, type CalendarOptions, type OwnedCalendar } from "./google-calendar";
 import { getGoogleAccessToken, GoogleReconnectRequired } from "./google-tokens";
 
-// The one-way mirror of every slot into Amir's Google Calendar (γ8 orientation Q2 to Q5). Every Calendar call runs in
+// The one-way mirror of every slot (SEO posts and, from Phase 2 A1, derived slots) into Amir's Google Calendar (γ8 orientation Q2 to Q5). Every Calendar call runs in
 // the app, never in Trigger.dev, so the Google secrets stay in Vercel. A post is due an update when the hash of its
 // event differs from the one last sent, whatever code changed it. Failures are recorded, never thrown to the caller.
 
@@ -82,14 +82,55 @@ export async function chooseCalendar(userId: string, calendarId: string, deps: C
   await db.transaction(async (tx) => {
     await tx.update(appSettings).set({ calendarUserId: userId, calendarId: chosen.id, calendarName: chosen.name, calendarError: null, calendarErrorAt: null, updatedAt: sql`now()` }).where(eq(appSettings.id, 1));
     await tx.update(posts).set({ calendarHash: null, calendarSyncedAt: null, calendarError: null });
+    await tx.update(derivedSlots).set({ calendarHash: null, calendarSyncedAt: null, calendarError: null });
     await tx.delete(calendarDeletions);
   });
   return chosen;
 }
 
-type DueEvent = { event: CalendarEvent; hash: string; synced: string | null; error: string | null };
+// Which table holds the event's record: an SEO post, or a derived slot (Phase 2 A1).
+type DueEvent = { kind: "post" | "derived"; event: CalendarEvent; hash: string; synced: string | null; error: string | null };
 
-// Every post's event as the app says it should be, today.
+function tableFor(kind: DueEvent["kind"]) {
+  return kind === "post" ? posts : derivedSlots;
+}
+
+// Every derived slot's event, with its SEO post's topic and the newest version's state.
+async function desiredDerivedEvents(db: Database, today: string, appUrl: string | null): Promise<DueEvent[]> {
+  const rows = await db
+    .select({
+      slotId: derivedSlots.id,
+      contentType: derivedSlots.contentType,
+      slotDate: derivedSlots.slotDate,
+      calendarHash: derivedSlots.calendarHash,
+      calendarError: derivedSlots.calendarError,
+      parentPostId: derivedSlots.parentPostId,
+      parentTopic: posts.topic,
+      projectName: projects.name,
+      clientName: clients.name,
+      clientShortName: clients.shortName,
+    })
+    .from(derivedSlots)
+    .innerJoin(posts, eq(posts.id, derivedSlots.parentPostId))
+    .innerJoin(projects, eq(projects.id, posts.projectId))
+    .innerJoin(clients, eq(clients.id, projects.clientId))
+    .orderBy(derivedSlots.slotDate);
+  const parents = [...new Set(rows.map((row) => row.parentPostId))];
+  const versions = parents.length
+    ? await db
+        .selectDistinctOn([derivatives.postId, derivatives.channel], { postId: derivatives.postId, channel: derivatives.channel, status: derivatives.status })
+        .from(derivatives)
+        .where(inArray(derivatives.postId, parents))
+        .orderBy(derivatives.postId, derivatives.channel, sql`${derivatives.version} desc`)
+    : [];
+  return rows.map((row) => {
+    const versionStatus = versions.find((item) => item.postId === row.parentPostId && item.channel === row.contentType)?.status ?? null;
+    const event = buildDerivedEvent({ ...row, versionStatus }, { today, appUrl });
+    return { kind: "derived" as const, event, hash: eventHash(event), synced: row.calendarHash, error: row.calendarError };
+  });
+}
+
+// Every post's and derived slot's event as the app says it should be, today.
 async function desiredEvents(db: Database, today: string): Promise<DueEvent[]> {
   const rows = await db
     .select({
@@ -118,11 +159,12 @@ async function desiredEvents(db: Database, today: string): Promise<DueEvent[]> {
         .orderBy(postSpecs.postId, sql`${postSpecs.version} desc`)
     : [];
   const appUrl = appBaseUrl();
-  return rows.map((row) => {
+  const postEvents = rows.map((row): DueEvent => {
     const post: CalendarPost = { ...row, specNotes: specs.find((spec) => spec.postId === row.postId)?.notes ?? null };
     const event = buildEvent(post, { today, appUrl });
-    return { event, hash: eventHash(event), synced: row.calendarHash, error: row.calendarError };
+    return { kind: "post" as const, event, hash: eventHash(event), synced: row.calendarHash, error: row.calendarError };
   });
+  return [...postEvents, ...(await desiredDerivedEvents(db, today, appUrl))];
 }
 
 async function dueEvents(db: Database, today: string): Promise<DueEvent[]> {
@@ -143,15 +185,16 @@ function message(error: unknown): string {
 
 type Pass = { db: Database; accessToken: string; calendarId: string; result: SyncResult; errors: string[]; options: CalendarOptions };
 
-async function pushEvent(pass: Pass, item: Pick<DueEvent, "event" | "hash">): Promise<void> {
-  const postId = item.event.extendedProperties.private.bfmPostId;
+async function pushEvent(pass: Pass, item: Pick<DueEvent, "kind" | "event" | "hash">): Promise<void> {
+  const id = item.event.extendedProperties.private.bfmPostId;
+  const table = tableFor(item.kind);
   try {
     pass.result[(await upsertEvent(pass.accessToken, pass.calendarId, item.event, pass.options)) === "created" ? "created" : "updated"]++;
-    await pass.db.update(posts).set({ calendarHash: item.hash, calendarSyncedAt: sql`now()`, calendarError: null }).where(eq(posts.id, postId));
+    await pass.db.update(table).set({ calendarHash: item.hash, calendarSyncedAt: sql`now()`, calendarError: null }).where(eq(table.id, id));
   } catch (error) {
     pass.result.failed++;
     pass.errors.push(message(error));
-    await pass.db.update(posts).set({ calendarError: message(error).slice(0, 500) }).where(eq(posts.id, postId));
+    await pass.db.update(table).set({ calendarError: message(error).slice(0, 500) }).where(eq(table.id, id));
   }
 }
 
@@ -236,7 +279,8 @@ export async function resyncCalendar(deps: CalendarDeps = {}): Promise<SyncResul
     const same = there && there.id === item.event.id && JSON.stringify(ownedFields(there as CalendarEvent)) === JSON.stringify(ownedFields(item.event));
     if (!same) differing.push(item);
     else if (item.synced !== item.hash || item.error) {
-      await pass.db.update(posts).set({ calendarHash: item.hash, calendarSyncedAt: sql`now()`, calendarError: null }).where(eq(posts.id, item.event.extendedProperties.private.bfmPostId));
+      const table = tableFor(item.kind);
+      await pass.db.update(table).set({ calendarHash: item.hash, calendarSyncedAt: sql`now()`, calendarError: null }).where(eq(table.id, item.event.extendedProperties.private.bfmPostId));
     }
   }
   const orphanBatch = orphans.slice(0, CHANGES_PER_PASS);

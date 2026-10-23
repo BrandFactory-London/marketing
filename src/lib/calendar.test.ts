@@ -1,16 +1,20 @@
 import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { appSettings, calendarDeletions, googleTokens, posts, users } from "@/db/schema";
+import { appSettings, calendarDeletions, derivedSlots, googleTokens, posts, users } from "@/db/schema";
+import { GOOGLE_COLOURS } from "@/config/post-status";
+import { addDays } from "./dates";
 import { createTestDb, resetDomainTables, testDatabaseUrl } from "@/test/db";
 import { CALENDAR_SCOPE_STRING, createFakeCalendar } from "@/test/fake-calendar";
-import { APP_TAG, buildEvent, eventHash, eventIdFor, shortName, type CalendarPost } from "./calendar-events";
+import { APP_TAG, buildEvent, derivedEventIdFor, eventHash, eventIdFor, shortName, type CalendarPost } from "./calendar-events";
 import { appBaseUrl, CHANGES_PER_PASS, chooseCalendar, getCalendarState, resyncCalendar, syncCalendar, syncCalendarSafely } from "./calendar-sync";
 import { createClient } from "./clients";
 import { CalendarError, deleteEvent, hasCalendarScopes, upsertEvent } from "./google-calendar";
 import { saveGoogleTokens } from "./google-tokens";
-import { createProject, updateProjectSettings } from "./projects";
-import { ensureSlots, moveSlot, setTopic } from "./slots";
+import { createProject } from "./projects";
+import { runInput } from "@/test/runs";
+import { createRun, updateRun } from "./runs";
+import { moveSlot, setTopic } from "./slots";
 
 const POST: CalendarPost = {
   postId: "3f2a9c1e-5b7d-4e8a-9c0b-1d2e3f4a5b6c",
@@ -161,6 +165,7 @@ describe.skipIf(!testDatabaseUrl)("the calendar sync (local Postgres)", () => {
   const calendarId = "content@group.calendar.google.com";
   const now = () => new Date("2026-10-23T09:00:00Z");
   let projectId = "";
+  let runId = "";
   let fake: ReturnType<typeof createFakeCalendar>;
   let deps: Parameters<typeof syncCalendar>[0];
 
@@ -183,14 +188,21 @@ describe.skipIf(!testDatabaseUrl)("the calendar sync (local Postgres)", () => {
     await db.insert(appSettings).values({ id: 1 }).onConflictDoNothing();
     await saveGoogleTokens({ userId, refreshToken: "1//refresh", scope: CALENDAR_SCOPE_STRING }, db);
     const client = await createClient({ name: "Migss Interiors", mainContact: null, email: null, phone: null }, db);
-    const project = await createProject({ clientId: client.id, name: "Migss Interiors Website", siteUrl: "https://www.migssinteriors.com", package: "entry", status: "active", publishingTarget: "wix_blog" }, db);
+    const project = await createProject({ clientId: client.id, name: "Migss Interiors Website", siteUrl: "https://www.migssinteriors.com", status: "active", publishingTarget: "wix_blog" }, db);
     projectId = project.id;
-    await ensureSlots({ projectId, today: "2026-10-23" }, db);
+    // SEO slots only, so the γ8 cases see one event per post; derived slots have their own case below.
+    runId = (await createRun(projectId, seoOnly(), db, { today: "2026-10-23" })).id;
     fake = createFakeCalendar();
     deps = { db, fetchImpl: fake.fetchImpl, now, sleep: async () => {} };
   });
 
   const slots = () => db.select().from(posts).where(eq(posts.projectId, projectId)).orderBy(posts.slotDate);
+
+  // An Entry run (Tuesdays) from Fri 23 Oct for two months, with the given amounts for SEO and GBP.
+  function seoOnly(seo?: number, gbp = 0) {
+    const base = runInput("entry", "2026-10-23", 2);
+    return { ...base, channels: base.channels.map((channel) => (channel.contentType === "seo" ? { ...channel, amount: seo ?? channel.amount } : { ...channel, amount: channel.contentType === "gmb" ? gbp : 0 })) };
+  }
 
   it("needs the Calendar scopes and a chosen calendar before anything is sent", async () => {
     expect(await syncCalendar(deps)).toMatchObject({ skipped: "No calendar is chosen.", created: 0 });
@@ -227,19 +239,37 @@ describe.skipIf(!testDatabaseUrl)("the calendar sync (local Postgres)", () => {
     expect(event).toMatchObject({ summary: "Migss · SEO · Wet room maintenance week by week", colorId: "1", start: { date: "2026-11-20" }, end: { date: "2026-11-21" } });
   });
 
-  it("deletes the events of slots a pause removes, and keeps slots with a topic", async () => {
+  it("deletes the events of slots a run change removes, and keeps slots with a topic", async () => {
     await chooseCalendar(userId, calendarId, deps);
     await syncCalendar(deps);
     const [first] = await slots();
     await setTopic(first.id, "Kept", db);
-    const project = { clientId: (await db.query.projects.findFirst({ where: (row, { eq: is }) => is(row.id, projectId) }))!.clientId };
-    await updateProjectSettings(projectId, { clientId: project.clientId, name: "Migss Interiors Website", siteUrl: "https://www.migssinteriors.com", package: "entry", status: "paused", publishingTarget: "wix_blog" }, db);
+    await updateRun(runId, seoOnly(1), db, { today: "2026-10-23" });
     const queued = await db.select().from(calendarDeletions);
     expect(queued.length).toBeGreaterThan(0);
     const result = await syncCalendar(deps);
     expect(result.deleted).toBe(queued.length);
     expect(fake.live().map((event) => event.summary)).toEqual(["Migss · SEO · Kept"]);
     expect(await db.select().from(calendarDeletions)).toHaveLength(0);
+  });
+
+  it("gives derived slots their own events with the channel and the SEO post's topic, and removes them with the slot (Phase 2 A1)", async () => {
+    await updateRun(runId, seoOnly(2, 2), db, { today: "2026-10-23" });
+    await chooseCalendar(userId, calendarId, deps);
+    expect(await syncCalendar(deps)).toMatchObject({ created: 4, failed: 0 });
+    const [first] = await slots();
+    const [gbp] = await db.select().from(derivedSlots).where(eq(derivedSlots.parentPostId, first.id));
+    const event = fake.live().find((item) => item.id === derivedEventIdFor(gbp.id))!;
+    expect(event).toMatchObject({ summary: "Migss · GBP · Planned slot", start: { date: addDays(first.slotDate, 1) }, colorId: GOOGLE_COLOURS.graphite });
+    expect(event.description).toContain("From the SEO post: no topic yet");
+
+    await setTopic(first.id, "Wet room or shower tray", db);
+    expect(await syncCalendar(deps)).toMatchObject({ created: 0, updated: 2 });
+    expect(fake.live().find((item) => item.id === derivedEventIdFor(gbp.id))!.summary).toBe("Migss · GBP · Wet room or shower tray");
+
+    await updateRun(runId, seoOnly(2, 0), db, { today: "2026-10-23" });
+    expect(await syncCalendar(deps)).toMatchObject({ deleted: 2 });
+    expect(fake.live().map((item) => item.summary).sort()).toEqual(["Migss · SEO · Planned slot", "Migss · SEO · Wet room or shower tray"]);
   });
 
   it("records a failure on the post and on Connections, never throws, and repairs it on the next pass", async () => {

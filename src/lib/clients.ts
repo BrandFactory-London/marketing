@@ -2,7 +2,7 @@ import "server-only";
 import { asc, eq, sql } from "drizzle-orm";
 import { getDb, type Database } from "@/db/client";
 import { clients, projects } from "@/db/schema";
-import { clientStatus, type ClientStatus, type PackageKey, type ProjectStatus } from "@/config/packages";
+import { clientStatus, type ClientStatus, type ProjectStatus } from "@/config/packages";
 import { isEmail, isUuid, optionalText, type FormInput, type Parsed } from "./validation";
 
 export type ClientInput = { name: string; shortName?: string | null; mainContact: string | null; email: string | null; phone: string | null };
@@ -25,7 +25,7 @@ export function parseClientInput(input: FormInput): Parsed<ClientInput, ClientFi
   };
 }
 
-export type ClientProjectSummary = { id: string; name: string; package: PackageKey; status: ProjectStatus };
+export type ClientProjectSummary = { id: string; name: string; status: ProjectStatus };
 export type ClientListItem = Client & { projects: ClientProjectSummary[]; status: ClientStatus };
 
 export async function listClients(db: Database = getDb()): Promise<ClientListItem[]> {
@@ -35,7 +35,6 @@ export async function listClients(db: Database = getDb()): Promise<ClientListIte
       id: projects.id,
       clientId: projects.clientId,
       name: projects.name,
-      package: projects.package,
       status: projects.status,
     })
     .from(projects)
@@ -43,7 +42,7 @@ export async function listClients(db: Database = getDb()): Promise<ClientListIte
   return rows.map((client) => {
     const own = projectRows
       .filter((project) => project.clientId === client.id)
-      .map(({ id, name, package: pkg, status }) => ({ id, name, package: pkg, status }));
+      .map(({ id, name, status }) => ({ id, name, status }));
     return { ...client, projects: own, status: clientStatus(own.map((project) => project.status)) };
   });
 }

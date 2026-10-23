@@ -150,7 +150,7 @@ describe.skipIf(!testDatabaseUrl)("candidates from every source (local Postgres)
     await resetDomainTables(db);
     const client = await createClient({ name: "Migss Interiors", mainContact: null, email: null, phone: null }, db);
     const project = await createProject(
-      { clientId: client.id, name: "Migss website", siteUrl: "https://www.migssinteriors.com", package: "entry", status: "paused", publishingTarget: "wix_blog" },
+      { clientId: client.id, name: "Migss website", siteUrl: "https://www.migssinteriors.com", status: "paused", publishingTarget: "wix_blog" },
       db,
     );
     await saveKnowledge({ tier: "agency" }, { writing_rules: "- Never use em dashes.", banned_phrases: '- "seamless"' }, db);
@@ -331,7 +331,7 @@ describe.skipIf(!testDatabaseUrl)("candidates from every source (local Postgres)
     expect(await proposeCandidates({ reviewEventId: approve }, { db, transport: fakeApi({ candidates: [scoped] }).transport })).toBe(0);
 
     const other = await createClient({ name: "Other Interiors", mainContact: null, email: null, phone: null }, db);
-    const otherProject = await createProject({ clientId: other.id, name: "Other site", siteUrl: "https://other.example", package: "entry", status: "paused", publishingTarget: "wix_blog" }, db);
+    const otherProject = await createProject({ clientId: other.id, name: "Other site", siteUrl: "https://other.example", status: "paused", publishingTarget: "wix_blog" }, db);
     const [otherPost] = await db.insert(posts).values({ projectId: otherProject.id, status: "rejected", slotDate: "2026-11-04", topic: "Kitchens" }).returning();
     const [otherReject] = await db.insert(reviewEvents).values({ postId: otherPost.id, action: "reject", note: "Same guarantee here." }).returning();
     expect(await proposeCandidates({ reviewEventId: otherReject.id }, { db, transport: fakeApi({ candidates: [GUARANTEE] }).transport })).toBe(1);

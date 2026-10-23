@@ -66,7 +66,7 @@ describe.skipIf(!testDatabaseUrl)("publish to Wix (γ6 orientation Q3, Q4)", () 
       scope: "drive.readonly",
     });
     const client = await createClient({ name: "Migss Interiors", mainContact: null, email: null, phone: null }, db);
-    const project = await createProject({ clientId: client.id, name: "Migss website", siteUrl: SITE, package: "entry", status: "paused", publishingTarget: "wix_blog" }, db);
+    const project = await createProject({ clientId: client.id, name: "Migss website", siteUrl: SITE, status: "paused", publishingTarget: "wix_blog" }, db);
     await db.update(projects).set({ driveFolderId: "root-migss", driveFolderName: "Migss Interiors" }).where(eq(projects.id, project.id));
     const pillar = await addPillar(project.id, { label: "Bathroom Renovation", slug: "bathroom-renovation" }, db);
     await saveWixCredentials(project.id, { apiKey: FAKE_KEY, accountId: FAKE_ACCOUNT, siteId: FAKE_SITE }, db);

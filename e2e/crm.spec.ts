@@ -22,13 +22,13 @@ test.describe("CRM, client and projects", () => {
     await resetDomain();
   });
 
-  test("an empty CRM shows the three packages and no clients", async ({ page, signedIn }) => {
+  test("an empty CRM shows the three run presets and no clients", async ({ page, signedIn }) => {
     void signedIn;
     await page.goto("/crm");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("CRM");
-    const packages = page.getByRole("region", { name: "Marketing packages" });
-    for (const name of ["Entry", "Mid", "Premium"]) await expect(packages.getByText(name, { exact: true })).toBeVisible();
-    await expect(packages.getByText("No projects")).toHaveCount(3);
+    const presets = page.getByRole("region", { name: "Run presets" });
+    for (const name of ["Entry", "Mid", "Premium"]) await expect(presets.getByText(name, { exact: true })).toBeVisible();
+    await expect(presets.getByText("No current runs")).toHaveCount(3);
     await expect(page.getByRole("heading", { name: "No clients yet" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Edit" })).toHaveCount(0);
   });
@@ -137,10 +137,8 @@ test.describe("CRM, client and projects", () => {
     await page.getByRole("button", { name: "Save project" }).click();
     // The project page itself arrives in γ2.3.
     await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/);
-    const [row] = await query<{ site_url: string; package: string; status: string; publishing_target: string }>(
-      "select site_url, package, status, publishing_target from projects",
-    );
-    expect(row).toEqual({ site_url: "https://www.migssinteriors.com", package: "entry", status: "active", publishing_target: "wix_blog" });
+    const [row] = await query<{ site_url: string; status: string; publishing_target: string }>("select site_url, status, publishing_target from projects");
+    expect(row).toEqual({ site_url: "https://www.migssinteriors.com", status: "active", publishing_target: "wix_blog" });
   });
 
   test("Projects groups cards by client, and CRM and Home show the project", async ({ page, signedIn }) => {
@@ -149,21 +147,22 @@ test.describe("CRM, client and projects", () => {
     const group = page.getByRole("region", { name: "Migss Interiors" });
     const card = group.getByRole("link", { name: /Migss Interiors website/ });
     await expect(card).toContainText("migssinteriors.com");
-    await expect(card).toContainText("Entry · 1 post a week");
+    await expect(card).toContainText("No run set up");
     await expect(card).toContainText("Wix Blog");
     await expect(card).toContainText("Active");
     await page.screenshot({ path: "e2e/screenshots/projects.png", fullPage: true, animations: "disabled" });
 
     await page.goto("/crm");
     const table = page.getByRole("table");
-    await expect(table.getByRole("row", { name: /Migss Interiors/ })).toContainText("Migss Interiors website: Entry");
+    await expect(table.getByRole("row", { name: /Migss Interiors/ })).toContainText("Migss Interiors website: No run set up");
     await expect(table.getByRole("row", { name: /Migss Interiors/ })).toContainText("Active");
-    await expect(page.getByText("1 project: Migss Interiors website")).toBeVisible();
+    // No run yet, so no preset counts it.
+    await expect(page.getByRole("region", { name: "Run presets" }).getByText("No current runs")).toHaveCount(3);
     await page.screenshot({ path: "e2e/screenshots/crm.png", fullPage: true, animations: "disabled" });
 
     await page.goto("/crm");
     await page.getByRole("link", { name: "Migss Interiors" }).click();
-    await expect(page.getByRole("region", { name: "Projects" }).getByRole("link", { name: /Migss Interiors website/ })).toContainText("Entry · 1 post a week");
+    await expect(page.getByRole("region", { name: "Projects" }).getByRole("link", { name: /Migss Interiors website/ })).toContainText("No run set up");
     await page.screenshot({ path: "e2e/screenshots/client-with-project.png", fullPage: true, animations: "disabled" });
 
     await page.goto("/");

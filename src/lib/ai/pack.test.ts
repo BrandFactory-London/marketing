@@ -98,7 +98,7 @@ describe.skipIf(!testDatabaseUrl)("loading the pack (local Postgres)", () => {
   it("uses each tier's current version and returns their ids", async () => {
     const client = await createClient({ name: "Migss Interiors", mainContact: null, email: null, phone: null }, db);
     const project = await createProject(
-      { clientId: client.id, name: "Migss Interiors website", siteUrl: "https://www.migss.co.uk", package: "entry", status: "active", publishingTarget: "wix_blog" },
+      { clientId: client.id, name: "Migss Interiors website", siteUrl: "https://www.migss.co.uk", status: "active", publishingTarget: "wix_blog" },
       db,
     );
     await saveKnowledge({ tier: "agency" }, { writing_rules: "Old rule." }, db);

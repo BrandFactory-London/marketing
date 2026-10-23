@@ -1,8 +1,8 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, lte, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, ne, sql, type SQL } from "drizzle-orm";
 import { getDb, type Database } from "@/db/client";
 import { clients, posts, projects } from "@/db/schema";
-import { PRE_WRITING_STATUSES, type PostStatus } from "@/config/post-status";
+import { type PostStatus } from "@/config/post-status";
 import { londonToday } from "./dates";
 import { isUuid } from "./validation";
 
@@ -59,16 +59,6 @@ export async function getSlot(id: string, db: Database = getDb()): Promise<SlotV
   if (!isUuid(id)) return null;
   const [row] = await select(db, eq(posts.id, id));
   return row ?? null;
-}
-
-// The Run plan tab: missed slots first, then everything from today on (γ3 orientation Q9).
-export async function listProjectPlan(projectId: string, options: { today?: string } = {}, db: Database = getDb()): Promise<SlotView[]> {
-  if (!isUuid(projectId)) return [];
-  const today = options.today ?? londonToday();
-  return select(
-    db,
-    and(eq(posts.projectId, projectId), or(gte(posts.slotDate, today), inArray(posts.status, [...PRE_WRITING_STATUSES]))),
-  ).orderBy(...byDate);
 }
 
 // The Posts page: every post at Topic set or later, newest first (γ3 orientation Q10).

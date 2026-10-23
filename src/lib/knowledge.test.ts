@@ -44,7 +44,7 @@ describe.skipIf(!testDatabaseUrl)("knowledge versions (local Postgres)", () => {
     const client = await createClient({ name: "Migss Interiors", mainContact: null, email: null, phone: null }, db);
     const other = await createClient({ name: "Other", mainContact: null, email: null, phone: null }, db);
     const project = await createProject(
-      { clientId: client.id, name: "Site", siteUrl: "https://example.com", package: "entry", status: "active", publishingTarget: "wix_blog" },
+      { clientId: client.id, name: "Site", siteUrl: "https://example.com", status: "active", publishingTarget: "wix_blog" },
       db,
     );
     clientScope = { tier: "client", clientId: client.id };

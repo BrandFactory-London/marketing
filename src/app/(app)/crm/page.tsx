@@ -5,7 +5,10 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { LoadingCard } from "@/components/ui/LoadingCard";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { CLIENT_STATUSES, PACKAGES, getPackage } from "@/config/packages";
+import { CLIENT_STATUSES } from "@/config/packages";
+import { RUN_PRESETS, WEEKDAY_NAMES } from "@/config/run-presets";
+import { runSummary } from "@/components/ProjectCards";
+import { listProjects, type ProjectWithClient } from "@/lib/projects";
 import { listClients, type ClientListItem } from "@/lib/clients";
 import { requireUser } from "@/lib/session";
 import { CrmHeader } from "./AddClient";
@@ -25,44 +28,45 @@ export default function CrmPage() {
 
 async function CrmContent() {
   await requireUser();
-  const clients = await listClients();
+  const [clients, projects] = await Promise.all([listClients(), listProjects()]);
+  const runs = new Map(projects.map((project) => [project.id, project.currentRun]));
   return (
     <>
-      <Packages clients={clients} />
+      <Presets projects={projects} />
       {clients.length === 0 ? (
-        <EmptyState title="No clients yet" text="Add a client to start. Its projects and their packages will show here." />
+        <EmptyState title="No clients yet" text="Add a client to start. Its projects and their runs will show here." />
       ) : (
-        <ClientsTable clients={clients} />
+        <ClientsTable clients={clients} runs={runs} />
       )}
     </>
   );
 }
 
-function Packages({ clients }: { clients: ClientListItem[] }) {
-  const projects = clients.flatMap((client) => client.projects);
+// Entry, Mid and Premium are run presets now (Phase 2 A1): each prefills a run's cadence, and the run keeps its own.
+function Presets({ projects }: { projects: ProjectWithClient[] }) {
   return (
-    <section className="app-section" aria-labelledby="packages-heading">
+    <section className="app-section" aria-labelledby="presets-heading">
       <div className="app-section-header">
-        <h2 id="packages-heading" className="heading app-section-title">
-          Marketing packages
+        <h2 id="presets-heading" className="heading app-section-title">
+          Run presets
         </h2>
-        <span className="small app-muted">Chosen per project in its settings</span>
+        <span className="small app-muted">Each prefills a run; set up runs on a project&apos;s Run plan tab</span>
       </div>
       <div className="app-card-grid">
-        {PACKAGES.map((item, index) => {
-          const using = projects.filter((project) => project.package === item.key);
+        {RUN_PRESETS.map((item, index) => {
+          const using = projects.filter((project) => project.currentRun?.preset === item.key);
           return (
             <div key={item.key} className="bfm-card bfm-reveal app-package-card" style={{ "--i": index } as CSSProperties}>
               <p className="bfm-card-title">{item.label}</p>
-              <p className="display app-package-count">{item.postsPerWeek}</p>
+              <p className="display app-package-count">{item.seoWeekdays.length}</p>
               <p className="small app-muted">
-                SEO {item.postsPerWeek === 1 ? "post" : "posts"} a week, each with GBP, LinkedIn, Facebook and Pinterest derivatives. Active projects get planned
-                slots at this cadence.
+                SEO {item.seoWeekdays.length === 1 ? "post" : "posts"} a week on {new Intl.ListFormat("en-GB", { type: "conjunction" }).format(item.seoWeekdays.map((day) => WEEKDAY_NAMES[day]))}, each with GBP,
+                LinkedIn, Facebook and Pinterest posts the day after.
               </p>
               <p className="small">
                 {using.length === 0
-                  ? "No projects"
-                  : `${using.length} ${using.length === 1 ? "project" : "projects"}: ${using.map((project) => project.name).join(", ")}`}
+                  ? "No current runs"
+                  : `${using.length} current ${using.length === 1 ? "run" : "runs"}: ${using.map((project) => project.name).join(", ")}`}
               </p>
             </div>
           );
@@ -72,7 +76,7 @@ function Packages({ clients }: { clients: ClientListItem[] }) {
   );
 }
 
-function ClientsTable({ clients }: { clients: ClientListItem[] }) {
+function ClientsTable({ clients, runs }: { clients: ClientListItem[]; runs: Map<string, ProjectWithClient["currentRun"]> }) {
   return (
     <Card className="app-section" aria-labelledby="clients-heading">
       <h2 id="clients-heading" className="heading app-section-title">
@@ -83,7 +87,7 @@ function ClientsTable({ clients }: { clients: ClientListItem[] }) {
           <thead>
             <tr>
               <th className="label">Client</th>
-              <th className="label">Projects and packages</th>
+              <th className="label">Projects and runs</th>
               <th className="label">This month</th>
               <th className="label">Status</th>
             </tr>
@@ -98,10 +102,10 @@ function ClientsTable({ clients }: { clients: ClientListItem[] }) {
                       {client.name}
                     </Link>
                   </td>
-                  <td data-label="Projects and packages">
+                  <td data-label="Projects and runs">
                     {client.projects.length === 0
                       ? "No projects yet"
-                      : client.projects.map((project) => `${project.name}: ${getPackage(project.package).label}`).join(", ")}
+                      : client.projects.map((project) => `${project.name}: ${runSummary(runs.get(project.id) ?? null)}`).join(", ")}
                   </td>
                   <td data-label="This month">
                     <span className="small app-muted">No posts scheduled</span>

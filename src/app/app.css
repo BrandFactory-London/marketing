@@ -334,3 +334,28 @@ a:hover { color: var(--brand-hover); }
 .app-pin-cover { margin: 0; display: flex; gap: var(--space-3); align-items: flex-start; }
 .app-pin-cover img { width: 96px; height: 96px; object-fit: cover; border-radius: var(--radius-md); flex: none; }
 .app-channel-group { padding: var(--space-3) var(--space-3) var(--space-1); margin: 0; }
+
+/* Runs (Phase 2 A1) */
+.app-run-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.app-run-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: flex-start; }
+.app-run-form { border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-4); }
+.app-run-table { min-width: 560px; }
+.app-run-defaults summary { cursor: pointer; color: var(--brand); font-weight: 600; }
+.app-run-defaults[open] summary { margin-bottom: var(--space-3); }
+.app-amount { width: 88px; }
+.app-weekdays { display: flex; flex-wrap: wrap; gap: 6px; border: 0; margin: 0; padding: 0; }
+.app-weekday { position: relative; }
+.app-weekday input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.app-weekday span { display: inline-block; min-width: 44px; padding: 6px 8px; text-align: center; border: 1px solid var(--line); border-radius: var(--radius-md); cursor: pointer; font-size: 13px; }
+.app-weekday input:checked + span { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
+.app-weekday input:focus-visible + span { outline: 2px solid var(--brand); outline-offset: 2px; }
+.app-plan-derived { list-style: none; margin: 0; padding: 0 0 0 var(--space-6); display: flex; flex-direction: column; gap: var(--space-2); border-left: 2px solid var(--line); }
+.app-plan-derived-row { display: flex; flex-direction: column; gap: var(--space-1); }
+.app-run-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.app-run-list li { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+@media (max-width: 599px) {
+  .app-plan-derived { padding-left: var(--space-3); }
+  .app-run-form { padding: var(--space-3); }
+  .app-run-table { min-width: 0; }
+  .app-run-form .app-form-grid { grid-template-columns: minmax(0, 1fr); }
+}
