@@ -71,14 +71,24 @@ test.describe("CRM, client and projects", () => {
     await page.getByRole("link", { name: "Migss Interiors" }).click();
     const editor = page.getByRole("form", { name: "Client knowledge" });
     const sections = editor.getByRole("navigation", { name: "Client knowledge sections" });
-    await expect(sections.getByRole("button")).toHaveText(["Business factsEmpty", "VoiceEmpty", "ExamplesEmpty", "Counter-examplesEmpty"]);
+    await expect(sections.getByRole("button")).toHaveText([
+      "Business factsEmpty",
+      "VoiceEmpty",
+      "ExamplesEmpty",
+      "Counter-examplesEmpty",
+      "Blog post voiceEmpty",
+      "GBP post voiceEmpty",
+      "LinkedIn post voiceEmpty",
+      "Facebook post voiceEmpty",
+      "Pinterest pin voiceEmpty",
+    ]);
     await expect(editor.getByText("Not saved yet")).toBeVisible();
     await expect(editor.getByRole("button", { name: "Save version" })).toBeDisabled();
 
     await editor.getByLabel("Business facts (Markdown)").fill(facts);
-    await sections.getByRole("button", { name: /Voice/ }).click();
+    await sections.getByRole("button", { name: /^Voice/ }).click();
     await expect(editor.getByLabel("Business facts (Markdown)")).toBeHidden();
-    await editor.getByLabel("Voice (Markdown)").fill('Speak to homeowners as "you" and to Migss as "we".');
+    await editor.getByLabel("Voice (Markdown)", { exact: true }).fill('Speak to homeowners as "you" and to Migss as "we".');
     await expect(editor.getByText("Unsaved changes")).toBeVisible();
     await editor.getByRole("button", { name: "Save version" }).click();
     await expect(editor.getByText(/^Version 1, saved .* · Saved as version 1$/)).toBeVisible();
@@ -88,8 +98,8 @@ test.describe("CRM, client and projects", () => {
 
     await page.reload();
     await expect(editor.getByLabel("Business facts (Markdown)")).toHaveValue(facts);
-    await sections.getByRole("button", { name: /Voice/ }).click();
-    await editor.getByLabel("Voice (Markdown)").fill('Speak to homeowners as "you" and to Migss as "we". Prefer practical guidance.');
+    await sections.getByRole("button", { name: /^Voice/ }).click();
+    await editor.getByLabel("Voice (Markdown)", { exact: true }).fill('Speak to homeowners as "you" and to Migss as "we". Prefer practical guidance.');
     await editor.getByRole("button", { name: "Save version" }).click();
     await expect(editor.getByText(/^Version 2, saved /)).toBeVisible();
 

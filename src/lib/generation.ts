@@ -14,7 +14,7 @@ import {
 } from "@/db/schema";
 import type { GenerationStep, PostStatus } from "@/config/post-status";
 import { AiClient, ModelOutputError, ModelRefusal, type Effort, type Transport } from "@/lib/ai/client";
-import { loadPack, type LoadedPack } from "@/lib/ai/pack";
+import { channelRules, loadPack, withChannelRules, type LoadedPack } from "@/lib/ai/pack";
 import { parseAllowedLinks, parseBannedPhrases, runChecks, type CheckResult } from "@/lib/checks";
 import { composeMarkdown } from "@/lib/review-rules";
 import { listSitePages } from "@/lib/sitemap";
@@ -101,7 +101,7 @@ export async function draftSpec(specId: string, deps: GenerationDeps): Promise<v
       effort: EFFORT.spec,
       maxTokens: MAX_TOKENS.spec,
       pack: pack.text,
-      instructions: specPrompt.INSTRUCTIONS,
+      instructions: withChannelRules(specPrompt.INSTRUCTIONS, channelRules(pack, "blog")),
       user: specPrompt.specUserMessage({
         topic: post.topic ?? "",
         slotDate: post.slotDate,
@@ -219,6 +219,8 @@ export async function runGeneration(generationId: string, deps: GenerationDeps):
   };
   const ai = new AiClient(db, deps.transport);
   const call = { batchId: batch.id, postId: post.id, pack: pack.text };
+  // The blog's own rules and voice follow the instructions, outside the cached pack (γ7 orientation Q1).
+  const blogRules = channelRules(pack, "blog");
   const regenerate = await regenerateFrom(db, generation);
 
   for (;;) {
@@ -242,7 +244,7 @@ export async function runGeneration(generationId: string, deps: GenerationDeps):
           promptVersion: criticPrompt.PROMPT_VERSION,
           effort: EFFORT.critic,
           maxTokens: MAX_TOKENS.critic,
-          instructions: criticPrompt.INSTRUCTIONS,
+          instructions: withChannelRules(criticPrompt.INSTRUCTIONS, blogRules),
           user: criticPrompt.criticUserMessage(forPrompt, latest.bodyMd, checks, generation.note),
         },
         criticPrompt.CriticReply,
@@ -281,7 +283,7 @@ export async function runGeneration(generationId: string, deps: GenerationDeps):
       promptVersion: writerPrompt.PROMPT_VERSION,
       effort: EFFORT.writer,
       maxTokens: MAX_TOKENS.writer,
-      instructions: writerPrompt.INSTRUCTIONS,
+      instructions: withChannelRules(writerPrompt.INSTRUCTIONS, blogRules),
       user: writerPrompt.writerUserMessage(forPrompt, fix, regenerate),
     });
     await saveDraft(db, generationId, round, text, forPrompt, pack, record.id);

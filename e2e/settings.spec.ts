@@ -16,7 +16,15 @@ test("BrandFactory rules save as versions of the agency tier", async ({ page, si
   await page.goto("/settings/rules");
   const editor = page.getByRole("form", { name: "BrandFactory rules" });
   const sections = editor.getByRole("navigation", { name: "BrandFactory rules sections" });
-  await expect(sections.getByRole("button")).toHaveText(["Writing rulesEmpty", "Banned phrasesEmpty"]);
+  await expect(sections.getByRole("button")).toHaveText([
+    "Writing rulesEmpty",
+    "Banned phrasesEmpty",
+    "Blog post rulesEmpty",
+    "GBP post rulesEmpty",
+    "LinkedIn post rulesEmpty",
+    "Facebook post rulesEmpty",
+    "Pinterest pin rulesEmpty",
+  ]);
   await editor.getByRole("textbox", { name: "Writing rules (Markdown)" }).fill(
     "1. Never use em dashes. Use commas, full stops, colons or restructure the sentence.\n2. Plain British English. Short sentences.",
   );

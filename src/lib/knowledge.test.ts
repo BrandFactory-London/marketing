@@ -20,6 +20,16 @@ describe("knowledge sections", () => {
       banned_phrases: "",
     });
   });
+
+  it("stores a channel section only once it holds text (γ7), so older versions keep their shape", () => {
+    expect(normaliseSections("client", { voice: "Plain.", voice_linkedin: "First person plural.  ", voice_gmb: "" })).toEqual({
+      business_facts: "",
+      voice: "Plain.",
+      examples: "",
+      counter_examples: "",
+      voice_linkedin: "First person plural.",
+    });
+  });
 });
 
 describe.skipIf(!testDatabaseUrl)("knowledge versions (local Postgres)", () => {

@@ -3,7 +3,7 @@ import type { CheckResult } from "@/lib/checks";
 import { EXAMPLES_ARE_VOICE_ONLY, list, NO_INVENTED_PRACTICE, RHYTHM_PATTERNS, specText, type SpecForPrompt } from "./shared";
 
 // The critic judges a draft that passed the scripted checks and returns a structured verdict (decisions 11, 12).
-export const PROMPT_VERSION = "critic-3";
+export const PROMPT_VERSION = "critic-4";
 
 export const CRITIC_CATEGORIES = ["rules", "rule of three", "banned", "facts", "spec", "structure", "voice", "usefulness"] as const;
 

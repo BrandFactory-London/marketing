@@ -43,6 +43,13 @@
       "when": 1792761166850,
       "tag": "0005_publish",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792765592866,
+      "tag": "0006_learning",
+      "breakpoints": true
     }
   ]
 }

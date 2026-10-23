@@ -4,7 +4,7 @@ import { EXAMPLES_ARE_VOICE_ONLY, list, NO_INVENTED_PRACTICE, PLACEHOLDER_FORMAT
 
 // The writer drafts the post from the confirmed spec, and redrafts it from the issues a round found
 // (decisions 10, 11, 12).
-export const PROMPT_VERSION = "writer-2";
+export const PROMPT_VERSION = "writer-3";
 
 export const INSTRUCTIONS = `You are writing one SEO blog post for the client in the knowledge pack above, from the spec in the user message. Follow the BrandFactory rules without exception and the output format exactly.
 

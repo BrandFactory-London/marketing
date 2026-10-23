@@ -26,7 +26,7 @@ const confirmed: SpecForPrompt = {
 
 describe("prompts", () => {
   it("each has a version recorded on its calls", () => {
-    expect([spec.PROMPT_VERSION, writer.PROMPT_VERSION, critic.PROMPT_VERSION]).toEqual(["spec-1", "writer-2", "critic-3"]);
+    expect([spec.PROMPT_VERSION, writer.PROMPT_VERSION, critic.PROMPT_VERSION]).toEqual(["spec-2", "writer-3", "critic-4"]);
   });
 
   it("bake in decision 12's three fixes", () => {
