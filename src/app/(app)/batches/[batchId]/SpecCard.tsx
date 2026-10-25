@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, SelectField, TextAreaField } from "@/components/ui/Field";
 import { keepValuesOnSubmit } from "@/components/ui/keepValues";
 import { SPEC_LINES } from "@/config/post-status";
+import { SPEC_FROM_PLAN } from "@/config/run-status";
 import type { SpecStatus } from "@/db/schema";
 import type { SpecActionState } from "../actions";
 
@@ -24,6 +25,8 @@ type SpecView = {
   lengthMax: number;
   cta: string;
   error: string | null;
+  // Phase 2 A4: drafted from the approved plan and confirmed with no step from Amir.
+  auto?: boolean;
 };
 
 type Props = {
@@ -55,6 +58,11 @@ export function SpecCard({ number, topic, date, pillar, locked, spec, editAction
           <h2 id={`spec-${number}`} className="heading" style={{ margin: "4px 0 0" }}>
             {topic}
           </h2>
+          {spec.auto ? (
+            <p className="small app-muted" style={{ margin: "4px 0 0" }}>
+              {SPEC_FROM_PLAN}
+            </p>
+          ) : null}
           {ready ? (
             <p className="small app-muted" style={{ margin: "4px 0 0" }}>
               Keyword: {spec.keyword} · {spec.lengthMin} to {spec.lengthMax} words · FAQ: {spec.faq ? "yes" : "no"}

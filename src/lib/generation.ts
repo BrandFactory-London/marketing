@@ -13,7 +13,7 @@ import {
   type CriticIssue,
 } from "@/db/schema";
 import type { GenerationStep, PostStatus } from "@/config/post-status";
-import { AiClient, ModelOutputError, ModelRefusal, type Effort, type Transport } from "@/lib/ai/client";
+import { AiClient, ModelOutputError, ModelRefusal, type CallRequest, type Effort, type Transport } from "@/lib/ai/client";
 import { channelRules, loadPack, withChannelRules, type LoadedPack } from "@/lib/ai/pack";
 import { parseAllowedLinks, parseBannedPhrases, runChecks, type CheckResult } from "@/lib/checks";
 import { composeMarkdown } from "@/lib/review-rules";
@@ -83,18 +83,22 @@ async function loadPost(db: Database, postId: string, batchId: string) {
 
 // ---- Specs ----
 
-// Drafts one spec version that is in drafting. Any other status means it already ran.
-export async function draftSpec(specId: string, deps: GenerationDeps): Promise<void> {
-  const { db } = deps;
+export type SpecStep = { specId: string; request: CallRequest; faqMode: "useful" | "always" | "never"; pack: LoadedPack };
+
+// The spec call for one version still drafting, or null when it has already run (Phase 2 A4: the batch path sends the
+// same request).
+export async function specStep(specId: string, db: Database): Promise<SpecStep | null> {
   const [spec] = await db.select().from(postSpecs).where(eq(postSpecs.id, specId));
-  if (!spec || spec.status !== "drafting") return;
+  if (!spec || spec.status !== "drafting") return null;
   const { post, batch, pillar } = await loadPost(db, spec.postId, spec.batchId);
   const pack = await loadPack(post.projectId, db);
   const pages = await listSitePages(post.projectId, db);
   const previous = spec.version > 1 ? await previousSpec(db, spec.postId, spec.version) : null;
-
-  const { value, call } = await new AiClient(db, deps.transport).parsed(
-    {
+  return {
+    specId,
+    faqMode: batch.faqMode,
+    pack,
+    request: {
       purpose: "spec",
       model: batch.writerModel,
       promptVersion: specPrompt.PROMPT_VERSION,
@@ -117,9 +121,11 @@ export async function draftSpec(specId: string, deps: GenerationDeps): Promise<v
       batchId: batch.id,
       postId: post.id,
     },
-    specPrompt.SpecReply,
-  );
-  const faq = batch.faqMode === "always" ? true : batch.faqMode === "never" ? false : value.faq;
+  };
+}
+
+export async function saveSpec(step: SpecStep, value: specPrompt.SpecReply, aiCallId: string, db: Database): Promise<void> {
+  const faq = step.faqMode === "always" ? true : step.faqMode === "never" ? false : value.faq;
   await db
     .update(postSpecs)
     .set({
@@ -133,12 +139,20 @@ export async function draftSpec(specId: string, deps: GenerationDeps): Promise<v
       links: value.links,
       faq,
       error: null,
-      aiCallId: call.id,
-      agencyVersionId: pack.agencyVersionId,
-      clientVersionId: pack.clientVersionId,
-      projectVersionId: pack.projectVersionId,
+      aiCallId,
+      agencyVersionId: step.pack.agencyVersionId,
+      clientVersionId: step.pack.clientVersionId,
+      projectVersionId: step.pack.projectVersionId,
     })
-    .where(and(eq(postSpecs.id, specId), eq(postSpecs.status, "drafting")));
+    .where(and(eq(postSpecs.id, step.specId), eq(postSpecs.status, "drafting")));
+}
+
+// Drafts one spec version that is in drafting. Any other status means it already ran.
+export async function draftSpec(specId: string, deps: GenerationDeps): Promise<void> {
+  const step = await specStep(specId, deps.db);
+  if (!step) return;
+  const { value, call } = await new AiClient(deps.db, deps.transport).parsed(step.request, specPrompt.SpecReply);
+  await saveSpec(step, value, call.id, deps.db);
 }
 
 async function previousSpec(db: Database, postId: string, version: number): Promise<specPrompt.SpecReply | null> {
@@ -175,9 +189,19 @@ const FINISHED = ["in_review", "flagged", "failed"] as const;
 
 export type GenerationOutcome = "in_review" | "flagged" | "already_finished";
 
-// Runs one post from its confirmed spec to Needs review or Failed, resuming from what is already saved.
-export async function runGeneration(generationId: string, deps: GenerationDeps): Promise<GenerationOutcome> {
-  const { db } = deps;
+export type GenerationContext = {
+  generationId: string;
+  generation: typeof postGenerations.$inferSelect;
+  postId: string;
+  pack: LoadedPack;
+  forPrompt: SpecForPrompt;
+  batch: typeof batches.$inferSelect;
+  blogRules: string;
+  regenerate: writerPrompt.WriterRegenerate | null;
+};
+
+// What a generation needs for its calls, and the generation marked running. "already_finished" when there is nothing to do.
+export async function generationContext(generationId: string, db: Database): Promise<GenerationContext | "already_finished"> {
   const [generation] = await db.select().from(postGenerations).where(eq(postGenerations.id, generationId));
   if (!generation) throw new Error("That generation no longer exists.");
   if ((FINISHED as readonly string[]).includes(generation.status)) return "already_finished";
@@ -217,66 +241,60 @@ export async function runGeneration(generationId: string, deps: GenerationDeps):
     pillar,
     notes: spec.notes,
   };
-  const ai = new AiClient(db, deps.transport);
-  const call = { batchId: batch.id, postId: post.id, pack: pack.text };
   // The blog's own rules and voice follow the instructions, outside the cached pack (γ7 orientation Q1).
-  const blogRules = channelRules(pack, "blog");
-  const regenerate = await regenerateFrom(db, generation);
+  return { generationId, generation, postId: post.id, pack, forPrompt, batch, blogRules: channelRules(pack, "blog"), regenerate: await regenerateFrom(db, generation) };
+}
 
-  for (;;) {
-    const drafts = await db.select().from(postDrafts).where(eq(postDrafts.generationId, generationId)).orderBy(asc(postDrafts.round));
-    const latest = drafts.at(-1);
-    const verdict = latest ? await verdictFor(db, latest.id) : null;
+// The next step of the writer, checks, critic and fix loop (Phase 2 A4, orientation Q7): given what is saved, the next
+// call or the outcome. The real-time task runs it in a loop; the batch path runs it for many posts at once.
+export type LoopStep =
+  | { kind: "finish"; outcome: "in_review" | "flagged" }
+  | { kind: "critic"; round: number; draftId: string; request: CallRequest }
+  | { kind: "writer"; round: number; request: CallRequest };
 
-    // Pass: the post goes to Amir.
-    if (latest && verdict?.verdict === "pass") return finish(db, generationId, post.id, "in_review");
+export async function nextGenerationStep(context: GenerationContext, db: Database): Promise<LoopStep> {
+  const { generationId, forPrompt, batch, pack, blogRules, generation } = context;
+  const drafts = await db.select().from(postDrafts).where(eq(postDrafts.generationId, generationId)).orderBy(asc(postDrafts.round));
+  const latest = drafts.at(-1);
+  const verdict = latest ? await verdictFor(db, latest.id) : null;
+  const call = { batchId: batch.id, postId: context.postId, pack: pack.text };
 
-    // A draft that passed the checks and has no verdict yet goes to the critic.
-    if (latest && latest.checksPassed && !verdict) {
-      await setPost(db, post.id, "generating", "critic");
-      await db.update(postGenerations).set({ updatedAt: sql`now()` }).where(eq(postGenerations.id, generationId));
-      const checks = latest.checks as CheckResult;
-      const { value, call: record } = await ai.parsed(
-        {
-          ...call,
-          purpose: "critic",
-          model: batch.criticModel,
-          promptVersion: criticPrompt.PROMPT_VERSION,
-          effort: EFFORT.critic,
-          maxTokens: MAX_TOKENS.critic,
-          instructions: withChannelRules(criticPrompt.INSTRUCTIONS, blogRules),
-          user: criticPrompt.criticUserMessage(forPrompt, latest.bodyMd, checks, generation.note),
-        },
-        criticPrompt.CriticReply,
-      );
-      await db
-        .insert(criticVerdicts)
-        .values({
-          draftId: latest.id,
-          verdict: criticPrompt.verdictOf(value),
-          summary: value.summary,
-          issues: value.issues,
-          placeholders: value.placeholders,
-          scores: value.scores,
-          aiCallId: record.id,
-        })
-        .onConflictDoNothing();
-      continue;
-    }
+  // Pass: the post goes to Amir.
+  if (latest && verdict?.verdict === "pass") return { kind: "finish", outcome: "in_review" };
 
-    // No draft yet, or the last one failed the checks or the critic: write the next round, if one is left.
-    if (latest && latest.round >= MAX_ROUNDS) return finish(db, generationId, post.id, "flagged");
-    const round = (latest?.round ?? 0) + 1;
-    await setPost(db, post.id, "generating", "writer");
-    await db.update(postGenerations).set({ round, updatedAt: sql`now()` }).where(eq(postGenerations.id, generationId));
-    const fix = latest
-      ? {
-          previousDraft: latest.bodyMd,
-          checkIssues: (latest.checks as CheckResult).issues,
-          criticIssues: (verdict?.issues ?? []) as CriticIssue[],
-        }
-      : null;
-    const { text, call: record } = await ai.text({
+  // A draft that passed the checks and has no verdict yet goes to the critic.
+  if (latest && latest.checksPassed && !verdict) {
+    const checks = latest.checks as CheckResult;
+    return {
+      kind: "critic",
+      round: latest.round,
+      draftId: latest.id,
+      request: {
+        ...call,
+        purpose: "critic",
+        model: batch.criticModel,
+        promptVersion: criticPrompt.PROMPT_VERSION,
+        effort: EFFORT.critic,
+        maxTokens: MAX_TOKENS.critic,
+        instructions: withChannelRules(criticPrompt.INSTRUCTIONS, blogRules),
+        user: criticPrompt.criticUserMessage(forPrompt, latest.bodyMd, checks, generation.note),
+      },
+    };
+  }
+
+  // No draft yet, or the last one failed the checks or the critic: write the next round, if one is left.
+  if (latest && latest.round >= MAX_ROUNDS) return { kind: "finish", outcome: "flagged" };
+  const fix = latest
+    ? {
+        previousDraft: latest.bodyMd,
+        checkIssues: (latest.checks as CheckResult).issues,
+        criticIssues: (verdict?.issues ?? []) as CriticIssue[],
+      }
+    : null;
+  return {
+    kind: "writer",
+    round: (latest?.round ?? 0) + 1,
+    request: {
       ...call,
       purpose: "writer",
       model: batch.writerModel,
@@ -284,9 +302,63 @@ export async function runGeneration(generationId: string, deps: GenerationDeps):
       effort: EFFORT.writer,
       maxTokens: MAX_TOKENS.writer,
       instructions: withChannelRules(writerPrompt.INSTRUCTIONS, blogRules),
-      user: writerPrompt.writerUserMessage(forPrompt, fix, regenerate),
-    });
-    await saveDraft(db, generationId, round, text, forPrompt, pack, record.id);
+      user: writerPrompt.writerUserMessage(forPrompt, fix, context.regenerate),
+    },
+  };
+}
+
+// The post shows what is being written, before the call is made.
+export async function beginStep(context: GenerationContext, step: Exclude<LoopStep, { kind: "finish" }>, db: Database): Promise<void> {
+  await setPost(db, context.postId, "generating", step.kind);
+  await db
+    .update(postGenerations)
+    .set({ ...(step.kind === "writer" ? { round: step.round } : {}), updatedAt: sql`now()` })
+    .where(eq(postGenerations.id, context.generationId));
+}
+
+export async function saveCriticStep(step: Extract<LoopStep, { kind: "critic" }>, value: criticPrompt.CriticReply, aiCallId: string, db: Database): Promise<void> {
+  await db
+    .insert(criticVerdicts)
+    .values({
+      draftId: step.draftId,
+      verdict: criticPrompt.verdictOf(value),
+      summary: value.summary,
+      issues: value.issues,
+      placeholders: value.placeholders,
+      scores: value.scores,
+      aiCallId,
+    })
+    .onConflictDoNothing();
+}
+
+export async function saveWriterStep(context: GenerationContext, step: Extract<LoopStep, { kind: "writer" }>, text: string, aiCallId: string, db: Database): Promise<void> {
+  // A retried batch round can bring a draft already saved; the first stays.
+  const [existing] = await db.select({ id: postDrafts.id }).from(postDrafts).where(and(eq(postDrafts.generationId, context.generationId), eq(postDrafts.round, step.round)));
+  if (existing) return;
+  await saveDraft(db, context.generationId, step.round, text, context.forPrompt, context.pack, aiCallId);
+}
+
+export async function finishGeneration(generationId: string, postId: string, outcome: "in_review" | "flagged", db: Database): Promise<GenerationOutcome> {
+  return finish(db, generationId, postId, outcome);
+}
+
+// Runs one post from its confirmed spec to Needs review or Failed, resuming from what is already saved.
+export async function runGeneration(generationId: string, deps: GenerationDeps): Promise<GenerationOutcome> {
+  const { db } = deps;
+  const context = await generationContext(generationId, db);
+  if (context === "already_finished") return context;
+  const ai = new AiClient(db, deps.transport);
+  for (;;) {
+    const step = await nextGenerationStep(context, db);
+    if (step.kind === "finish") return finish(db, generationId, context.postId, step.outcome);
+    await beginStep(context, step, db);
+    if (step.kind === "critic") {
+      const { value, call } = await ai.parsed(step.request, criticPrompt.CriticReply);
+      await saveCriticStep(step, value, call.id, db);
+    } else {
+      const { text, call } = await ai.text(step.request);
+      await saveWriterStep(context, step, text, call.id, db);
+    }
   }
 }
 

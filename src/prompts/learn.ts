@@ -6,8 +6,9 @@ import { list } from "./shared";
 // Rule and fact suggestions from everything Amir says about a post (γ7 orientation Q2, Q4): a note or a reject on the
 // blog post, his edits when approving, a note on a derivative's regenerate, or his edit to a derivative. One call per
 // piece of feedback. Claude proposes; Amir accepts or dismisses each one in Settings, so nothing changes the rules
-// without him. Replaces rules-1 (γ5) and facts-1 (γ6).
-export const PROMPT_VERSION = "learn-1";
+// without him. Replaces rules-1 (γ5) and facts-1 (γ6). learn-2 (Phase 2 A3) adds two sources: Amir's note on a plan,
+// and the client's comment or suggestion on a plan he shared with them.
+export const PROMPT_VERSION = "learn-2";
 
 export const MAX_CANDIDATES = 5;
 
@@ -75,7 +76,7 @@ Rules for proposals:
 
 export type LearnInput = {
   // Where the feedback came from: a review event on the blog post, or a derivative version's note or edit.
-  source: "blog_regenerate" | "blog_reject" | "blog_approve" | "derivative_note" | "derivative_edit";
+  source: "blog_regenerate" | "blog_reject" | "blog_approve" | "derivative_note" | "derivative_edit" | "plan_note" | "client_comment" | "client_suggest";
   channel: Channel;
   title: string;
   note?: string | null;
@@ -84,6 +85,8 @@ export type LearnInput = {
   version?: string | null;
   // Every channel's own rules and voice as they stand.
   channelRules: string;
+  // For feedback on a plan: the planned post's excerpt, when the feedback is about one.
+  plannedExcerpt?: string | null;
 };
 
 const SOURCE_LINES: Record<LearnInput["source"], string> = {
@@ -92,7 +95,17 @@ const SOURCE_LINES: Record<LearnInput["source"], string> = {
   blog_approve: "Amir edited the blog post, then approved it. These are his edits, from the writer's last draft to the approved text.",
   derivative_note: "Amir asked the writer to redo this version, saying what was wrong with it.",
   derivative_edit: "Amir edited this version before posting it. These are his edits, from the writer's version to his.",
+  plan_note: "Amir asked the planner to redo part of a content plan (planned post titles and excerpts), with this note.",
+  client_comment:
+    "The client commented on a content plan (planned post titles and excerpts) that Amir shared with them. A fact the client states about their own business is true; how they want it to sound is their voice. Anything about this one planned post only is not reusable.",
+  client_suggest:
+    "The client suggested a change to a planned post in a content plan that Amir shared with them. A fact the client states about their own business is true; how they want it to sound is their voice. Anything about this one planned post only is not reusable.",
 };
+
+// The note's heading: Amir's, or the client's for feedback through a shared plan.
+function noteHeading(source: LearnInput["source"]): string {
+  return source === "client_comment" || source === "client_suggest" ? "The client's words" : "Amir's note";
+}
 
 function edits(hunks: readonly EditHunk[]): string {
   return hunks.map((hunk, index) => `Edit ${index + 1}\nBefore: ${hunk.before || "(nothing)"}\nAfter: ${hunk.after || "(deleted)"}`).join("\n\n");
@@ -100,7 +113,8 @@ function edits(hunks: readonly EditHunk[]): string {
 
 export function learnUserMessage(input: LearnInput): string {
   const parts = [`The channel: ${CHANNELS[input.channel].label} ("${input.channel}")`, `The post: ${input.title}`, SOURCE_LINES[input.source]];
-  if (input.note) parts.push(`Amir's note:\n${input.note}`);
+  if (input.plannedExcerpt) parts.push(`The planned excerpt: ${input.plannedExcerpt}`);
+  if (input.note) parts.push(`${noteHeading(input.source)}:\n${input.note}`);
   if (input.hunks && input.hunks.length > 0) parts.push(`${input.source === "blog_regenerate" ? "He also edited the text first:\n\n" : ""}${edits(input.hunks)}`);
   if (input.version) parts.push(`The version the note is about:\n\n${input.version}`);
   parts.push(`Rules already set for single channels:\n${input.channelRules || list([])}`);

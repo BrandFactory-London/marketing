@@ -1,6 +1,7 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import { getDb, type Database } from "@/db/client";
-import { appSettings, calendarDeletions, clients, derivatives, derivedSlots, googleTokens, posts, postSpecs, projects } from "@/db/schema";
+import { appSettings, calendarDeletions, clients, derivatives, derivedSlots, googleTokens, posts, postSpecs, projects, runs } from "@/db/schema";
+import { generatesOn } from "./fortnight";
 import { APP_TAG, buildDerivedEvent, buildEvent, eventHash, eventIdFor, ownedFields, type CalendarEvent, type CalendarPost } from "./calendar-events";
 import { londonToday } from "./dates";
 import { deleteEvent, hasCalendarScopes, listAppEvents, listOwnedCalendars, upsertEvent, type CalendarOptions, type OwnedCalendar } from "./google-calendar";
@@ -140,6 +141,8 @@ async function desiredEvents(db: Database, today: string): Promise<DueEvent[]> {
       slotDate: posts.slotDate,
       topic: posts.topic,
       liveUrl: posts.liveUrl,
+      batchId: posts.batchId,
+      runNext: sql<string | null>`case when ${runs.status} = 'active' and ${runs.autoGenerate} then to_char(${runs.nextGenerationOn}, 'YYYY-MM-DD') end`,
       calendarHash: posts.calendarHash,
       calendarError: posts.calendarError,
       projectName: projects.name,
@@ -149,6 +152,7 @@ async function desiredEvents(db: Database, today: string): Promise<DueEvent[]> {
     .from(posts)
     .innerJoin(projects, eq(projects.id, posts.projectId))
     .innerJoin(clients, eq(clients.id, projects.clientId))
+    .leftJoin(runs, eq(runs.id, posts.runId))
     .orderBy(posts.slotDate);
   const ids = rows.map((row) => row.postId);
   const specs = ids.length
@@ -160,7 +164,8 @@ async function desiredEvents(db: Database, today: string): Promise<DueEvent[]> {
     : [];
   const appUrl = appBaseUrl();
   const postEvents = rows.map((row): DueEvent => {
-    const post: CalendarPost = { ...row, specNotes: specs.find((spec) => spec.postId === row.postId)?.notes ?? null };
+    const generates = row.runNext && row.status === "topic_set" && !row.batchId && row.slotDate >= today ? generatesOn(row.slotDate, row.runNext, today) : null;
+    const post: CalendarPost = { ...row, specNotes: specs.find((spec) => spec.postId === row.postId)?.notes ?? null, generatesOn: generates };
     const event = buildEvent(post, { today, appUrl });
     return { kind: "post" as const, event, hash: eventHash(event), synced: row.calendarHash, error: row.calendarError };
   });

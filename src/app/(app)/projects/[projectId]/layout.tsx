@@ -5,6 +5,7 @@ import { LinkTabs } from "@/components/ui/LinkTabs";
 import { ButtonLink } from "@/components/ui/Button";
 import { publishingTargetLabel } from "@/config/projects";
 import { projectTabs } from "@/lib/nav";
+import { unseenCount } from "@/lib/plan-share";
 import { getProject } from "@/lib/projects";
 import { requireUser } from "@/lib/session";
 import { siteHost } from "@/lib/validation";
@@ -40,7 +41,7 @@ async function ProjectHeader({ params }: Pick<LayoutProps<"/projects/[projectId]
         meta={`${siteHost(project.siteUrl)} · publishes to ${publishingTargetLabel(project.publishingTarget)}`}
         actions={<ButtonLink href={`/batches/new?project=${project.id}`}>Create content</ButtonLink>}
       />
-      <LinkTabs label="Project sections" tabs={projectTabs(project.id)} />
+      <LinkTabs label="Project sections" tabs={projectTabs(project.id, await unseenCount(project.id))} />
     </>
   );
 }

@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, gte, lte, ne, sql, type SQL } from "drizzle-orm";
 import { getDb, type Database } from "@/db/client";
-import { clients, posts, projects } from "@/db/schema";
+import { clients, posts, projects, runs } from "@/db/schema";
 import { type PostStatus } from "@/config/post-status";
 import { londonToday } from "./dates";
 import { isUuid } from "./validation";
@@ -22,6 +22,8 @@ export type SlotView = {
   batchId: string | null;
   // Set once the live check confirms the post (γ6).
   liveUrl: string | null;
+  // Phase 2 A4: the run's next generation day, while the run is active and generated on its schedule.
+  nextGenerationOn: string | null;
 };
 
 const view = {
@@ -36,6 +38,7 @@ const view = {
   topic: posts.topic,
   batchId: posts.batchId,
   liveUrl: posts.liveUrl,
+  nextGenerationOn: sql<string | null>`case when ${runs.status} = 'active' and ${runs.autoGenerate} then to_char(${runs.nextGenerationOn}, 'YYYY-MM-DD') end`,
 };
 
 function select(db: Database, where: SQL | undefined) {
@@ -44,6 +47,7 @@ function select(db: Database, where: SQL | undefined) {
     .from(posts)
     .innerJoin(projects, eq(projects.id, posts.projectId))
     .innerJoin(clients, eq(clients.id, projects.clientId))
+    .leftJoin(runs, eq(runs.id, posts.runId))
     .where(where);
 }
 

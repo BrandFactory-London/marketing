@@ -23,7 +23,7 @@ test.beforeAll(async () => {
   await resetDomain();
   [{ id: clientId }] = await query<{ id: string }>("insert into clients (name) values ('Migss Interiors') returning id");
   [{ id: projectId }] = await query<{ id: string }>(
-    "insert into projects (client_id, name, site_url, package, status) values ($1, 'Migss Interiors Website', 'https://www.migssinteriors.com', 'premium', 'active') returning id",
+    "insert into projects (client_id, name, site_url, status) values ($1, 'Migss Interiors Website', 'https://www.migssinteriors.com', 'active') returning id",
     [clientId],
   );
   // Phase 2 A1: slots come from a run, here eight weeks of Mon, Wed and Fri.
@@ -116,7 +116,7 @@ test("a past slot with no writing shows as missed", async ({ page, signedIn }) =
 test("the project filter and month arrows change what is shown", async ({ page, signedIn }) => {
   void signedIn;
   const [{ id: other }] = await query<{ id: string }>(
-    "insert into projects (client_id, name, site_url, package, status) values ($1, 'Second site', 'https://example.com', 'entry', 'active') returning id",
+    "insert into projects (client_id, name, site_url, status) values ($1, 'Second site', 'https://example.com', 'active') returning id",
     [clientId],
   );
   await seedRun(other, [2], { preset: "entry" });

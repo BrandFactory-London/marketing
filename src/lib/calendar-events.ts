@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { getPostStatus, GOOGLE_COLOURS, isMissed, MISSED, postStatusLabel, type GenerationStep, type PostStatus } from "@/config/post-status";
 import { CONTENT_TYPES, type DerivedType } from "@/config/content-types";
-import { derivedSlotLine, type DerivedVersionStatus } from "@/config/run-status";
-import { addDays } from "./dates";
+import { derivedSlotLine, generatesOnLabel, type DerivedVersionStatus } from "@/config/run-status";
+import { addDays, longDate } from "./dates";
 
 // A post's Google Calendar event (γ8 orientation Q3, Q4). Pure: the same post always gives the same event, so its hash
 // says whether the calendar is behind. Built on post records and their dates, not packages, so Phase 2's runs and
@@ -22,6 +22,8 @@ export type CalendarPost = {
   clientShortName: string | null;
   projectName: string;
   specNotes: string | null;
+  // Phase 2 A4: the day a planned post will be written, while its run is generated on schedule.
+  generatesOn?: string | null;
 };
 
 export type CalendarEvent = {
@@ -62,6 +64,7 @@ export function buildEvent(post: CalendarPost, options: { today: string; appUrl:
     `Status: ${label}`,
     `Project: ${post.projectName}`,
     post.specNotes?.trim() ? `Notes: ${post.specNotes.trim()}` : null,
+    post.generatesOn && !missed ? generatesOnLabel(post.generatesOn, longDate) : null,
     link ? `Open in BrandFactory Marketing: ${link}` : null,
     post.status === "published" && post.liveUrl ? `Live post: ${post.liveUrl}` : null,
   ]

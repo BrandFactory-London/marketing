@@ -9,6 +9,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { DRAFTED_STATUSES, PRE_WRITING_STATUSES } from "@/config/post-status";
 import { isMonth, londonToday, longDate, monthGrid, monthLabel, monthOf, shiftMonth } from "@/lib/dates";
 import { getSlot, listSlotsBetween, type SlotView } from "@/lib/posts";
+import { generatesOnLabel } from "@/config/run-status";
+import { generatesOn } from "@/lib/fortnight";
 import { listProjects } from "@/lib/projects";
 import { requireUser } from "@/lib/session";
 import { adoptOrphanSlots } from "@/lib/runs";
@@ -150,6 +152,12 @@ function SlotPanel({ slot, today, closeHref, project }: { slot: SlotView | null;
         </dd>
         <dt>Client</dt>
         <dd>{slot.clientName}</dd>
+        {slot.nextGenerationOn && slot.status === "topic_set" && !slot.batchId && slot.slotDate >= today ? (
+          <>
+            <dt>Generation</dt>
+            <dd>{generatesOnLabel(generatesOn(slot.slotDate, slot.nextGenerationOn, today)!, longDate)}</dd>
+          </>
+        ) : null}
         {slot.liveUrl ? (
           <>
             <dt>Live at</dt>

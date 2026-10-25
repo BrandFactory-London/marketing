@@ -9,6 +9,9 @@ import type { writeDerivativeTask } from "@/trigger/write-derivative";
 import type { draftSpec } from "@/trigger/draft-spec";
 import type { generatePost } from "@/trigger/generate-post";
 import type { proposeCandidatesTask } from "@/trigger/propose-candidates";
+import type { draftPlanTask } from "@/trigger/draft-plan";
+import type { batchRoundTask } from "@/trigger/batch-round";
+import type { generateNowTask } from "@/trigger/generate-now";
 import type { CandidateSource } from "@/lib/learn";
 
 // The app's only way into Trigger.dev (γ4 orientation Q1). It reads TRIGGER_SECRET_KEY, and TRIGGER_API_URL
@@ -33,9 +36,31 @@ export async function startGeneration(generationId: string, db: Database = getDb
 // Rule and fact candidates from one piece of Amir's feedback (γ7 orientation Q2). One run per source, so a double
 // click or a second copy never pays twice.
 export async function startCandidates(source: CandidateSource): Promise<string> {
-  const key = "reviewEventId" in source ? `learn-review-${source.reviewEventId}` : `learn-derivative-${source.derivativeId}`;
-  const tag = "reviewEventId" in source ? `review_${source.reviewEventId}` : `derivative_${source.derivativeId}`;
+  const [key, tag] =
+    "reviewEventId" in source
+      ? [`learn-review-${source.reviewEventId}`, `review_${source.reviewEventId}`]
+      : "derivativeId" in source
+        ? [`learn-derivative-${source.derivativeId}`, `derivative_${source.derivativeId}`]
+        : [`learn-plan-${source.planFeedbackId}`, `plan_feedback_${source.planFeedbackId}`];
   const handle = await tasks.trigger<typeof proposeCandidatesTask>("propose-candidates", source, { idempotencyKey: key, tags: [tag] });
+  return handle.id;
+}
+
+// A plan, or one item of it, from the planner (Phase 2 A3). One run per plan draft.
+export async function startPlanDraft(planDraftId: string): Promise<string> {
+  const handle = await tasks.trigger<typeof draftPlanTask>("draft-plan", { planDraftId }, { idempotencyKey: `plan-${planDraftId}`, tags: [`plan_draft_${planDraftId}`] });
+  return handle.id;
+}
+
+// A fortnight's batch generation (Phase 2 A4). One run per batch.
+export async function startBatchRound(batchId: string): Promise<string> {
+  const handle = await tasks.trigger<typeof batchRoundTask>("batch-round", { batchId }, { idempotencyKey: `batch-round-${batchId}`, tags: [`batch_${batchId}`] });
+  return handle.id;
+}
+
+// Generate now on one post, real time at full price (Phase 2 A4). One run per spec.
+export async function startGenerateNow(specId: string): Promise<string> {
+  const handle = await tasks.trigger<typeof generateNowTask>("generate-now", { specId }, { idempotencyKey: `generate-now-${specId}`, tags: [`spec_${specId}`] });
   return handle.id;
 }
 

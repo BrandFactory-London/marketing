@@ -40,3 +40,43 @@ export function derivedSlotLine(versionStatus: DerivedVersionStatus, slotDate: s
 
 // A post the backstop could not place in any run (orientation Q3).
 export const OUTSIDE_RUN = { label: "Outside any run", tone: "warning" } as const;
+
+// ---- Phase 2 A3: the plan and the client link (orientation Q8) ----
+
+// Every project's last topic category, never stored (orientation amendment, Q5).
+export const OTHER_CATEGORY = "Other";
+
+export const PLAN_LINES = {
+  drafting: { label: "Drafting the plan", tone: "brand" },
+  proposed: { label: "To approve", tone: "warning" },
+  approved: { label: getPostStatus("approved").label, tone: "success" },
+  replaced: { label: "Replaced", tone: "neutral" },
+  closeTo: { label: "Close to an existing topic", tone: "warning" },
+  failed: { label: "Plan not drafted", tone: "danger" },
+} as const;
+
+export const CLIENT_LINES = {
+  notSent: { label: "Not sent", tone: "neutral" },
+  sent: { label: "Sent to client", tone: "brand" },
+  viewed: { label: "Viewed by client", tone: "brand" },
+  commented: { label: "Client commented", tone: "warning" },
+  approved: { label: "Approved by client", tone: "success" },
+} as const;
+
+// ---- Phase 2 A4: fortnightly generation ----
+
+// On a spec the planner's approved title and excerpt drafted (orientation Q7).
+export const SPEC_FROM_PLAN = "Spec drafted from the approved plan";
+
+export const GENERATION_LINES = {
+  inBatch: { label: "In the half-price batch", tone: "brand" },
+} as const;
+
+export function generatesOnLabel(day: string, format: (iso: string) => string): string {
+  return `Generates on ${format(day)}`;
+}
+
+// The run header's line (orientation Q7): "Next generation: Mon 10 Nov 2026, 12 posts".
+export function nextGenerationLine(day: string, count: number, format: (iso: string) => string): string {
+  return `Next generation: ${format(day)}, ${count} ${count === 1 ? "post" : "posts"}`;
+}

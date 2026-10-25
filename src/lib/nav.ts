@@ -39,6 +39,11 @@ export const PROJECT_TAB_REDIRECTS = [
   { from: "sitemap", to: "knowledge" },
 ] as const;
 
-export function projectTabs(projectId: string) {
-  return PROJECT_TABS.map((tab) => ({ label: tab.label, href: `/projects/${projectId}/${tab.segment}` }));
+// The Run plan tab carries a badge while the client has sent something Amir has not read (orientation Q6).
+export function projectTabs(projectId: string, unseen = 0) {
+  return PROJECT_TABS.map((tab) => ({
+    label: tab.label,
+    href: `/projects/${projectId}/${tab.segment}`,
+    badge: tab.segment === "plan" && unseen > 0 ? `${unseen} new from the client` : null,
+  }));
 }

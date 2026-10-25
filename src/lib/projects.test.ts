@@ -62,12 +62,10 @@ describe.skipIf(!testDatabaseUrl)("projects (local Postgres)", () => {
     expect(paused!.statusChangedAt.getTime()).toBeGreaterThan(project.statusChangedAt.getTime());
   });
 
-  it("no longer names the retired package column, which stays empty for new projects until A3 drops it", async () => {
-    const { value } = await setup();
-    const project = await createProject(value, db);
+  it("the retired package column is gone (Phase 2 A3 migration)", async () => {
+    const result = await db.execute(sql`select column_name from information_schema.columns where table_name = 'projects' and column_name = 'package'`);
+    expect(result.rows).toEqual([]);
     expect(db.select().from(projects).toSQL().sql).not.toContain('"package"');
-    const result = await db.execute(sql`select package from projects where id = ${project.id}`);
-    expect(result.rows).toEqual([{ package: null }]);
   });
 
   it("stores and clears the Drive folder", async () => {

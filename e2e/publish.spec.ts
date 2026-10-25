@@ -59,7 +59,7 @@ test.beforeAll(async () => {
   await fetch(`${WIX}/__reset`);
   const [{ id: clientId }] = await query<{ id: string }>("insert into clients (name) values ('Migss Interiors') returning id");
   [{ id: projectId }] = await query<{ id: string }>(
-    "insert into projects (client_id, name, site_url, package, status, drive_folder_id, drive_folder_name, drive_folder_checked_at) values ($1, 'Migss Interiors Website', 'https://www.migssinteriors.com', 'entry', 'paused', 'playwright-migss', 'Migss Interiors', now()) returning id",
+    "insert into projects (client_id, name, site_url, status, drive_folder_id, drive_folder_name, drive_folder_checked_at) values ($1, 'Migss Interiors Website', 'https://www.migssinteriors.com', 'paused', 'playwright-migss', 'Migss Interiors', now()) returning id",
     [clientId],
   );
   [{ id: pillarId }] = await query<{ id: string }>("insert into project_pillars (project_id, label, slug) values ($1, 'Bathroom Renovation', 'bathroom-renovation') returning id", [projectId]);

@@ -5,6 +5,7 @@ import { DriveError } from "@/lib/drive";
 import { checkDriveFolder, parseDriveFolderId } from "@/lib/drive-folder";
 import { GoogleReconnectRequired } from "@/lib/google-tokens";
 import { getProject, parseProjectInput, setDriveFolder, UnknownClient, updateProjectSettings, type ProjectField } from "@/lib/projects";
+import { addCategory, CategoryError, removeCategory } from "@/lib/categories";
 import { addPillar, DuplicatePillar, parsePillarInput, removePillar, type PillarField } from "@/lib/pillars";
 import { requireUser } from "@/lib/session";
 import { formInput, type FieldErrors } from "@/lib/validation";
@@ -171,4 +172,28 @@ export async function chooseWixMemberAction(projectId: string, memberId: string)
     if (error instanceof WixError) return { error: `Wix did not list the members. ${describeWixError(error)}` };
     throw error;
   }
+}
+
+// ---- Topic categories (Phase 2 A3, orientation amendment Q5) ----
+
+export type CategoryState = { error?: string; value?: string; added?: string };
+
+export async function addCategoryAction(projectId: string, _previous: CategoryState, formData: FormData): Promise<CategoryState> {
+  await requireUser();
+  const value = String(formData.get("label") ?? "");
+  if (!(await getProject(projectId))) return { error: "This project no longer exists.", value };
+  try {
+    const row = await addCategory(projectId, value);
+    refresh();
+    return { added: row.label };
+  } catch (error) {
+    if (error instanceof CategoryError) return { error: error.message, value };
+    throw error;
+  }
+}
+
+export async function removeCategoryAction(projectId: string, categoryId: string): Promise<void> {
+  await requireUser();
+  await removeCategory(projectId, categoryId);
+  refresh();
 }

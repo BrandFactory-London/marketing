@@ -75,6 +75,11 @@ export const UNREADABLE_MAX = 20_000;
 export type TextResult = { text: string; call: CallRecord };
 export type ParsedResult<T> = { value: T; call: CallRecord };
 
+// The request a parsed call sends, for the batch path to submit the same thing (Phase 2 A4).
+export function parsedParams<T extends z.ZodType>(request: CallRequest, schema: T): MessageCreateParamsNonStreaming {
+  return buildParams(request, { format: zodOutputFormat(schema) });
+}
+
 export function buildParams(request: CallRequest, format?: MessageCreateParamsNonStreaming["output_config"]): MessageCreateParamsNonStreaming {
   return {
     model: request.model,
@@ -104,14 +109,38 @@ export class AiClient {
   // A Markdown reply, such as a draft.
   async text(request: CallRequest): Promise<TextResult> {
     const { message, call } = await this.send(request, buildParams(request));
+    return this.readText(request, message, call);
+  }
+
+  // A reply in a Zod schema's shape, such as a spec or a verdict. A reply that does not fit is an error.
+  async parsed<T extends z.ZodType>(request: CallRequest, schema: T): Promise<ParsedResult<z.infer<T>>> {
+    const { message, call } = await this.send(request, parsedParams(request, schema));
+    return this.readParsed(request, schema, message, call);
+  }
+
+  // A reply that came back from a message batch (Phase 2 A4): recorded at batch prices, then read as above.
+  async textFromBatch(request: CallRequest, message: Message, requestId: string | null): Promise<TextResult> {
+    const call = await this.record(request, message, requestId, 0, true);
+    return this.readText(request, message, call);
+  }
+
+  async parsedFromBatch<T extends z.ZodType>(request: CallRequest, schema: T, message: Message, requestId: string | null): Promise<ParsedResult<z.infer<T>>> {
+    const call = await this.record(request, message, requestId, 0, true);
+    return this.readParsed(request, schema, message, call);
+  }
+
+  // A batch request that came back with no message: recorded with its error, as a failed real-time call is.
+  async failedInBatch(request: CallRequest, error: string): Promise<void> {
+    await this.db.insert(aiCalls).values({ ...this.base(request), batch: true, error });
+  }
+
+  private async readText(request: CallRequest, message: Message, call: CallRecord): Promise<TextResult> {
     const text = textOf(message).trim();
     if (!text) throw await this.fail(call, new ModelOutputError(`${request.model} returned no text.`));
     return { text, call };
   }
 
-  // A reply in a Zod schema's shape, such as a spec or a verdict. A reply that does not fit is an error.
-  async parsed<T extends z.ZodType>(request: CallRequest, schema: T): Promise<ParsedResult<z.infer<T>>> {
-    const { message, call } = await this.send(request, buildParams(request, { format: zodOutputFormat(schema) }));
+  private async readParsed<T extends z.ZodType>(request: CallRequest, schema: T, message: Message, call: CallRecord): Promise<ParsedResult<z.infer<T>>> {
     const raw = textOf(message);
     const keep = request.keepUnreadable ? { unstored: { raw: raw.slice(0, UNREADABLE_MAX) } } : {};
     let json: unknown;
@@ -125,9 +154,8 @@ export class AiClient {
     return { value: result.data, call };
   }
 
-  private async send(request: CallRequest, params: MessageCreateParamsNonStreaming): Promise<{ message: Message; call: CallRecord }> {
-    const started = Date.now();
-    const base = {
+  private base(request: CallRequest) {
+    return {
       batchId: request.batchId ?? null,
       postId: request.postId ?? null,
       purpose: request.purpose,
@@ -135,16 +163,26 @@ export class AiClient {
       promptVersion: request.promptVersion,
       effort: request.effort,
     };
+  }
+
+  private async send(request: CallRequest, params: MessageCreateParamsNonStreaming): Promise<{ message: Message; call: CallRecord }> {
+    const started = Date.now();
     let response: Awaited<ReturnType<Transport>>;
     try {
       response = await this.transport(params);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const requestId = (error as { requestID?: string | null }).requestID ?? null;
-      await this.db.insert(aiCalls).values({ ...base, durationMs: Date.now() - started, requestId, error: message });
+      await this.db.insert(aiCalls).values({ ...this.base(request), durationMs: Date.now() - started, requestId, error: message });
       throw error;
     }
     const { message, requestId } = response;
+    const call = await this.record(request, message, requestId, Date.now() - started, false);
+    return { message, call };
+  }
+
+  // Records an answered call with its tokens and cost, then fails it on a refusal or a reply cut short.
+  private async record(request: CallRequest, message: Message, requestId: string | null, durationMs: number, batch: boolean): Promise<CallRecord> {
     const usage = {
       inputTokens: message.usage.input_tokens ?? 0,
       outputTokens: message.usage.output_tokens ?? 0,
@@ -155,20 +193,21 @@ export class AiClient {
     const [call] = await this.db
       .insert(aiCalls)
       .values({
-        ...base,
+        ...this.base(request),
         ...usage,
         servedModel: message.model,
-        costUsd: isModelId(message.model) ? callCost(message.model, usage) : callCost(request.model, usage),
-        durationMs: Date.now() - started,
+        costUsd: isModelId(message.model) ? callCost(message.model, usage, { batch }) : callCost(request.model, usage, { batch }),
+        durationMs,
         stopReason: message.stop_reason,
         requestId,
+        batch,
       })
       .returning();
     if (message.stop_reason === "refusal") throw await this.fail(call, new ModelRefusal(request.model));
     if (message.stop_reason === "max_tokens") {
       throw await this.fail(call, new ModelOutputError(`${request.model} ran out of room before finishing (${request.maxTokens} tokens).`));
     }
-    return { message, call };
+    return call;
   }
 
   private async fail(call: CallRecord, error: Error, extra: Partial<typeof aiCalls.$inferInsert> = {}): Promise<Error> {

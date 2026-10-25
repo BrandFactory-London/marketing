@@ -5,12 +5,14 @@ import { usePathname } from "next/navigation";
 import { Suspense } from "react";
 import { isCurrent } from "@/lib/nav";
 
-export type LinkTab = { label: string; href: string };
+// A badge is a short count beside the label, such as "3 new from the client" (Phase 2 A3).
+export type LinkTab = { label: string; href: string; badge?: string | null };
 
 function Tab({ tab, current }: { tab: LinkTab; current: boolean }) {
   return (
     <Link href={tab.href} className="app-tab" aria-current={current ? "page" : undefined}>
       {tab.label}
+      {tab.badge ? <span className="bfm-badge bfm-badge-warning app-tab-badge">{tab.badge}</span> : null}
     </Link>
   );
 }

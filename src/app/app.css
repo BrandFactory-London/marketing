@@ -359,3 +359,31 @@ a:hover { color: var(--brand-hover); }
   .app-run-table { min-width: 0; }
   .app-run-form .app-form-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* The planner (Phase 2 A3) */
+.app-plan-panel { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-100); }
+.app-plan-item { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3); border-radius: var(--radius-md); background: var(--brand-tint); }
+.app-plan-item-title { font-weight: 600; flex: 1 1 260px; min-width: 0; }
+.app-share-link { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.app-share-link .bfm-input { flex: 1 1 280px; min-width: 0; }
+.app-client-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.app-client-note-body { margin: var(--space-1) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.app-tab-badge { margin-left: var(--space-2); }
+
+/* The client's plan page (Phase 2 A3): one centred column, outside the app shell. */
+.app-client-plan { max-width: 720px; margin: 0 auto; padding: var(--space-8) var(--space-4); display: flex; flex-direction: column; gap: var(--space-5); }
+.app-client-brand { font-weight: 600; }
+.app-client-head { display: flex; flex-direction: column; gap: var(--space-2); }
+.app-client-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.app-client-item, .app-client-card { display: flex; flex-direction: column; gap: var(--space-3); }
+.app-plan-client-form summary { cursor: pointer; color: var(--brand); font-weight: 600; }
+.app-plan-client-form[open] summary { margin-bottom: var(--space-3); }
+.app-client-foot { display: flex; flex-direction: column; gap: var(--space-1); }
+.app-honeypot { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.app-print-only { display: none; }
+@media print {
+  .app-client-plan { padding: 0; max-width: none; }
+  .app-client-plan form, .app-client-plan details, .app-client-plan button, .app-client-hint { display: none !important; }
+  .app-client-item, .app-client-card { break-inside: avoid; box-shadow: none; border: 1px solid var(--line); }
+  .app-print-only { display: block; }
+}
