@@ -176,7 +176,7 @@ async function WixRows() {
         <span>
           <span className="subheading">Wix</span>
           <br />
-          <span className="small app-muted">Blog publishing credentials are added on each project&apos;s Settings tab.</span>
+          <span className="small app-muted">Blog publishing credentials are added on each project&apos;s Details tab.</span>
         </span>
         <Badge>No projects yet</Badge>
       </li>
@@ -187,7 +187,7 @@ async function WixRows() {
       <WixCheck
         projectId={row.projectId}
         name={`Wix: ${row.projectName}`}
-        settingsHref={`/projects/${row.projectId}/settings#wix-heading`}
+        settingsHref={`/projects/${row.projectId}/details#wix-heading`}
         current={
           row.settings
             ? {

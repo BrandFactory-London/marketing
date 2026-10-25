@@ -375,3 +375,7 @@ Approved for A1 to A4, with these amendments:
 - **Instagram** stays out (Phase 3). **Positioning** waits for session B. **One branch** for all four checkpoints.
 
 Everything else as proposed, including the smaller decisions.
+
+## Amendment (Amir, 25 Oct 2026, during A2)
+
+- **The package column is dropped in A3, not A2.** Drizzle names every column it reads, so the live A1 version selects `projects.package` on every projects query. Dropping it in A2's migration would break A1 between the migration and the switch-over, and leave it broken if the build failed. A2 removes the column from the app's schema and code, so nothing names it; A3's migration (`0010`) drops the column and its check, when the live A2 version no longer reads it. A2 has no migration of its own.

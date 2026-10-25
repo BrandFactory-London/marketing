@@ -44,7 +44,7 @@ async function ClientContent({ params, searchParams }: Pick<PageProps<"/crm/[cli
           </Link>
         </div>
         {projects.length === 0 ? (
-          <EmptyState title="No projects yet" text={`Add a project for ${client.name} to give it a package and a site.`} />
+          <EmptyState title="No projects yet" text={`Add a project for ${client.name} to give it a site and its runs.`} />
         ) : (
           <div className="app-card-grid">
             {projects.map((project) => (

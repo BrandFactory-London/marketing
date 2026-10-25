@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { AdapterAccountType } from "next-auth/adapters";
 import type { KnowledgeSections, KnowledgeTier, RuleScope } from "@/config/knowledge";
 import { DEFAULT_MODEL } from "@/config/models";
-import type { PackageKey, ProjectStatus, PublishingTarget } from "@/config/packages";
+import type { ProjectStatus, PublishingTarget } from "@/config/projects";
 import type { Cadence, RunPresetKey } from "@/config/run-presets";
 import type { RunStatus } from "@/config/run-status";
 import type { ContentType, DerivedType } from "@/config/content-types";
@@ -98,8 +98,9 @@ export const clients = pgTable("clients", {
   updatedAt: updatedAt(),
 });
 
-// One site that gets marketing content. Package, status and publishing target are checked against the
-// keys in src/config/packages.ts. From Phase 2 A1 runs make the slots and the package is no longer read.
+// One site that gets marketing content. Status and publishing target are checked against the keys in
+// src/config/projects.ts. Runs make the slots (Phase 2 A1). The retired package column is left out here, so no query
+// names it; it stays in the database until A3's migration drops it, while A2's predecessor may still be live.
 export const projects = pgTable(
   "projects",
   {
@@ -109,8 +110,6 @@ export const projects = pgTable(
       .references(() => clients.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
     siteUrl: text("site_url").notNull(),
-    // Retired by runs (Phase 2 session A1): no longer read or written, dropped in A2.
-    package: text("package").$type<PackageKey>(),
     status: text("status").$type<ProjectStatus>().notNull(),
     statusChangedAt: timestamp("status_changed_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
     publishingTarget: text("publishing_target").$type<PublishingTarget>().notNull().default("wix_blog"),
@@ -123,7 +122,6 @@ export const projects = pgTable(
   },
   (table) => [
     index("projects_client_id_idx").on(table.clientId),
-    check("projects_package_check", sql`${table.package} is null or ${table.package} in ('entry', 'mid', 'premium')`),
     check("projects_status_check", sql`${table.status} in ('active', 'paused')`),
     check("projects_publishing_target_check", sql`${table.publishingTarget} in ('wix_blog')`),
   ],

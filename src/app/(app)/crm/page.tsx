@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { LoadingCard } from "@/components/ui/LoadingCard";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { CLIENT_STATUSES } from "@/config/packages";
+import { CLIENT_STATUSES } from "@/config/projects";
 import { RUN_PRESETS, WEEKDAY_NAMES } from "@/config/run-presets";
 import { runSummary } from "@/components/ProjectCards";
 import { listProjects, type ProjectWithClient } from "@/lib/projects";

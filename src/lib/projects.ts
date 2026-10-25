@@ -2,7 +2,7 @@ import "server-only";
 import { asc, eq, inArray, sql } from "drizzle-orm";
 import { getDb, type Database } from "@/db/client";
 import { clients, projects, runs } from "@/db/schema";
-import { isProjectStatus, isPublishingTarget, type ProjectStatus, type PublishingTarget } from "@/config/packages";
+import { isProjectStatus, isPublishingTarget, type ProjectStatus, type PublishingTarget } from "@/config/projects";
 import type { RunPresetKey } from "@/config/run-presets";
 import { londonToday } from "./dates";
 import { isUuid, normaliseSiteUrl, optionalText, type FormInput, type Parsed } from "./validation";
@@ -106,7 +106,7 @@ export async function createProject(value: ProjectInput, db: Database = getDb())
   return row;
 }
 
-// Saves the Settings tab. status_changed_at moves only when the status actually changes. Slots belong to runs now
+// Saves the project settings on the Details tab. status_changed_at moves only when the status actually changes. Slots belong to runs now
 // (Phase 2 A1), so pausing a project no longer removes any; A4's generation skips paused projects.
 export async function updateProjectSettings(id: string, value: ProjectInput, db: Database = getDb()): Promise<Project | null> {
   if (!isUuid(id)) return null;

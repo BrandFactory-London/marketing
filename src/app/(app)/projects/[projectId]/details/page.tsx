@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import Link from "next/link";
+import { KnowledgeTier } from "@/components/KnowledgeTier";
+import { Card } from "@/components/ui/Card";
 import { LoadingCard } from "@/components/ui/LoadingCard";
+import { getCurrentKnowledge } from "@/lib/knowledge";
 import { listClients } from "@/lib/clients";
 import { formatDateTime } from "@/lib/format";
 import { listPillars } from "@/lib/pillars";
@@ -25,23 +29,47 @@ import { PillarsForm } from "./PillarsForm";
 import { ProjectSettingsForm } from "./ProjectSettingsForm";
 import { WixForm } from "./WixForm";
 
-export const metadata: Metadata = { title: "Project settings" };
+export const metadata: Metadata = { title: "Project details" };
 
-export default function ProjectSettingsPage({ params }: PageProps<"/projects/[projectId]/settings">) {
+export default function ProjectDetailsPage({ params, searchParams }: PageProps<"/projects/[projectId]/details">) {
   return (
     <Suspense fallback={<LoadingCard minHeight={320} />}>
-      <SettingsContent params={params} />
+      <DetailsContent params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function SettingsContent({ params }: Pick<PageProps<"/projects/[projectId]/settings">, "params">) {
+// The Details tab (Phase 2 A2): the project's profile first, then its settings and connectors. The profile is the
+// project knowledge every writer reads; the client's voice is shown read-only and edited on the client page.
+async function DetailsContent({ params, searchParams }: Pick<PageProps<"/projects/[projectId]/details">, "params" | "searchParams">) {
   await requireUser();
   const { projectId } = await params;
+  const { version } = await searchParams;
   const [project, clients, pillars, wix] = await Promise.all([getProject(projectId), listClients(), listPillars(projectId), getWixSettings(projectId)]);
   if (!project) notFound();
+  const client = await getCurrentKnowledge({ tier: "client", clientId: project.clientId });
+  const voice = client?.sections.voice?.trim();
   return (
     <div className="app-stack">
+      <Card className="app-section" aria-labelledby="profile-heading">
+        <div>
+          <h2 id="profile-heading" className="heading app-section-title">
+            Profile
+          </h2>
+          <p className="small app-section-text">Who the posts are for, what they may say about this site, and where they send the reader.</p>
+        </div>
+        <div className="app-stack" style={{ gap: 6 }}>
+          <h3 className="subheading" style={{ margin: 0 }}>
+            Brand voice
+          </h3>
+          <pre className="body app-knowledge-readonly" aria-label="Brand voice, read only">{voice || "No voice written yet."}</pre>
+          <p className="small app-muted" style={{ margin: 0 }}>
+            The voice belongs to {project.clientName}, so every project of theirs shares it.{" "}
+            <Link href={`/crm/${project.clientId}`}>Edit it on the client page</Link>.
+          </p>
+        </div>
+        <KnowledgeTier scope={{ tier: "project", projectId: project.id }} basePath={`/projects/${project.id}/details`} version={typeof version === "string" ? version : undefined} />
+      </Card>
       <ProjectSettingsForm
         clients={clients.map(({ id, name }) => ({ id, name }))}
         project={{

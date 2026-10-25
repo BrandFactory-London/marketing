@@ -23,17 +23,21 @@ export function isCurrent(href: string, pathname: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-// Project page tabs, in the prototype's order (design/prototype/Project.dc.html). In Phase 1 a project
-// opens on Knowledge, because Content and performance stays empty until Phase 2 (γ2 orientation Q9).
+// The four project tabs (Phase 2 handoff, A2). A project opens on its Run plan, the work in hand. Settings moved into
+// Details and Sitemap into Knowledge; their old URLs redirect (PROJECT_TAB_REDIRECTS).
 export const PROJECT_TABS = [
-  { label: "Content and performance", segment: "content" },
-  { label: "Sitemap", segment: "sitemap" },
+  { label: "Details", segment: "details" },
   { label: "Run plan", segment: "plan" },
+  { label: "Content and performance", segment: "content" },
   { label: "Knowledge", segment: "knowledge" },
-  { label: "Settings", segment: "settings" },
 ] as const;
 
-export const DEFAULT_PROJECT_TAB = "knowledge";
+export const DEFAULT_PROJECT_TAB = "plan";
+
+export const PROJECT_TAB_REDIRECTS = [
+  { from: "settings", to: "details" },
+  { from: "sitemap", to: "knowledge" },
+] as const;
 
 export function projectTabs(projectId: string) {
   return PROJECT_TABS.map((tab) => ({ label: tab.label, href: `/projects/${projectId}/${tab.segment}` }));

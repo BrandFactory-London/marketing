@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PROJECT_TAB, isCurrent, mainNav, PROJECT_TABS, projectTabs, settingsNav } from "./nav";
+import { DEFAULT_PROJECT_TAB, isCurrent, mainNav, PROJECT_TAB_REDIRECTS, PROJECT_TABS, projectTabs, settingsNav } from "./nav";
 
 const appDir = path.join(process.cwd(), "src/app/(app)");
 
@@ -29,12 +29,19 @@ describe("navigation", () => {
 });
 
 describe("project tabs", () => {
-  it("follow the prototype's order and each has a page", () => {
-    expect(PROJECT_TABS.map((tab) => tab.label)).toEqual(["Content and performance", "Sitemap", "Run plan", "Knowledge", "Settings"]);
+  it("are the four Phase 2 tabs, each with a page, opening on the Run plan", () => {
+    expect(PROJECT_TABS.map((tab) => tab.label)).toEqual(["Details", "Run plan", "Content and performance", "Knowledge"]);
     for (const tab of PROJECT_TABS) {
       expect(existsSync(path.join(appDir, "projects/[projectId]", tab.segment, "page.tsx")), tab.segment).toBe(true);
     }
-    expect(PROJECT_TABS.some((tab) => tab.segment === DEFAULT_PROJECT_TAB)).toBe(true);
+    expect(DEFAULT_PROJECT_TAB).toBe("plan");
+  });
+
+  it("redirects each folded-in tab to a tab that exists, and the old pages are gone", () => {
+    for (const tab of PROJECT_TAB_REDIRECTS) {
+      expect(PROJECT_TABS.some((item) => item.segment === tab.to), tab.to).toBe(true);
+      expect(existsSync(path.join(appDir, "projects/[projectId]", tab.from)), tab.from).toBe(false);
+    }
   });
 
   it("builds each tab's link from the project id", () => {

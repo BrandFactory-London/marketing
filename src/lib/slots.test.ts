@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestDb, resetDomainTables, testDatabaseUrl } from "@/test/db";
 import { clients, posts, projects } from "@/db/schema";
 import { POST_STATUS_KEYS } from "@/config/post-status";
-import type { ProjectStatus } from "@/config/packages";
+import type { ProjectStatus } from "@/config/projects";
 import { runInput } from "@/test/runs";
 import { addDays } from "./dates";
 import { createProject, updateProjectSettings } from "./projects";

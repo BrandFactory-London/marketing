@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { projects } from "@/db/schema";
 import { createTestDb, resetDomainTables, testDatabaseUrl } from "@/test/db";
@@ -62,10 +62,12 @@ describe.skipIf(!testDatabaseUrl)("projects (local Postgres)", () => {
     expect(paused!.statusChangedAt.getTime()).toBeGreaterThan(project.statusChangedAt.getTime());
   });
 
-  it("the database still refuses an unknown package while the column lives on", async () => {
+  it("no longer names the retired package column, which stays empty for new projects until A3 drops it", async () => {
     const { value } = await setup();
     const project = await createProject(value, db);
-    await expect(db.update(projects).set({ package: "gold" as never }).where(eq(projects.id, project.id))).rejects.toThrow();
+    expect(db.select().from(projects).toSQL().sql).not.toContain('"package"');
+    const result = await db.execute(sql`select package from projects where id = ${project.id}`);
+    expect(result.rows).toEqual([{ package: null }]);
   });
 
   it("stores and clears the Drive folder", async () => {

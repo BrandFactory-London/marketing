@@ -80,7 +80,7 @@ function wixCard(page: Page) {
 
 test("Wix credentials: a refused key shows Wix's error, the right one connects, and the author is chosen", async ({ page, signedIn }) => {
   void signedIn;
-  await page.goto(`/projects/${projectId}/settings`);
+  await page.goto(`/projects/${projectId}/details`);
   const card = wixCard(page);
   await expect(card.getByText("No Wix credentials yet.", { exact: false })).toBeVisible();
   await card.getByRole("button", { name: "Save and check credentials" }).click();
@@ -346,7 +346,7 @@ test("the Publish card and Wix settings fit a 390px phone", async ({ page, signe
     ["g6-mobile-published", `/posts/${postIds[0]}`, "Derivatives"],
     ["g7-mobile-derivatives", `/posts/${postIds[1]}`, "Derivatives"],
     ["g7-mobile-candidates", "/settings/rules", "Suggestions from your notes and edits"],
-    ["g6-mobile-wix-settings", `/projects/${projectId}/settings`, "Wix Blog publishing"],
+    ["g6-mobile-wix-settings", `/projects/${projectId}/details`, "Wix Blog publishing"],
   ] as const) {
     await page.goto(path);
     await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();

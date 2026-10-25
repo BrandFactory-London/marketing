@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/Button";
 import { keepValuesOnSubmit } from "@/components/ui/keepValues";
 import { Field, SelectField } from "@/components/ui/Field";
-import { PROJECT_STATUSES, PUBLISHING_TARGETS } from "@/config/packages";
+import { PROJECT_STATUSES, PUBLISHING_TARGETS } from "@/config/projects";
 import type { ProjectSettingsState } from "./actions";
 
 type Props = {

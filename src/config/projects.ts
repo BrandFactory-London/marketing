@@ -1,37 +1,5 @@
-// The one list of marketing packages and project statuses (design decision 15, methodology D.3.1).
-// The CRM, project forms, cards and γ3's slot generator all read from here.
-
-export const PACKAGES = [
-  // Weekdays use JavaScript's numbering: 1 is Monday, 5 is Friday.
-  { key: "entry", label: "Entry", postsPerWeek: 1, weekdays: [2] },
-  { key: "mid", label: "Mid", postsPerWeek: 2, weekdays: [2, 4] },
-  { key: "premium", label: "Premium", postsPerWeek: 3, weekdays: [1, 3, 5] },
-] as const;
-
-export type PackageKey = (typeof PACKAGES)[number]["key"];
-export type Package = (typeof PACKAGES)[number];
-
-export const PACKAGE_KEYS = PACKAGES.map((item) => item.key) as [PackageKey, ...PackageKey[]];
-
-export function isPackageKey(value: unknown): value is PackageKey {
-  return typeof value === "string" && PACKAGES.some((item) => item.key === value);
-}
-
-export function getPackage(key: PackageKey): Package {
-  return PACKAGES.find((item) => item.key === key)!;
-}
-
-// "Entry · 1 post a week"
-export function packageSummary(key: PackageKey): string {
-  const item = getPackage(key);
-  return `${item.label} · ${item.postsPerWeek} ${item.postsPerWeek === 1 ? "post" : "posts"} a week`;
-}
-
-// "Entry · 1 SEO post a week", for the package select.
-export function packageOption(key: PackageKey): string {
-  const item = getPackage(key);
-  return `${item.label} · ${item.postsPerWeek} SEO ${item.postsPerWeek === 1 ? "post" : "posts"} a week`;
-}
+// The one list of project statuses, client statuses and publishing targets (methodology D.3.1). The CRM, project forms
+// and cards read from here. Marketing packages were replaced by run presets in Phase 2 (src/config/run-presets.ts).
 
 export const PROJECT_STATUSES = [
   { key: "active", label: "Active", tone: "success" },

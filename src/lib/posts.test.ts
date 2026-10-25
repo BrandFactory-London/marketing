@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createTestDb, resetDomainTables, testDatabaseUrl } from "@/test/db";
 import { clients, posts, projects } from "@/db/schema";
-import { getSlot, listSlotsBetween, listStartedPosts, nextSlots } from "./posts";
+import { getSlot, listPublishedPosts, listSlotsBetween, listStartedPosts, nextSlots } from "./posts";
 import { runInput } from "@/test/runs";
 import { createRun } from "./runs";
 import { setTopic } from "./slots";
@@ -71,5 +71,18 @@ describe.skipIf(!testDatabaseUrl)("slot and post reads (local Postgres)", () => 
     const [first] = await db.select().from(posts).where(eq(posts.projectId, site.id)).limit(1);
     expect(await getSlot(first.id, db)).toMatchObject({ projectName: "Migss Interiors Website", clientName: "Migss Interiors" });
     expect(await getSlot("nope", db)).toBeNull();
+  });
+  it("lists a project's published posts only, newest first (Phase 2 A2)", async () => {
+    await db.insert(posts).values([
+      { projectId: site.id, slotDate: "2026-10-01", status: "published", topic: "Older post", liveUrl: "https://www.migssinteriors.com/post/older", publishedAt: new Date("2026-10-01T09:00:00Z") },
+      { projectId: site.id, slotDate: "2026-10-10", status: "published", topic: "Newer post", liveUrl: "https://www.migssinteriors.com/post/newer", publishedAt: new Date("2026-10-10T09:00:00Z") },
+      { projectId: site.id, slotDate: "2026-10-12", status: "approved", topic: "Not live yet" },
+      { projectId: shop.id, slotDate: "2026-10-11", status: "published", topic: "Other site" },
+    ]);
+    expect((await listPublishedPosts(site.id, db)).map((post) => [post.topic, post.liveUrl])).toEqual([
+      ["Newer post", "https://www.migssinteriors.com/post/newer"],
+      ["Older post", "https://www.migssinteriors.com/post/older"],
+    ]);
+    expect(await listPublishedPosts("not-a-uuid", db)).toEqual([]);
   });
 });
