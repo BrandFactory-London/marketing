@@ -15,7 +15,7 @@ test.beforeAll(async () => {
   );
   clientId = client.id;
   const [project] = await query<{ id: string }>(
-    "insert into projects (client_id, name, site_url, package, status) values ($1, 'Migss Interiors website', 'https://www.migssinteriors.com', 'entry', 'active') returning id",
+    "insert into projects (client_id, name, site_url, status) values ($1, 'Migss Interiors website', 'https://www.migssinteriors.com', 'active') returning id",
     [clientId],
   );
   projectId = project.id;

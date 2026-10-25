@@ -23,7 +23,7 @@ test.beforeAll(async () => {
   [{ id: migssId }] = await query<{ id: string }>("insert into clients (name) values ('Migss Interiors') returning id");
   [{ id: otherClientId }] = await query<{ id: string }>("insert into clients (name) values ('Another client') returning id");
   [{ id: projectId }] = await query<{ id: string }>(
-    "insert into projects (client_id, name, site_url, package, status) values ($1, 'Migss Interiors Website', 'https://www.migssinteriors.com', 'premium', 'active') returning id",
+    "insert into projects (client_id, name, site_url, status) values ($1, 'Migss Interiors Website', 'https://www.migssinteriors.com', 'active') returning id",
     [migssId],
   );
 });
@@ -195,7 +195,7 @@ test("pausing in Settings keeps the run's slots", async ({ page, signedIn }) => 
 test("the Posts page lists posts with a topic and filters by status and client", async ({ page, signedIn }) => {
   void signedIn;
   const [{ id: otherProject }] = await query<{ id: string }>(
-    "insert into projects (client_id, name, site_url, package, status) values ($1, 'Another site', 'https://example.com', 'entry', 'paused') returning id",
+    "insert into projects (client_id, name, site_url, status) values ($1, 'Another site', 'https://example.com', 'paused') returning id",
     [otherClientId],
   );
   await query("insert into posts (project_id, slot_date, status, topic) values ($1, $2, 'in_review', 'Another client post')", [otherProject, addDays(today, 3)]);

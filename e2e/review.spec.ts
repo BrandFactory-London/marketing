@@ -75,7 +75,7 @@ test.beforeAll(async () => {
   await resetDomain();
   const [{ id: clientId }] = await query<{ id: string }>("insert into clients (name) values ('Migss Interiors') returning id");
   [{ id: projectId }] = await query<{ id: string }>(
-    "insert into projects (client_id, name, site_url, package, status) values ($1, 'Migss Interiors Website', 'https://www.migssinteriors.com', 'entry', 'paused') returning id",
+    "insert into projects (client_id, name, site_url, status) values ($1, 'Migss Interiors Website', 'https://www.migssinteriors.com', 'paused') returning id",
     [clientId],
   );
   await query("insert into knowledge_versions (tier, version, sections) values ('agency', 1, $1)", [JSON.stringify({ writing_rules: "Never use em dashes.", banned_phrases: '- "elevate"' })]);

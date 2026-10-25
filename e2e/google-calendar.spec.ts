@@ -34,7 +34,7 @@ test.beforeAll(async () => {
   await fetch(`${GOOGLE}/__calendar/reset`);
   [{ id: clientId }] = await query<{ id: string }>("insert into clients (name) values ('Migss Interiors') returning id");
   [{ id: projectId }] = await query<{ id: string }>(
-    "insert into projects (client_id, name, site_url, package, status) values ($1, 'Migss Interiors Website', 'https://www.migssinteriors.com', 'entry', 'active') returning id",
+    "insert into projects (client_id, name, site_url, status) values ($1, 'Migss Interiors Website', 'https://www.migssinteriors.com', 'active') returning id",
     [clientId],
   );
   // Phase 2 A1: eight weeks of Tuesday slots from a run.
