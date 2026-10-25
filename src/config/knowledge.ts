@@ -64,7 +64,7 @@ export const KNOWLEDGE_TIERS = {
       {
         key: "allowed_links",
         label: "Allowed internal links",
-        help: "The only paths a post may link to, one per line. The Sitemap tab lists every page on the site.",
+        help: "The only paths a post may link to, one per line. The Sitemap on the Knowledge tab lists every page on the site.",
       },
     ],
   },

@@ -2,7 +2,7 @@ import "server-only";
 import { asc, eq, sql } from "drizzle-orm";
 import { getDb, type Database } from "@/db/client";
 import { clients, projects } from "@/db/schema";
-import { clientStatus, type ClientStatus, type ProjectStatus } from "@/config/packages";
+import { clientStatus, type ClientStatus, type ProjectStatus } from "@/config/projects";
 import { isEmail, isUuid, optionalText, type FormInput, type Parsed } from "./validation";
 
 export type ClientInput = { name: string; shortName?: string | null; mainContact: string | null; email: string | null; phone: string | null };

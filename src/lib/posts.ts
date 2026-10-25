@@ -61,6 +61,19 @@ export async function getSlot(id: string, db: Database = getDb()): Promise<SlotV
   return row ?? null;
 }
 
+// The Content and performance tab (Phase 2 A2): a project's published posts, newest first. Session B adds each one's
+// Search Console and GA4 figures.
+export type PublishedPost = { id: string; topic: string | null; liveUrl: string | null; publishedAt: Date | null; slotDate: string };
+
+export async function listPublishedPosts(projectId: string, db: Database = getDb()): Promise<PublishedPost[]> {
+  if (!isUuid(projectId)) return [];
+  return db
+    .select({ id: posts.id, topic: posts.topic, liveUrl: posts.liveUrl, publishedAt: posts.publishedAt, slotDate: posts.slotDate })
+    .from(posts)
+    .where(and(eq(posts.projectId, projectId), eq(posts.status, "published")))
+    .orderBy(desc(sql`coalesce(${posts.publishedAt}, ${posts.slotDate}::timestamptz)`), desc(posts.createdAt));
+}
+
 // The Posts page: every post at Topic set or later, newest first (γ3 orientation Q10).
 export async function listStartedPosts(options: { clientId?: string } = {}, db: Database = getDb()): Promise<SlotView[]> {
   const client = options.clientId && isUuid(options.clientId) ? eq(projects.clientId, options.clientId) : undefined;

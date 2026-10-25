@@ -176,7 +176,7 @@ test("a post the retired generator left outside every run is shown, never hidden
 test("pausing in Settings keeps the run's slots", async ({ page, signedIn }) => {
   void signedIn;
   const before = await slots();
-  await page.goto(`/projects/${projectId}/settings`);
+  await page.goto(`/projects/${projectId}/details`);
   const form = page.getByRole("form", { name: "Project settings" });
   await form.getByRole("combobox", { name: "Status" }).selectOption("paused");
   await form.getByRole("button", { name: "Save settings" }).click();
@@ -186,7 +186,7 @@ test("pausing in Settings keeps the run's slots", async ({ page, signedIn }) => 
   const card = page.getByRole("link", { name: /Migss Interiors Website/ });
   await expect(card).toContainText("Paused");
   await expect(card).toContainText("Run 1");
-  await page.goto(`/projects/${projectId}/settings`);
+  await page.goto(`/projects/${projectId}/details`);
   await page.getByRole("form", { name: "Project settings" }).getByRole("combobox", { name: "Status" }).selectOption("active");
   await page.getByRole("form", { name: "Project settings" }).getByRole("button", { name: "Save settings" }).click();
   await expect(page.getByText("Settings saved")).toBeVisible();

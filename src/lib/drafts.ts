@@ -122,7 +122,7 @@ export async function getDraftView(postId: string, db: Database = getDb()) {
       ? `/settings/rules?version=${version}`
       : tier === "client"
         ? `/crm/${project.clientId}?version=${version}`
-        : `/projects/${project.id}/knowledge?version=${version}`;
+        : `/projects/${project.id}/details?version=${version}`;
 
   return {
     post: { ...post.post, pillar: post.pillar },

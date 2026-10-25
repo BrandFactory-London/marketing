@@ -37,15 +37,15 @@ const screens = () => [
   { name: "crm", path: "/crm" },
   { name: "client", path: `/crm/${clientId}` },
   { name: "projects", path: "/projects" },
+  { name: "project-details", path: `/projects/${projectId}/details` },
+  { name: "project-plan", path: `/projects/${projectId}/plan` },
+  { name: "project-content", path: `/projects/${projectId}/content` },
   { name: "project-knowledge", path: `/projects/${projectId}/knowledge` },
-  { name: "project-sitemap", path: `/projects/${projectId}/sitemap` },
-  { name: "project-settings", path: `/projects/${projectId}/settings` },
   { name: "settings-rules", path: "/settings/rules" },
   { name: "settings-models", path: "/settings/models" },
   { name: "settings-connections", path: "/settings/connections" },
   { name: "calendar", path: "/calendar" },
   { name: "posts", path: "/posts" },
-  { name: "project-plan", path: `/projects/${projectId}/plan` },
 ];
 
 test("every γ2 and γ3 screen fits a 390px phone without sideways scrolling", async ({ page, signedIn }) => {

@@ -38,7 +38,7 @@ test.beforeAll(async () => {
 
 test("project Settings adds and removes pillar tags", async ({ page, signedIn }) => {
   void signedIn;
-  await page.goto(`/projects/${projectId}/settings`);
+  await page.goto(`/projects/${projectId}/details`);
   const pillars = page.locator(".bfm-card", { has: page.getByRole("heading", { name: "Pillar tags" }) });
   await pillars.getByRole("textbox", { name: "Pillar name" }).fill("Bathroom Renovation");
   await pillars.getByRole("button", { name: "Add pillar" }).click();
@@ -271,7 +271,7 @@ test("the review queue lists the drafted post and it opens in the review editor"
   await expect(page.locator(".app-draft-body b")).toHaveCount(0);
   await expect(page.getByText("Could name a room size.", { exact: false })).toBeVisible();
   await expect(page.getByRole("cell", { name: "Writer call 1" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "version 1" })).toHaveAttribute("href", `/projects/${projectId}/knowledge?version=1`);
+  await expect(page.getByRole("link", { name: "version 1" })).toHaveAttribute("href", `/projects/${projectId}/details?version=1`);
   await page.screenshot(shot("g4-draft"));
 
   const [{ month }] = await query<{ month: string }>("select to_char(slot_date, 'YYYY-MM') as month from posts where id = $1", [postIds[0]]);

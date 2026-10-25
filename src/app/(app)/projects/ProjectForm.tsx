@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/Button";
 import { keepValuesOnSubmit } from "@/components/ui/keepValues";
 import { Field, SelectField } from "@/components/ui/Field";
-import { PROJECT_STATUSES, PUBLISHING_TARGETS } from "@/config/packages";
+import { PROJECT_STATUSES, PUBLISHING_TARGETS } from "@/config/projects";
 import type { ProjectFormState } from "./actions";
 
 type Props = {
@@ -16,7 +16,7 @@ type Props = {
 };
 
 // Add a project (Projects prototype). GA4 and Search Console arrive in Phase 2; the Drive folder is set
-// on the project's Settings tab, where it can be checked.
+// on the project's Details tab, where it can be checked.
 export function ProjectForm({ clients, clientId, action, onCancel }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
   const value = (key: string, fallback = "") => state.values?.[key] ?? fallback;

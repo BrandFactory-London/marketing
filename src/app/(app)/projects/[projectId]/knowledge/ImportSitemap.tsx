@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/Button";
-import type { SitemapImportState } from "./actions";
+import type { SitemapImportState } from "./sitemap-actions";
 
 function summary(state: Extract<SitemapImportState, { status: "imported" }>) {
   const pages = `Imported ${state.pages} ${state.pages === 1 ? "page" : "pages"}.`;

@@ -44,7 +44,7 @@ async function ProjectsContent({ searchParams }: Pick<PageProps<"/projects">, "s
     <>
       <ProjectsHeader clients={clients.map(({ id, name }) => ({ id, name }))} openWith={openWith} />
       {projects.length === 0 ? (
-        <EmptyState title="No projects yet" text="Add a project for a client to give it a package, a site and its knowledge." />
+        <EmptyState title="No projects yet" text="Add a project for a client to give it a site, its knowledge and its runs." />
       ) : (
         [...groups.entries()].map(([clientId, group]) => (
           <section key={clientId} className="app-section" aria-label={group.name}>

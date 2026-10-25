@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { Breadcrumb, PageHeader } from "@/components/ui/PageHeader";
 import { LinkTabs } from "@/components/ui/LinkTabs";
 import { ButtonLink } from "@/components/ui/Button";
-import { publishingTargetLabel } from "@/config/packages";
+import { publishingTargetLabel } from "@/config/projects";
 import { projectTabs } from "@/lib/nav";
 import { getProject } from "@/lib/projects";
 import { requireUser } from "@/lib/session";

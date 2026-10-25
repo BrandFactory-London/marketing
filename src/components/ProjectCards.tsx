@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { Badge } from "@/components/ui/Badge";
-import { getProjectStatus, publishingTargetLabel, type ProjectStatus } from "@/config/packages";
+import { getProjectStatus, publishingTargetLabel, type ProjectStatus } from "@/config/projects";
 import { presetLabel } from "@/config/run-presets";
 import { shortDate } from "@/lib/dates";
 import type { NextSlot } from "@/lib/posts";
