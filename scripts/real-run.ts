@@ -14,6 +14,10 @@
 //   ... scripts/real-run.ts accept <candidateId> [scope]      (γ7: Accept rule, as the button does)
 //   ... scripts/real-run.ts instructions <postId> <channel>   (γ7: the instructions block that channel's call is sent)
 //   ... scripts/real-run.ts derivative-model <modelId>        (γ7: Settings, AI models, Derivatives model)
+//   ... scripts/real-run.ts run2                              (A3: Run 2 for Migss, Mid, one month)
+//   ... scripts/real-run.ts plan <runId> ["<note>"]           (A3: Plan the run, or Regenerate the whole plan)
+//   ... scripts/real-run.ts plan-item <runId> <postId> "<note>" (A3: Regenerate post with a note)
+//   ... scripts/real-run.ts plan-report <runId>               (A3: the plan, the planner calls and their costs)
 //
 // It talks to Neon over the WebSocket driver, as scripts/migrate-lib.ts does (port 5432 is blocked from
 // Claude's cloud environment), and refuses any database but Neon dev.
@@ -31,6 +35,11 @@ import { latestRegenerateEvent } from "@/lib/learn";
 import { acceptCandidate, listCandidates } from "@/lib/rules";
 import * as derivativePrompt from "@/prompts/derivative";
 import { setTopic } from "@/lib/slots";
+import { londonToday } from "@/lib/dates";
+import { startPlanDraft } from "@/lib/jobs";
+import { currentItems, requestItem, requestPlan, setPlanDraftRun } from "@/lib/planner";
+import { parseRunInput, presetConfiguration } from "@/lib/run-config";
+import { createRun, listProjectRuns, suggestedStart } from "@/lib/runs";
 
 const DEV_ENDPOINT = "ep-square-mode-zatw6e39";
 const MIGSS_PROJECT = "e82463ed-89c7-402b-bc14-2e1b44c82fa6";
@@ -193,6 +202,71 @@ async function derivativeReport(postId: string) {
   for (const row of rows) console.log(JSON.stringify(row, null, 2));
 }
 
+// ---- Phase 2 A3: the planner ----
+
+async function run2() {
+  const runs = await listProjectRuns(MIGSS_PROJECT, db);
+  const startsOn = suggestedStart(runs, londonToday()) < "2026-11-02" ? "2026-11-02" : suggestedStart(runs, londonToday());
+  const value = {
+    ...(parseOrThrow({ preset: "mid", startsOn, months: "1" })),
+    priorityNotes: "A push on bathroom renovation costs and what the guarantee covers.",
+  };
+  const run = await createRun(MIGSS_PROJECT, value, db);
+  console.log(JSON.stringify({ runId: run.id, name: run.name, startsOn: run.startsOn, endsOn: run.endsOn }));
+}
+
+function parseOrThrow(fields: Record<string, string>) {
+  const channels = presetConfiguration("mid", fields.startsOn, Number(fields.months));
+  const input: Record<string, unknown> = { ...fields, lengthMin: "1200", lengthMax: "1600", faqMode: "useful", writerModel: "claude-opus-5-5", criticModel: "claude-opus-5-5" };
+  for (const channel of channels) {
+    input[`${channel.contentType}.amount`] = String(channel.amount);
+    if ("weekdays" in channel.cadence) {
+      input[`${channel.contentType}.mode`] = "weekdays";
+      input[`${channel.contentType}.weekdays`] = channel.cadence.weekdays.map(String);
+    } else {
+      input[`${channel.contentType}.mode`] = "after";
+      input[`${channel.contentType}.after`] = String(channel.cadence.after);
+    }
+  }
+  const parsed = parseRunInput(input, londonToday());
+  if (!parsed.ok) throw new Error(parsed.error);
+  return parsed.value;
+}
+
+async function startPlan(request: { planDraftId: string; noteFeedbackId: string | null }) {
+  await setPlanDraftRun(request.planDraftId, await startPlanDraft(request.planDraftId), db);
+  if (request.noteFeedbackId) await startCandidates({ planFeedbackId: request.noteFeedbackId });
+  console.log(JSON.stringify(request));
+}
+
+async function plan(runId: string, note?: string) {
+  await startPlan(await requestPlan(runId, { note }, db));
+}
+
+async function planItem(runId: string, postId: string, note: string) {
+  await startPlan(await requestItem(runId, postId, { note }, db));
+}
+
+async function planReport(runId: string) {
+  const items = (await currentItems(db, runId)).map((item) => ({ postId: item.postId, version: item.version, title: item.title, excerpt: item.excerpt, category: item.category, pillarId: item.pillarId, reason: item.reason, closeTo: item.closeTo, status: item.status }));
+  const slots = await db.query.posts.findMany({ where: (post, { eq }) => eq(post.runId, runId), orderBy: (post, { asc }) => asc(post.slotDate) });
+  for (const slot of slots) console.log(JSON.stringify({ date: slot.slotDate, ...items.find((item) => item.postId === slot.id) }));
+  const drafts = await db.query.planDrafts.findMany({ where: (draft, { eq }) => eq(draft.runId, runId), orderBy: (draft, { asc }) => asc(draft.createdAt) });
+  for (const draft of drafts) {
+    const call = draft.aiCallId ? await db.query.aiCalls.findFirst({ where: (row, { eq }) => eq(row.id, draft.aiCallId!) }) : null;
+    console.log(
+      JSON.stringify({
+        draft: draft.id,
+        scope: draft.scope,
+        note: draft.note,
+        status: draft.status,
+        error: draft.error,
+        call: call && { model: call.servedModel, effort: call.effort, prompt: call.promptVersion, input: call.inputTokens, output: call.outputTokens, cacheWrite: call.cacheWriteTokens, cacheRead: call.cacheReadTokens, costUsd: call.costUsd, ms: call.durationMs },
+      }),
+    );
+  }
+}
+
 async function main() {
   const [command, id, note] = process.argv.slice(2);
   const batchId = id;
@@ -209,6 +283,10 @@ async function main() {
     else if (command === "instructions" && id && note) await instructions(id, note);
     else if (command === "derivative-model" && id) await derivativeModel(id);
     else if (command === "derivative-report" && id) await derivativeReport(id);
+    else if (command === "run2") await run2();
+    else if (command === "plan" && id) await plan(id, note);
+    else if (command === "plan-item" && id && note && process.argv[5]) await planItem(id, note, process.argv[5]);
+    else if (command === "plan-report" && id) await planReport(id);
     else throw new Error("Usage: real-run.ts start | generate <batchId> | report <batchId> | regenerate <postId> <note> | approve <postId> | post-report <postId>");
   } finally {
     await devPool().end();
