@@ -1,11 +1,11 @@
 import { and, desc, eq, isNotNull, lt } from "drizzle-orm";
 import { hasChannelSections, type Channel, type RuleScope } from "@/config/knowledge";
 import { getDb, type Database } from "@/db/client";
-import { aiCalls, derivatives, postDrafts, posts, postVersions, reviewEvents, ruleCandidates, type EditHunk, type UnstoredReply } from "@/db/schema";
+import { aiCalls, derivatives, planFeedback, planItems, postDrafts, posts, postVersions, reviewEvents, ruleCandidates, runs, type EditHunk, type UnstoredReply } from "@/db/schema";
 import * as learnPrompt from "@/prompts/learn";
 import { AiClient, type Transport } from "./ai/client";
 import { allChannelRules, loadPack } from "./ai/pack";
-import { candidateKey, pendingCandidateKeys } from "./candidate-keys";
+import { candidateKey, pendingCandidateKeys, projectOwner } from "./candidate-keys";
 import { pinText } from "./derivative-checks";
 import { changedWords, editHunks } from "./edit-diff";
 import { composeMarkdown, splitDraft } from "./review-rules";
@@ -20,10 +20,11 @@ export const LEARN_MAX_TOKENS = 16000;
 // An edit that changes fewer words than this proposes nothing and costs nothing (γ7 orientation Q3).
 export const MIN_CHANGED_WORDS = 4;
 
-export type CandidateSource = { reviewEventId: string } | { derivativeId: string };
+export type CandidateSource = { reviewEventId: string } | { derivativeId: string } | { planFeedbackId: string };
 export type LearnDeps = { db: Database; transport: Transport };
 
-type Feedback = { postId: string; input: Omit<learnPrompt.LearnInput, "channelRules"> };
+// A plan's feedback is about one planned post or the whole plan, so its post can be missing (Phase 2 A3).
+type Feedback = { postId: string | null; projectId: string; input: Omit<learnPrompt.LearnInput, "channelRules"> };
 
 function versionText(row: { channel: string; title: string | null; body: string | null }): string {
   return row.channel === "pinterest" ? pinText({ title: row.title, body: row.body ?? "" }) : (row.body ?? "");
@@ -32,12 +33,14 @@ function versionText(row: { channel: string; title: string | null; body: string 
 async function blogFeedback(db: Database, reviewEventId: string): Promise<Feedback | null> {
   const [event] = await db.select().from(reviewEvents).where(eq(reviewEvents.id, reviewEventId));
   if (!event) return null;
-  const [post] = await db.select({ topic: posts.topic }).from(posts).where(eq(posts.id, event.postId));
-  const title = post?.topic ?? "Untitled";
+  const [post] = await db.select({ topic: posts.topic, projectId: posts.projectId }).from(posts).where(eq(posts.id, event.postId));
+  if (!post) return null;
+  const projectId = post.projectId;
+  const title = post.topic ?? "Untitled";
   if (event.action === "approve") {
     if (!event.diff || event.diff.length === 0) return null;
     const approvedTitle = /^# (.+)$/m.exec(event.diff.map((hunk) => hunk.after).join("\n"))?.[1] ?? title;
-    return { postId: event.postId, input: { source: "blog_approve", channel: "blog", title: approvedTitle, hunks: event.diff } };
+    return { postId: event.postId, projectId, input: { source: "blog_approve", channel: "blog", title: approvedTitle, hunks: event.diff } };
   }
   if (event.action !== "regenerate" && event.action !== "reject") return null;
   if (!event.note?.trim()) return null;
@@ -52,14 +55,16 @@ async function blogFeedback(db: Database, reviewEventId: string): Promise<Feedba
       if (changedWords(written, edited) >= MIN_CHANGED_WORDS) hunks = editHunks(written, edited);
     }
   }
-  return { postId: event.postId, input: { source: event.action === "regenerate" ? "blog_regenerate" : "blog_reject", channel: "blog", title, note: event.note, hunks } };
+  return { postId: event.postId, projectId, input: { source: event.action === "regenerate" ? "blog_regenerate" : "blog_reject", channel: "blog", title, note: event.note, hunks } };
 }
 
 async function derivativeFeedback(db: Database, derivativeId: string): Promise<Feedback | null> {
   const [row] = await db.select().from(derivatives).where(eq(derivatives.id, derivativeId));
   if (!row) return null;
-  const [post] = await db.select({ topic: posts.topic }).from(posts).where(eq(posts.id, row.postId));
-  const title = post?.topic ?? "Untitled";
+  const [post] = await db.select({ topic: posts.topic, projectId: posts.projectId }).from(posts).where(eq(posts.id, row.postId));
+  if (!post) return null;
+  const projectId = post.projectId;
+  const title = post.topic ?? "Untitled";
   const channel = row.channel as Channel;
   // The newest earlier version with text: what a note is about, or what an edit was made from.
   const earlier = (source?: "model") =>
@@ -80,7 +85,7 @@ async function derivativeFeedback(db: Database, derivativeId: string): Promise<F
   if (row.source === "model") {
     if (!row.note?.trim()) return null;
     const [previous] = await earlier();
-    return { postId: row.postId, input: { source: "derivative_note", channel, title, note: row.note, version: previous ? versionText(previous) : null } };
+    return { postId: row.postId, projectId, input: { source: "derivative_note", channel, title, note: row.note, version: previous ? versionText(previous) : null } };
   }
   if (!row.body) return null;
   const [model] = await earlier("model");
@@ -88,7 +93,27 @@ async function derivativeFeedback(db: Database, derivativeId: string): Promise<F
   const before = versionText(model);
   const after = versionText(row);
   if (changedWords(before, after) < MIN_CHANGED_WORDS) return null;
-  return { postId: row.postId, input: { source: "derivative_edit", channel, title, hunks: editHunks(before, after) } };
+  return { postId: row.postId, projectId, input: { source: "derivative_edit", channel, title, hunks: editHunks(before, after) } };
+}
+
+// Amir's note when regenerating a plan item or the whole plan, or the client's comment or suggestion through the link
+// (Phase 2 A3). An approval holds nothing to learn from.
+async function planFeedbackOf(db: Database, planFeedbackId: string): Promise<Feedback | null> {
+  const [row] = await db
+    .select({ feedback: planFeedback, runName: runs.name, projectId: runs.projectId, itemTitle: planItems.title, itemExcerpt: planItems.excerpt })
+    .from(planFeedback)
+    .innerJoin(runs, eq(runs.id, planFeedback.runId))
+    .leftJoin(planItems, eq(planItems.id, planFeedback.planItemId))
+    .where(eq(planFeedback.id, planFeedbackId));
+  if (!row || !row.feedback.body?.trim()) return null;
+  const kind = row.feedback.kind;
+  if (kind === "approve") return null;
+  const source = kind === "note" ? "plan_note" : kind === "suggest" ? "client_suggest" : "client_comment";
+  return {
+    postId: row.feedback.postId,
+    projectId: row.projectId,
+    input: { source, channel: "blog", title: row.itemTitle ?? `The whole plan for ${row.runName}`, note: row.feedback.body, plannedExcerpt: row.itemExcerpt },
+  };
 }
 
 // Why a candidate in the reply was not stored (backlog 24), in the words the cost table shows.
@@ -121,14 +146,23 @@ export function candidateScope(kind: "rule" | "fact", tier: string, section: str
 // exist, so a retried run never pays twice.
 export async function proposeCandidates(source: CandidateSource, deps: LearnDeps): Promise<number> {
   const { db } = deps;
-  const feedback = "reviewEventId" in source ? await blogFeedback(db, source.reviewEventId) : await derivativeFeedback(db, source.derivativeId);
+  const feedback =
+    "reviewEventId" in source
+      ? await blogFeedback(db, source.reviewEventId)
+      : "derivativeId" in source
+        ? await derivativeFeedback(db, source.derivativeId)
+        : await planFeedbackOf(db, source.planFeedbackId);
   if (!feedback) return 0;
-  const sourceColumn = "reviewEventId" in source ? eq(ruleCandidates.reviewEventId, source.reviewEventId) : eq(ruleCandidates.derivativeId, source.derivativeId);
+  const sourceColumn =
+    "reviewEventId" in source
+      ? eq(ruleCandidates.reviewEventId, source.reviewEventId)
+      : "derivativeId" in source
+        ? eq(ruleCandidates.derivativeId, source.derivativeId)
+        : eq(ruleCandidates.planFeedbackId, source.planFeedbackId);
   const [existing] = await db.select({ id: ruleCandidates.id }).from(ruleCandidates).where(sourceColumn).limit(1);
   if (existing) return 0;
-  const [post] = await db.select().from(posts).where(eq(posts.id, feedback.postId));
-  if (!post) return 0;
-  const pack = await loadPack(post.projectId, db);
+  const [post] = feedback.postId ? await db.select().from(posts).where(eq(posts.id, feedback.postId)) : [];
+  const pack = await loadPack(feedback.projectId, db);
   const { writerModel } = await getModelSettings(db);
 
   const { value, call } = await new AiClient(db, deps.transport).parsed(
@@ -141,8 +175,8 @@ export async function proposeCandidates(source: CandidateSource, deps: LearnDeps
       pack: pack.text,
       instructions: learnPrompt.INSTRUCTIONS,
       user: learnPrompt.learnUserMessage({ ...feedback.input, channelRules: allChannelRules(pack) }),
-      batchId: post.batchId,
-      postId: post.id,
+      batchId: post?.batchId ?? null,
+      postId: post?.id ?? null,
       keepUnreadable: true,
     },
     learnPrompt.LearnReply,
@@ -150,6 +184,7 @@ export async function proposeCandidates(source: CandidateSource, deps: LearnDeps
 
   // Backlog 21: the same text for the same place, already waiting in Settings, is not added again.
   const pending = await pendingCandidateKeys(db);
+  const owner = await projectOwner(db, feedback.projectId);
   const rows = [];
   // Backlog 24: every candidate the reply held but the run did not store, with the reason, kept on the call.
   const dropped: NonNullable<UnstoredReply["dropped"]> = value.candidates.slice(learnPrompt.MAX_CANDIDATES).map((candidate) => ({ candidate, reason: DROP_REASONS.overLimit }));
@@ -164,15 +199,19 @@ export async function proposeCandidates(source: CandidateSource, deps: LearnDeps
       continue;
     }
     const kind = candidate.kind === "fact" && learnPrompt.FACT_SECTIONS.includes(candidate.section) ? "fact" : "rule";
-    const key = await candidateKey(db, post.id, candidate.tier, candidate.section, text);
+    const key = await candidateKey(db, owner, candidate.tier, candidate.section, text);
     if (pending.has(key)) {
       dropped.push({ candidate, reason: DROP_REASONS.waiting, matched: pending.get(key) });
       continue;
     }
     pending.set(key, "this run");
     rows.push({
-      ...("reviewEventId" in source ? { reviewEventId: source.reviewEventId } : { derivativeId: source.derivativeId }),
-      postId: post.id,
+      ...("reviewEventId" in source
+        ? { reviewEventId: source.reviewEventId }
+        : "derivativeId" in source
+          ? { derivativeId: source.derivativeId }
+          : { planFeedbackId: source.planFeedbackId }),
+      postId: post?.id ?? null,
       kind: kind as "rule" | "fact",
       tier: candidate.tier,
       section: candidate.section,

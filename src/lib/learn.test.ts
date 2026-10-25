@@ -122,7 +122,7 @@ describe("candidate pieces (pure)", () => {
     expect(learnPrompt.INSTRUCTIONS).toContain("would it still be right for a different post on a different topic?");
     expect(learnPrompt.INSTRUCTIONS).toContain('"Lead with the drainage point" is about this post\'s topic: nothing.');
     expect(learnPrompt.INSTRUCTIONS).not.toMatch(/[–—]/);
-    expect(learnPrompt.PROMPT_VERSION).toBe("learn-1");
+    expect(learnPrompt.PROMPT_VERSION).toBe("learn-2");
   });
 
   it("says where each candidate came from in Amir's words (γ7 handoff item 5)", () => {
@@ -205,7 +205,7 @@ describe.skipIf(!testDatabaseUrl)("candidates from every source (local Postgres)
       ["fact", "client:business_facts", "all"],
     ]);
     const [call] = await db.select().from(aiCalls);
-    expect(call).toMatchObject({ purpose: "rules", requestedModel: "claude-opus-5-5", effort: "medium", promptVersion: "learn-1" });
+    expect(call).toMatchObject({ purpose: "rules", requestedModel: "claude-opus-5-5", effort: "medium", promptVersion: "learn-2" });
     expect(call.costUsd).toBeCloseTo((600 * 4 + 300 * 20 + 3000 * 5) / 1_000_000, 6);
   });
 

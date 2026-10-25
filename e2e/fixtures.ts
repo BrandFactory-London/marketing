@@ -36,6 +36,11 @@ export async function resetDomain() {
     "post_drafts",
     "post_generations",
     "post_specs",
+    // Phase 2 A3: the plan refers to posts, runs and its AI calls.
+    "plan_feedback",
+    "plan_items",
+    "plan_drafts",
+    "plan_shares",
     "ai_calls",
     // Phase 2 A1: derived slots refer to posts and runs.
     "derived_slots",
@@ -43,6 +48,7 @@ export async function resetDomain() {
     "runs",
     "batches",
     "project_pillars",
+    "project_categories",
     "site_pages",
     "knowledge_versions",
     "project_wix",

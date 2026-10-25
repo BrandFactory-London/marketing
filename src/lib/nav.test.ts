@@ -45,6 +45,7 @@ describe("project tabs", () => {
   });
 
   it("builds each tab's link from the project id", () => {
-    expect(projectTabs("abc")[3]).toEqual({ label: "Knowledge", href: "/projects/abc/knowledge" });
+    expect(projectTabs("abc")[3]).toEqual({ label: "Knowledge", href: "/projects/abc/knowledge", badge: null });
+    expect(projectTabs("abc", 3)[1].badge).toBe("3 new from the client");
   });
 });

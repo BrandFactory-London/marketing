@@ -29,6 +29,11 @@ export async function resetDomainTables(db: Database): Promise<void> {
   await db.execute(sql`delete from post_drafts`);
   await db.execute(sql`delete from post_generations`);
   await db.execute(sql`delete from post_specs`);
+  // Phase 2 A3: the plan refers to posts, runs and its AI calls.
+  await db.execute(sql`delete from plan_feedback`);
+  await db.execute(sql`delete from plan_items`);
+  await db.execute(sql`delete from plan_drafts`);
+  await db.execute(sql`delete from plan_shares`);
   await db.execute(sql`delete from ai_calls`);
   // Derived slots refer to their SEO posts and their run (Phase 2 A1).
   await db.execute(sql`delete from derived_slots`);
@@ -36,6 +41,7 @@ export async function resetDomainTables(db: Database): Promise<void> {
   await db.execute(sql`delete from runs`);
   await db.execute(sql`delete from batches`);
   await db.execute(sql`delete from project_pillars`);
+  await db.execute(sql`delete from project_categories`);
   await db.execute(sql`delete from site_pages`);
   await db.execute(sql`delete from knowledge_versions`);
   await db.execute(sql`delete from project_wix`);

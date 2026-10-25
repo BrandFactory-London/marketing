@@ -13,10 +13,12 @@ import { getProject } from "@/lib/projects";
 import { requireUser } from "@/lib/session";
 import { getWixSettings } from "@/lib/wix-credentials";
 import {
+  addCategoryAction,
   addPillarAction,
   checkWixAction,
   chooseWixMemberAction,
   loadWixMembersAction,
+  removeCategoryAction,
   removeDriveFolderAction,
   removePillarAction,
   removeWixCredentialsAction,
@@ -26,6 +28,9 @@ import {
 } from "./actions";
 import { DriveFolderForm } from "./DriveFolderForm";
 import { PillarsForm } from "./PillarsForm";
+import { CategoriesForm } from "./CategoriesForm";
+import { listCategories } from "@/lib/categories";
+import { OTHER_CATEGORY } from "@/config/run-status";
 import { ProjectSettingsForm } from "./ProjectSettingsForm";
 import { WixForm } from "./WixForm";
 
@@ -45,7 +50,7 @@ async function DetailsContent({ params, searchParams }: Pick<PageProps<"/project
   await requireUser();
   const { projectId } = await params;
   const { version } = await searchParams;
-  const [project, clients, pillars, wix] = await Promise.all([getProject(projectId), listClients(), listPillars(projectId), getWixSettings(projectId)]);
+  const [project, clients, pillars, categories, wix] = await Promise.all([getProject(projectId), listClients(), listPillars(projectId), listCategories(projectId), getWixSettings(projectId)]);
   if (!project) notFound();
   const client = await getCurrentKnowledge({ tier: "client", clientId: project.clientId });
   const voice = client?.sections.voice?.trim();
@@ -85,6 +90,12 @@ async function DetailsContent({ params, searchParams }: Pick<PageProps<"/project
         pillars={pillars.map(({ id, label, slug }) => ({ id, label, slug }))}
         action={addPillarAction.bind(null, project.id)}
         removeAction={removePillarAction.bind(null, project.id)}
+      />
+      <CategoriesForm
+        categories={categories.map(({ id, label }) => ({ id, label }))}
+        other={OTHER_CATEGORY}
+        action={addCategoryAction.bind(null, project.id)}
+        removeAction={removeCategoryAction.bind(null, project.id)}
       />
       <DriveFolderForm
         current={

@@ -20,6 +20,7 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
 }
 
 export const config = {
-  // Everything except the sign-in page, the auth API, the cron route (it checks CRON_SECRET itself) and static files.
-  matcher: ["/((?!signin|api/auth|api/cron|_next/static|_next/image|favicon\\.ico).*)"],
+  // Everything except the sign-in page, the client's plan link (Phase 2 A3: it checks its own token), the auth API, the
+  // cron route (it checks CRON_SECRET itself) and static files.
+  matcher: ["/((?!signin|plan/|api/auth|api/cron|_next/static|_next/image|favicon\\.ico).*)"],
 };

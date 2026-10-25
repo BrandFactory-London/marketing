@@ -204,6 +204,8 @@ export const posts = pgTable(
     // γ6: set when the live check confirms the post on the client's site (decision 19).
     publishedAt: timestamp("published_at", { mode: "date", withTimezone: true }),
     liveUrl: text("live_url"),
+    // Phase 2 A3: the approved plan's excerpt for this post; A4's auto spec reads it.
+    plannedExcerpt: text("planned_excerpt"),
     // γ8: the hash of the calendar event last sent for this post, when, and the last error (γ8 orientation Q2).
     calendarHash: text("calendar_hash"),
     calendarSyncedAt: timestamp("calendar_synced_at", { mode: "date", withTimezone: true }),
@@ -411,7 +413,7 @@ export const criticVerdicts = pgTable(
 // Backlog 24: the candidates a run dropped, with the reason for each, or the raw reply it could not read.
 export type UnstoredReply = { dropped?: { candidate: unknown; reason: string; matched?: string }[]; raw?: string };
 
-export type AiCallPurpose = "spec" | "writer" | "critic" | "check" | "rules" | "derivative" | "facts";
+export type AiCallPurpose = "spec" | "writer" | "critic" | "check" | "rules" | "derivative" | "facts" | "plan";
 
 // Every Anthropic API call: who asked, which model answered, tokens and cost (Q7). Failed calls are
 // recorded too, with their error.
@@ -442,7 +444,7 @@ export const aiCalls = pgTable(
   (table) => [
     index("ai_calls_post_id_idx").on(table.postId),
     index("ai_calls_batch_id_idx").on(table.batchId),
-    check("ai_calls_purpose_check", sql`${table.purpose} in ('spec', 'writer', 'critic', 'check', 'rules', 'derivative', 'facts')`),
+    check("ai_calls_purpose_check", sql`${table.purpose} in ('spec', 'writer', 'critic', 'check', 'rules', 'derivative', 'facts', 'plan')`),
   ],
 );
 
@@ -506,12 +508,13 @@ export const ruleCandidates = pgTable(
   "rule_candidates",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    // Where it came from: a review event on the blog post, or (γ7) a derivative version's note or edit. Exactly one.
+    // Where it came from: a review event on the blog post, (γ7) a derivative version's note or edit, or (Phase 2 A3) a
+    // note on a plan or a client's comment on it. Exactly one.
     reviewEventId: uuid("review_event_id").references(() => reviewEvents.id, { onDelete: "restrict" }),
     derivativeId: uuid("derivative_id").references((): AnyPgColumn => derivatives.id, { onDelete: "restrict" }),
-    postId: uuid("post_id")
-      .notNull()
-      .references(() => posts.id, { onDelete: "restrict" }),
+    planFeedbackId: uuid("plan_feedback_id").references((): AnyPgColumn => planFeedback.id, { onDelete: "restrict" }),
+    // The post it is about. A note on a whole plan is about no single post (A3).
+    postId: uuid("post_id").references(() => posts.id, { onDelete: "restrict" }),
     tier: text("tier").$type<KnowledgeTier>().notNull(),
     section: text("section").notNull(),
     text: text("text").notNull(),
@@ -534,7 +537,10 @@ export const ruleCandidates = pgTable(
     check("rule_candidates_status_check", sql`${table.status} in ('proposed', 'accepted', 'dismissed')`),
     check("rule_candidates_kind_check", sql`${table.kind} in ('rule', 'fact')`),
     check("rule_candidates_scope_check", sql`${table.scope} in ('all', 'blog', 'gmb', 'linkedin', 'facebook', 'pinterest')`),
-    check("rule_candidates_source_check", sql`(${table.reviewEventId} is null) <> (${table.derivativeId} is null)`),
+    check(
+      "rule_candidates_source_check",
+      sql`(case when ${table.reviewEventId} is null then 0 else 1 end) + (case when ${table.derivativeId} is null then 0 else 1 end) + (case when ${table.planFeedbackId} is null then 0 else 1 end) = 1`,
+    ),
   ],
 );
 
@@ -694,6 +700,8 @@ export const runs = pgTable(
     criticModel: text("critic_model").notNull().default(DEFAULT_MODEL),
     planApprovedAt: timestamp("plan_approved_at", { mode: "date", withTimezone: true }),
     clientApprovedAt: timestamp("client_approved_at", { mode: "date", withTimezone: true }),
+    // A3: the name the client gave when approving the plan through the link.
+    clientApprovedBy: text("client_approved_by"),
     activatedAt: timestamp("activated_at", { mode: "date", withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -755,3 +763,136 @@ export const derivedSlots = pgTable(
     check("derived_slots_type_check", sql`${table.contentType} in ('gmb', 'linkedin', 'facebook', 'pinterest')`),
   ],
 );
+
+// ---- Phase 2 A3: categories, the planner and the client link ----
+
+// A project's topic categories (orientation amendment, Q5), like its pillars. "Other" is every project's last
+// category and is never stored (src/config/plan.ts). Session B's gap grid reads the same list.
+export const projectCategories = pgTable(
+  "project_categories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "restrict" }),
+    label: text("label").notNull(),
+    position: integer("position").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (table) => [uniqueIndex("project_categories_project_label_unique").on(table.projectId, sql`lower(${table.label})`)],
+);
+
+export type PlanDraftScope = "plan" | "item";
+export type PlanDraftStatus = "drafting" | "done" | "failed";
+
+// One planner call: the whole plan, or one item again (orientation Q5). Its items point back to it.
+export const planDrafts = pgTable(
+  "plan_drafts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => runs.id, { onDelete: "restrict" }),
+    scope: text("scope").$type<PlanDraftScope>().notNull(),
+    // For one item: the SEO post it is for.
+    postId: uuid("post_id").references(() => posts.id, { onDelete: "restrict" }),
+    note: text("note"),
+    status: text("status").$type<PlanDraftStatus>().notNull().default("drafting"),
+    error: text("error"),
+    triggerRunId: text("trigger_run_id"),
+    aiCallId: uuid("ai_call_id").references(() => aiCalls.id, { onDelete: "restrict" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("plan_drafts_run_id_idx").on(table.runId),
+    check("plan_drafts_scope_check", sql`${table.scope} in ('plan', 'item')`),
+    check("plan_drafts_status_check", sql`${table.status} in ('drafting', 'done', 'failed')`),
+    check("plan_drafts_item_check", sql`(${table.scope} = 'item') = (${table.postId} is not null)`),
+  ],
+);
+
+export type PlanItemStatus = "proposed" | "approved" | "replaced";
+
+// A planned SEO post: title, excerpt, pillar, category and why (orientation Q5). Old versions stay as replaced.
+export const planItems = pgTable(
+  "plan_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => runs.id, { onDelete: "restrict" }),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "restrict" }),
+    draftId: uuid("draft_id")
+      .notNull()
+      .references(() => planDrafts.id, { onDelete: "restrict" }),
+    version: integer("version").notNull(),
+    title: text("title").notNull(),
+    excerpt: text("excerpt").notNull(),
+    // A removed pillar leaves the item with none, as it does for posts.
+    pillarId: uuid("pillar_id").references(() => projectPillars.id, { onDelete: "set null" }),
+    category: text("category").notNull(),
+    reason: text("reason").notNull(),
+    // The covered title or page this one is close to, if any (orientation Q5).
+    closeTo: text("close_to"),
+    status: text("status").$type<PlanItemStatus>().notNull().default("proposed"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    unique("plan_items_post_version_unique").on(table.postId, table.version),
+    index("plan_items_run_id_idx").on(table.runId),
+    check("plan_items_status_check", sql`${table.status} in ('proposed', 'approved', 'replaced')`),
+    check("plan_items_version_check", sql`${table.version} >= 1`),
+  ],
+);
+
+// A private, read-only link to a run's plan for the client (orientation Q6). Only the token's SHA-256 is stored.
+export const planShares = pgTable(
+  "plan_shares",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => runs.id, { onDelete: "restrict" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { mode: "date", withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { mode: "date", withTimezone: true }),
+    lastViewedAt: timestamp("last_viewed_at", { mode: "date", withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (table) => [unique("plan_shares_token_hash_unique").on(table.tokenHash), index("plan_shares_run_id_idx").on(table.runId)],
+);
+
+export type PlanFeedbackKind = "comment" | "suggest" | "approve" | "note";
+
+// What was said about a plan: the client's comments, suggestions and approval through a link, and Amir's own notes
+// when he regenerates an item or the plan (kind "note", no link). Bodies are plain text, never rendered as HTML.
+export const planFeedback = pgTable(
+  "plan_feedback",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => runs.id, { onDelete: "restrict" }),
+    shareId: uuid("share_id").references(() => planShares.id, { onDelete: "restrict" }),
+    // The item it is about; none for the whole plan.
+    planItemId: uuid("plan_item_id").references(() => planItems.id, { onDelete: "restrict" }),
+    postId: uuid("post_id").references(() => posts.id, { onDelete: "restrict" }),
+    kind: text("kind").$type<PlanFeedbackKind>().notNull(),
+    name: text("name").notNull(),
+    body: text("body"),
+    ipHash: text("ip_hash"),
+    seenAt: timestamp("seen_at", { mode: "date", withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("plan_feedback_run_id_idx").on(table.runId),
+    index("plan_feedback_share_id_idx").on(table.shareId),
+    check("plan_feedback_kind_check", sql`${table.kind} in ('comment', 'suggest', 'approve', 'note')`),
+    check("plan_feedback_body_check", sql`${table.body} is null or length(${table.body}) <= 2000`),
+    check("plan_feedback_source_check", sql`(${table.kind} = 'note') = (${table.shareId} is null)`),
+  ],
+);
+
