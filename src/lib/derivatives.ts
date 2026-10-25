@@ -1,6 +1,6 @@
 import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { getDb, type Database } from "@/db/client";
-import { derivatives, posts, projects } from "@/db/schema";
+import { derivatives, derivedSlots, posts, projects } from "@/db/schema";
 import * as derivativePrompt from "@/prompts/derivative";
 import { AiClient, type Transport } from "./ai/client";
 import { channelRules, loadPack, withChannelRules } from "./ai/pack";
@@ -102,6 +102,19 @@ export async function queueMissingDerivatives(postId: string, db: Database = get
   if (missing.length === 0) throw new DerivativeError("Every channel has a version already.");
   const queued = [];
   for (const channel of missing) queued.push({ channel, id: await queueDerivative(postId, channel, null, db) });
+  return queued;
+}
+
+// Phase 2 A4 (orientation Q7): when an SEO post is approved, each channel the run gave it a derived slot for, and that
+// has no version yet, is written in real time. Posts outside a run's plan have no derived slots, so nothing changes.
+export async function queueDerivedSlots(postId: string, db: Database = getDb()): Promise<{ channel: DerivativeChannel; id: string }[]> {
+  const slots = await db.select({ channel: derivedSlots.contentType }).from(derivedSlots).where(eq(derivedSlots.parentPostId, postId));
+  if (slots.length === 0) return [];
+  const rows = await db.select({ channel: derivatives.channel }).from(derivatives).where(eq(derivatives.postId, postId));
+  const queued = [];
+  for (const channel of DERIVATIVE_CHANNELS.filter((item) => slots.some((slot) => slot.channel === item) && !rows.some((row) => row.channel === item))) {
+    queued.push({ channel, id: await queueDerivative(postId, channel, null, db) });
+  }
   return queued;
 }
 

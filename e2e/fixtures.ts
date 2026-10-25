@@ -44,9 +44,12 @@ export async function resetDomain() {
     "ai_calls",
     // Phase 2 A1: derived slots refer to posts and runs.
     "derived_slots",
+    // Phase 2 A4: rounds of a fortnight's generation refer to batches and runs.
+    "generation_batches",
     "posts",
-    "runs",
     "batches",
+    // Batches refer to runs (Phase 2 A4).
+    "runs",
     "project_pillars",
     "project_categories",
     "site_pages",

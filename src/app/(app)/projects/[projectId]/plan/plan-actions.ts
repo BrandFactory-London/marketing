@@ -2,7 +2,10 @@
 
 import { refresh } from "next/cache";
 import { syncCalendarAfter } from "@/lib/calendar-hooks";
-import { startCandidates, startPlanDraft } from "@/lib/jobs";
+import { GenerationError, prepareGenerateNow, startFortnight } from "@/lib/batch-generation";
+import { markSpecNotStarted } from "@/lib/batches";
+import { londonToday } from "@/lib/dates";
+import { startBatchRound, startCandidates, startGenerateNow, startPlanDraft } from "@/lib/jobs";
 import { createShare, revokeShares, ShareError } from "@/lib/plan-share";
 import { activateRun, approvePlan, failPlanDraft, PlanError, requestItem, requestPlan, setPlanDraftRun, type PlanRequest } from "@/lib/planner";
 import { requireUser } from "@/lib/session";
@@ -80,12 +83,39 @@ export async function approvePlanAction(runId: string): Promise<PlanActionState>
 export async function activateRunAction(runId: string): Promise<PlanActionState> {
   await requireUser();
   try {
-    await activateRun(runId);
+    const run = await activateRun(runId);
+    // The first fortnight is generated straight away (orientation Q7).
+    const result = run.autoGenerate ? await generateFortnight(runId) : { message: "Run active." };
     refresh();
-    return { message: "Run active." };
+    return result.error ? result : { message: `Run active. ${result.message}` };
   } catch (error) {
     return failure(error);
   }
+}
+
+// "Generate the next fortnight now": today becomes the run's generation day, in the half-price batch.
+export async function generateFortnightAction(runId: string): Promise<PlanActionState> {
+  await requireUser();
+  try {
+    const result = await generateFortnight(runId);
+    refresh();
+    return result;
+  } catch (error) {
+    if (error instanceof GenerationError) return { error: error.message };
+    throw error;
+  }
+}
+
+async function generateFortnight(runId: string): Promise<PlanActionState> {
+  const { batchId, posts } = await startFortnight(runId, londonToday());
+  if (!batchId) return { message: "No planned posts fall in the next four weeks." };
+  try {
+    await startBatchRound(batchId);
+  } catch (error) {
+    console.error("Could not start batch-round:", error);
+    return { error: `${posts} ${posts === 1 ? "post is" : "posts are"} ready to generate, but Trigger.dev could not be reached. They start at the next 06:00 run.` };
+  }
+  return { message: `Generating ${posts} ${posts === 1 ? "post" : "posts"} in the half-price batch.` };
 }
 
 export async function shareAction(runId: string, origin: string): Promise<PlanActionState> {
@@ -105,3 +135,27 @@ export async function revokeShareAction(runId: string): Promise<PlanActionState>
   refresh();
   return { message: "Link turned off." };
 }
+
+// Generate now on one planned post (orientation Q7): real time, full price, straight away.
+export async function generateNowAction(postId: string): Promise<PlanActionState> {
+  await requireUser();
+  syncCalendarAfter("action");
+  let specId: string;
+  try {
+    specId = await prepareGenerateNow(postId);
+  } catch (error) {
+    if (error instanceof GenerationError) return { error: error.message };
+    throw error;
+  }
+  try {
+    await startGenerateNow(specId);
+  } catch (error) {
+    console.error("Could not start generate-now:", error);
+    await markSpecNotStarted(specId, "Trigger.dev could not be reached, so writing did not start.");
+    refresh();
+    return { error: "Trigger.dev could not be reached, so writing did not start." };
+  }
+  refresh();
+  return { message: "Writing now, at full price." };
+}
+

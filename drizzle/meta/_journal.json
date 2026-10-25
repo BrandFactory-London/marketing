@@ -71,6 +71,13 @@
       "when": 1792962804615,
       "tag": "0009_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792963977336,
+      "tag": "0010_batch_generation",
+      "breakpoints": true
     }
   ]
 }

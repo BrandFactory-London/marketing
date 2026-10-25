@@ -6,7 +6,7 @@ import * as plannerPrompt from "@/prompts/planner";
 import { AiClient, ModelOutputError, type Transport } from "./ai/client";
 import { channelRules, loadPack, withChannelRules } from "./ai/pack";
 import { categoryLabels } from "./categories";
-import { longDate } from "./dates";
+import { londonToday, longDate } from "./dates";
 import { failureMessage } from "./generation";
 import { closeTo } from "./plan-overlap";
 import { listSitePages } from "./sitemap";
@@ -279,12 +279,17 @@ export async function approvePlan(runId: string, db: Database = getDb()): Promis
   });
 }
 
-// Activate run (orientation smaller decisions): needs an approved plan, never the client's approval.
-export async function activateRun(runId: string, db: Database = getDb()): Promise<Run> {
+// Activate run (orientation smaller decisions): needs an approved plan, never the client's approval. From A4 the run is
+// generated on its schedule, starting today (orientation Q7).
+export async function activateRun(runId: string, db: Database = getDb(), options: { today?: string } = {}): Promise<Run> {
   const run = await getRunRow(db, runId);
   if (run.status === "active") throw new PlanError("This run is already active.");
   if (run.status !== "plan_approved") throw new PlanError("Approve the plan first.");
-  const [row] = await db.update(runs).set({ status: "active", activatedAt: sql`now()`, updatedAt: sql`now()` }).where(and(eq(runs.id, runId), eq(runs.status, "plan_approved"))).returning();
+  const [row] = await db
+    .update(runs)
+    .set({ status: "active", activatedAt: sql`now()`, autoGenerate: !run.imported, nextGenerationOn: run.imported ? null : (options.today ?? londonToday()), updatedAt: sql`now()` })
+    .where(and(eq(runs.id, runId), eq(runs.status, "plan_approved")))
+    .returning();
   if (!row) throw new PlanError("Approve the plan first.");
   return row;
 }

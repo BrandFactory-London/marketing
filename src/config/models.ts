@@ -25,9 +25,12 @@ export function modelLabel(id: string): string {
 
 export type TokenUsage = { inputTokens: number; outputTokens: number; cacheWriteTokens: number; cacheReadTokens: number };
 
+// Message Batches bill every token at half the list price (Phase 2 A4, orientation Q7).
+export const BATCH_DISCOUNT = 0.5;
+
 // The cost of one call. Anthropic reports cached input separately from input_tokens, so each part is priced
 // on its own. An unknown model costs nothing rather than guessing; the call record keeps its tokens.
-export function callCost(model: string, usage: TokenUsage): number {
+export function callCost(model: string, usage: TokenUsage, options: { batch?: boolean } = {}): number {
   const entry = MODELS.find((item) => item.id === model);
   if (!entry) return 0;
   const { price } = entry;
@@ -37,5 +40,5 @@ export function callCost(model: string, usage: TokenUsage): number {
       usage.cacheWriteTokens * price.cacheWrite +
       usage.cacheReadTokens * price.cacheRead) /
     1_000_000;
-  return Math.round(dollars * 1_000_000) / 1_000_000;
+  return Math.round(dollars * (options.batch ? BATCH_DISCOUNT : 1) * 1_000_000) / 1_000_000;
 }

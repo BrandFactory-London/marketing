@@ -12,7 +12,9 @@ import { CONTENT_TYPES, CONTENT_TYPE_KEYS } from "@/config/content-types";
 import { MODELS } from "@/config/models";
 import { isMissed, PRE_WRITING_STATUSES } from "@/config/post-status";
 import { presetLabel, RUN_MONTHS, type RunPresetKey } from "@/config/run-presets";
-import { derivedSlotLine, OUTSIDE_RUN, PLAN_LINES, runStatusInfo } from "@/config/run-status";
+import { derivedSlotLine, GENERATION_LINES, generatesOnLabel, nextGenerationLine, OUTSIDE_RUN, PLAN_LINES, runStatusInfo } from "@/config/run-status";
+import { batchesInFlight } from "@/lib/batch-generation";
+import { generatesOn } from "@/lib/fortnight";
 import { runEnd } from "@/lib/cadence";
 import { syncCalendarAfter } from "@/lib/calendar-hooks";
 import { londonToday, longDate, monthOf } from "@/lib/dates";
@@ -24,7 +26,7 @@ import { formatDate } from "@/lib/format";
 import { clientFeedback, markSeen, shareState, type ClientFeedback } from "@/lib/plan-share";
 import { planView, type PlanView } from "@/lib/planner";
 import { saveRunAction } from "./actions";
-import { activateRunAction, approvePlanAction, planRunAction, regenerateItemAction, revokeShareAction, shareAction } from "./plan-actions";
+import { activateRunAction, approvePlanAction, generateFortnightAction, generateNowAction, planRunAction, regenerateItemAction, revokeShareAction, shareAction } from "./plan-actions";
 import { PlanButton, PlanRunForm, RefreshWhileDrafting, RegenerateItem, ShareControls } from "./PlanControls";
 import { DeleteRunButton, DerivedMoveForm, RunFormToggle } from "./RunControls";
 import type { RunFormValues } from "./RunForm";
@@ -86,6 +88,11 @@ async function PlanContent({ params, searchParams }: Pick<PageProps<"/projects/[
   const [plan, share, feedback] = planned
     ? await Promise.all([planView(run.id), shareState(run.id), clientFeedback(run.id)])
     : [null, null, [] as ClientFeedback[]];
+  // Generation state (Phase 2 A4): when each planned post is written, and which are with Anthropic now.
+  const generating = run?.status === "active" && run.autoGenerate;
+  const inFlight = await batchesInFlight([...new Set(slots.map(({ post }) => post.batchId).filter((id): id is string => Boolean(id)))]);
+  const waiting = slots.filter(({ post }) => post.status === "topic_set" && !post.batchId && post.slotDate >= today);
+  const nextCount = generating && run.nextGenerationOn ? waiting.filter(({ post }) => generatesOn(post.slotDate, run.nextGenerationOn, today) === generatesOn(today, run.nextGenerationOn, today)).length : 0;
   // Opening the tab is reading what the client sent, so the tab's badge clears.
   if (planned && feedback.some((item) => !item.seenAt)) await markSeen(run.id);
 
@@ -136,6 +143,14 @@ async function PlanContent({ params, searchParams }: Pick<PageProps<"/projects/[
               {run.status === "setting_up" ? <DeleteRunButton runId={run.id} name={run.name} /> : null}
             </div>
           ) : null}
+          {generating && run.nextGenerationOn ? (
+            <div className="app-run-actions">
+              <p className="small" style={{ margin: 0 }}>
+                {nextGenerationLine(generatesOn(today, run.nextGenerationOn, today)!, nextCount, longDate)}
+              </p>
+              {waiting.length ? <PlanButton action={generateFortnightAction.bind(null, run.id)} label="Generate the next fortnight now" pendingLabel="Starting" variant="secondary" /> : null}
+            </div>
+          ) : null}
           {planned && plan && share && run.endsOn >= today ? <PlanPanel run={run} plan={plan} share={share} feedback={feedback} /> : null}
 
           {shown.length === 0 ? (
@@ -151,7 +166,17 @@ async function PlanContent({ params, searchParams }: Pick<PageProps<"/projects/[
                       {post.topic ?? "No topic yet"}
                     </span>
                     <SlotStatus slot={post} today={today} />
+                    {post.batchId && inFlight.has(post.batchId) ? <Badge tone={GENERATION_LINES.inBatch.tone}>{GENERATION_LINES.inBatch.label}</Badge> : null}
+                    {generating && post.status === "topic_set" && !post.batchId && post.slotDate >= today ? (
+                      <Badge tone="neutral">{generatesOnLabel(generatesOn(post.slotDate, run.nextGenerationOn, today)!, longDate)}</Badge>
+                    ) : null}
                   </div>
+                  {run.status === "active" && post.runId && post.status === "topic_set" && !post.batchId && post.slotDate >= today ? (
+                    <div className="app-run-actions">
+                      <PlanButton action={generateNowAction.bind(null, post.id)} label="Generate now" pendingLabel="Starting" variant="secondary" />
+                      <span className="small app-muted">Full price, starts at once.</span>
+                    </div>
+                  ) : null}
                   <details className="app-plan-edit">
                     <summary className="small">
                       {post.topic ? "Change topic or date" : "Set topic or date"}
@@ -291,6 +316,8 @@ async function PlanContent({ params, searchParams }: Pick<PageProps<"/projects/[
 function PlanPanel({ run, plan, share, feedback }: { run: Run; plan: PlanView; share: Awaited<ReturnType<typeof shareState>>; feedback: ClientFeedback[] }) {
   const hasItems = plan.items.size > 0;
   const whole = feedback.filter((entry) => !entry.postId);
+  // An active run with no plan and no link has nothing left to do here.
+  if (run.status === "active" && !hasItems && !share.expiresAt && whole.length === 0) return null;
   return (
     <div className="app-plan-panel">
       <RefreshWhileDrafting active={plan.drafting} />

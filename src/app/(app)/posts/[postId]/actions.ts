@@ -5,8 +5,9 @@ import type { CheckResult } from "@/lib/checks";
 import { closeStalledGeneration, markNotStarted } from "@/lib/batches";
 import { startCandidates, startDerivative, startGeneration, startLiveCheck } from "@/lib/jobs";
 import { latestRegenerateEvent } from "@/lib/learn";
-import { copyDerivative, DerivativeError, failDerivative, isChannel, queueDerivative, queueMissingDerivatives, saveDerivativeEdit, setDerivativeRun } from "@/lib/derivatives";
-import type { DerivativeText } from "@/lib/derivative-checks";
+import { copyDerivative, DerivativeError, failDerivative, isChannel, queueDerivative, queueDerivedSlots,
+  queueMissingDerivatives, saveDerivativeEdit, setDerivativeRun } from "@/lib/derivatives";
+import { CHANNELS, type DerivativeText } from "@/lib/derivative-checks";
 import { publishPost, PublishError, restartLiveCheck } from "@/lib/publish";
 import { PUBLISH_STEP_LABELS } from "@/lib/publish-steps";
 import { approvePost, parsePostText, queueRegeneration, rejectPost, reopenPost, ReviewError, savePublishingDetails, saveVersion } from "@/lib/review";
@@ -53,6 +54,15 @@ export async function approveAction(postId: string, input: TextInput): Promise<R
     message = (await learnFrom({ reviewEventId: approved.reviewEventId }))
       ? "Post approved. Suggestions from your edits will appear in Settings, BrandFactory rules."
       : "Post approved. Suggestions from your edits could not be started, because Trigger.dev could not be reached.";
+  }
+  // Phase 2 A4: the run's derived posts for it are written now, in real time (orientation Q7).
+  try {
+    const queued = await queueDerivedSlots(postId);
+    const started = await Promise.all(queued.map((row) => startDerivativeRun(row.id)));
+    if (queued.length) message += started.every(Boolean) ? ` Writing ${queued.map((row) => CHANNELS[row.channel].label).join(", ")}.` : ` ${RUN_NOT_REACHED}`;
+  } catch (error) {
+    if (!(error instanceof DerivativeError)) throw error;
+    message += ` ${error.message}`;
   }
   refresh();
   return { ok: true, message };

@@ -268,6 +268,8 @@ export const batches = pgTable(
     writerModel: text("writer_model").notNull(),
     criticModel: text("critic_model").notNull(),
     derivativeModel: text("derivative_model").notNull(),
+    // Phase 2 A4: the run a fortnight's batch was made for. Hand-made batches have none.
+    runId: uuid("run_id").references((): AnyPgColumn => runs.id, { onDelete: "restrict" }),
     createdAt: createdAt(),
   },
   (table) => [
@@ -311,6 +313,8 @@ export const postSpecs = pgTable(
     clientVersionId: uuid("client_version_id").references(() => knowledgeVersions.id, { onDelete: "restrict" }),
     projectVersionId: uuid("project_version_id").references(() => knowledgeVersions.id, { onDelete: "restrict" }),
     aiCallId: uuid("ai_call_id").references((): AnyPgColumn => aiCalls.id, { onDelete: "restrict" }),
+    // Phase 2 A4: drafted from the approved plan and confirmed with no step from Amir (orientation Q7).
+    auto: boolean("auto").notNull().default(false),
     createdAt: createdAt(),
     confirmedAt: timestamp("confirmed_at", { mode: "date", withTimezone: true }),
   },
@@ -439,6 +443,8 @@ export const aiCalls = pgTable(
     error: text("error"),
     // γ8, backlog 24: what a candidate run got back but could not store, and why.
     unstored: jsonb("unstored").$type<UnstoredReply>(),
+    // Phase 2 A4: made through the Message Batches API, so priced at half (orientation Q7).
+    batch: boolean("batch").notNull().default(false),
     createdAt: createdAt(),
   },
   (table) => [
@@ -702,6 +708,9 @@ export const runs = pgTable(
     clientApprovedAt: timestamp("client_approved_at", { mode: "date", withTimezone: true }),
     // A3: the name the client gave when approving the plan through the link.
     clientApprovedBy: text("client_approved_by"),
+    // A4: whether the schedule generates this run's posts, and the next day it does (orientation Q7).
+    autoGenerate: boolean("auto_generate").notNull().default(false),
+    nextGenerationOn: date("next_generation_on", { mode: "string" }),
     activatedAt: timestamp("activated_at", { mode: "date", withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -893,6 +902,42 @@ export const planFeedback = pgTable(
     check("plan_feedback_kind_check", sql`${table.kind} in ('comment', 'suggest', 'approve', 'note')`),
     check("plan_feedback_body_check", sql`${table.body} is null or length(${table.body}) <= 2000`),
     check("plan_feedback_source_check", sql`(${table.kind} = 'note') = (${table.shareId} is null)`),
+  ],
+);
+
+// ---- Phase 2 A4: fortnightly generation through the Message Batches API ----
+
+// One request in a submitted round, so its result can be matched to the step it was for.
+// Its outcome is filled in when the round's results are saved.
+export type BatchRequestRef = { customId: string; kind: "spec" | "writer" | "critic"; id: string; round: number; attempt: number; outcome?: "ok" | "retry" | "failed" };
+export type GenerationBatchStatus = "submitted" | "ended" | "failed";
+
+// One round of a fortnight's generation: every post's next call, submitted as one Anthropic message batch (Q7).
+export const generationBatches = pgTable(
+  "generation_batches",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => runs.id, { onDelete: "restrict" }),
+    batchId: uuid("batch_id")
+      .notNull()
+      .references(() => batches.id, { onDelete: "restrict" }),
+    round: integer("round").notNull(),
+    anthropicBatchId: text("anthropic_batch_id"),
+    requestCount: integer("request_count").notNull(),
+    requests: jsonb("requests").$type<BatchRequestRef[]>().notNull(),
+    status: text("status").$type<GenerationBatchStatus>().notNull().default("submitted"),
+    error: text("error"),
+    submittedAt: timestamp("submitted_at", { mode: "date", withTimezone: true }),
+    endedAt: timestamp("ended_at", { mode: "date", withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    unique("generation_batches_anthropic_unique").on(table.anthropicBatchId),
+    unique("generation_batches_round_unique").on(table.batchId, table.round),
+    index("generation_batches_run_id_idx").on(table.runId),
+    check("generation_batches_status_check", sql`${table.status} in ('submitted', 'ended', 'failed')`),
   ],
 );
 

@@ -144,7 +144,7 @@ test("Amir sees the client's words with a badge on the tab, then approves the pl
   expect(topics[0]).toEqual({ topic: "Bathroom question 1", status: "topic_set", planned_excerpt: "What to know about bathroom question 1." });
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Activate run" }).click();
-  await expect(page.getByRole("button", { name: "Activate run" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Activat/ })).toHaveCount(0);
   await page.reload();
   await expect(page.locator(".app-run-head").first()).toContainText("Active");
   await expect(page.getByRole("navigation", { name: "Project sections" }).getByRole("link", { name: "Run plan", exact: true })).toBeVisible();

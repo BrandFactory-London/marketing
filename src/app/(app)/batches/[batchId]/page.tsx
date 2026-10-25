@@ -92,6 +92,7 @@ async function BatchContent({ params }: Pick<PageProps<"/batches/[batchId]">, "p
                 lengthMax: row.spec.lengthMax,
                 cta: row.spec.cta,
                 error: row.spec.error,
+                auto: row.spec.auto,
               }}
               editAction={editSpecAction.bind(null, row.spec.id)}
               redraftAction={redraftSpecAction.bind(null, row.spec.id)}

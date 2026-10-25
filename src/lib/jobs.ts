@@ -10,6 +10,8 @@ import type { draftSpec } from "@/trigger/draft-spec";
 import type { generatePost } from "@/trigger/generate-post";
 import type { proposeCandidatesTask } from "@/trigger/propose-candidates";
 import type { draftPlanTask } from "@/trigger/draft-plan";
+import type { batchRoundTask } from "@/trigger/batch-round";
+import type { generateNowTask } from "@/trigger/generate-now";
 import type { CandidateSource } from "@/lib/learn";
 
 // The app's only way into Trigger.dev (γ4 orientation Q1). It reads TRIGGER_SECRET_KEY, and TRIGGER_API_URL
@@ -47,6 +49,18 @@ export async function startCandidates(source: CandidateSource): Promise<string> 
 // A plan, or one item of it, from the planner (Phase 2 A3). One run per plan draft.
 export async function startPlanDraft(planDraftId: string): Promise<string> {
   const handle = await tasks.trigger<typeof draftPlanTask>("draft-plan", { planDraftId }, { idempotencyKey: `plan-${planDraftId}`, tags: [`plan_draft_${planDraftId}`] });
+  return handle.id;
+}
+
+// A fortnight's batch generation (Phase 2 A4). One run per batch.
+export async function startBatchRound(batchId: string): Promise<string> {
+  const handle = await tasks.trigger<typeof batchRoundTask>("batch-round", { batchId }, { idempotencyKey: `batch-round-${batchId}`, tags: [`batch_${batchId}`] });
+  return handle.id;
+}
+
+// Generate now on one post, real time at full price (Phase 2 A4). One run per spec.
+export async function startGenerateNow(specId: string): Promise<string> {
+  const handle = await tasks.trigger<typeof generateNowTask>("generate-now", { specId }, { idempotencyKey: `generate-now-${specId}`, tags: [`spec_${specId}`] });
   return handle.id;
 }
 
