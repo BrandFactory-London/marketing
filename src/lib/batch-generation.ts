@@ -113,6 +113,15 @@ export async function startFortnight(runId: string, today: string, db: Database 
   return { batchId: specIds.length ? batchId : null, posts: specIds.length };
 }
 
+// A batch for chosen posts of an active run, as a generation day makes one (the real run on Neon dev uses it for two).
+export async function startRunBatch(runId: string, postIds: readonly string[], name: string, db: Database = getDb()): Promise<{ batchId: string | null; posts: number }> {
+  const [run] = await db.select().from(runs).where(eq(runs.id, runId));
+  if (!run || run.status !== "active") throw new GenerationError("Only an active run is generated.");
+  const chosen = await db.select().from(posts).where(and(eq(posts.runId, runId), inArray(posts.id, [...postIds])));
+  const { batchId, specIds } = await batchFor(db, run, name, chosen);
+  return { batchId: specIds.length ? batchId : null, posts: specIds.length };
+}
+
 // Runs whose generation day has come (the morning schedule).
 export async function dueRuns(today: string, db: Database = getDb()) {
   return db

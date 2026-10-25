@@ -18,6 +18,10 @@
 //   ... scripts/real-run.ts plan <runId> ["<note>"]           (A3: Plan the run, or Regenerate the whole plan)
 //   ... scripts/real-run.ts plan-item <runId> <postId> "<note>" (A3: Regenerate post with a note)
 //   ... scripts/real-run.ts plan-report <runId>               (A3: the plan, the planner calls and their costs)
+//   ... scripts/real-run.ts activate <runId>                  (A4: Approve plan, then Activate run, without the first fortnight)
+//   ... scripts/real-run.ts batch-two <runId>                 (A4: the run's first two posts through the half-price batch)
+//   ... scripts/real-run.ts batch-report <batchId>            (A4: rounds, posts and every call with its cost)
+//   ... scripts/real-run.ts derived <postId>                  (A4: the run's derived posts for an approved post)
 //
 // It talks to Neon over the WebSocket driver, as scripts/migrate-lib.ts does (port 5432 is blocked from
 // Claude's cloud environment), and refuses any database but Neon dev.
@@ -36,8 +40,10 @@ import { acceptCandidate, listCandidates } from "@/lib/rules";
 import * as derivativePrompt from "@/prompts/derivative";
 import { setTopic } from "@/lib/slots";
 import { londonToday } from "@/lib/dates";
-import { startPlanDraft } from "@/lib/jobs";
-import { currentItems, requestItem, requestPlan, setPlanDraftRun } from "@/lib/planner";
+import { startBatchRound, startPlanDraft } from "@/lib/jobs";
+import { activateRun, approvePlan, currentItems, requestItem, requestPlan, setPlanDraftRun } from "@/lib/planner";
+import { startRunBatch } from "@/lib/batch-generation";
+import { queueDerivedSlots } from "@/lib/derivatives";
 import { parseRunInput, presetConfiguration } from "@/lib/run-config";
 import { createRun, listProjectRuns, suggestedStart } from "@/lib/runs";
 
@@ -267,6 +273,38 @@ async function planReport(runId: string) {
   }
 }
 
+// ---- Phase 2 A4: batch generation ----
+
+async function activate(runId: string) {
+  console.log(JSON.stringify({ approved: await approvePlan(runId, db) }));
+  const run = await activateRun(runId, db);
+  console.log(JSON.stringify({ status: run.status, autoGenerate: run.autoGenerate, nextGenerationOn: run.nextGenerationOn }));
+}
+
+async function batchTwo(runId: string) {
+  const slots = await db.query.posts.findMany({ where: (post, { and, eq, isNull }) => and(eq(post.runId, runId), eq(post.status, "topic_set"), isNull(post.batchId)), orderBy: (post, { asc }) => asc(post.slotDate) });
+  const { batchId, posts: count } = await startRunBatch(runId, slots.slice(0, 2).map((post) => post.id), "Run 2, real batch run", db);
+  if (!batchId) throw new Error("No posts to batch.");
+  const runHandle = await startBatchRound(batchId);
+  console.log(JSON.stringify({ batchId, posts: count, triggerRun: runHandle }));
+}
+
+async function batchReport(batchId: string) {
+  const rounds = await db.query.generationBatches.findMany({ where: (row, { eq }) => eq(row.batchId, batchId), orderBy: (row, { asc }) => asc(row.round) });
+  for (const round of rounds) console.log(JSON.stringify({ round: round.round, anthropic: round.anthropicBatchId, status: round.status, requests: round.requests.map((ref) => `${ref.kind}${ref.round ? ` r${ref.round}` : ""} a${ref.attempt} ${ref.outcome ?? "waiting"}`), submitted: round.submittedAt, ended: round.endedAt }));
+  const members = await db.query.posts.findMany({ where: (post, { eq }) => eq(post.batchId, batchId), orderBy: (post, { asc }) => asc(post.slotDate) });
+  for (const post of members) console.log(JSON.stringify({ post: post.id, date: post.slotDate, topic: post.topic, status: post.status }));
+  const calls = await db.query.aiCalls.findMany({ where: (row, { eq }) => eq(row.batchId, batchId), orderBy: (row, { asc }) => asc(row.createdAt) });
+  for (const call of calls) console.log(JSON.stringify({ purpose: call.purpose, model: call.servedModel, batch: call.batch, input: call.inputTokens, output: call.outputTokens, cacheWrite: call.cacheWriteTokens, cacheRead: call.cacheReadTokens, costUsd: call.costUsd, error: call.error }));
+  console.log("total", calls.reduce((sum, call) => sum + Number(call.costUsd), 0).toFixed(6));
+}
+
+async function derived(postId: string) {
+  const queued = await queueDerivedSlots(postId, db);
+  for (const row of queued) await setDerivativeRun(row.id, await startDerivative(row.id), db);
+  console.log(JSON.stringify(queued));
+}
+
 async function main() {
   const [command, id, note] = process.argv.slice(2);
   const batchId = id;
@@ -287,6 +325,10 @@ async function main() {
     else if (command === "plan" && id) await plan(id, note);
     else if (command === "plan-item" && id && note && process.argv[5]) await planItem(id, note, process.argv[5]);
     else if (command === "plan-report" && id) await planReport(id);
+    else if (command === "activate" && id) await activate(id);
+    else if (command === "batch-two" && id) await batchTwo(id);
+    else if (command === "batch-report" && id) await batchReport(id);
+    else if (command === "derived" && id) await derived(id);
     else throw new Error("Usage: real-run.ts start | generate <batchId> | report <batchId> | regenerate <postId> <note> | approve <postId> | post-report <postId>");
   } finally {
     await devPool().end();
